@@ -6,6 +6,6 @@ type Share struct {
 	UserID string `gorm:"column:user_id;not null"`
 }
 
-func (Share) TableName() string {
+func (s *Share) TableName() string {
 	return "shld_shares"
 }
