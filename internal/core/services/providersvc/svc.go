@@ -25,115 +25,160 @@ func New(repo repositories.ProviderRepository) services.ProviderService {
 	}
 }
 
-func (s *service) Configure(ctx context.Context, projectID string, config services.ProviderConfig) error {
+func (s *service) Configure(ctx context.Context, projectID string, config services.ProviderConfig) (*provider.Provider, error) {
 	if config == nil {
-		return ErrNoProviderConfig
+		return nil, ErrNoProviderConfig
 	}
 
 	switch config.GetType() {
 	case provider.TypeCustom:
 		customConfig, ok := config.GetConfig().(*services.CustomProviderConfig)
 		if !ok {
-			return ErrInvalidProviderConfig
+			return nil, ErrInvalidProviderConfig
 		}
 
-		return s.configureCustomAuthentication(ctx, projectID, customConfig.JWKUrl)
+		return s.configureCustomProvider(ctx, projectID, customConfig.JWKUrl)
 	case provider.TypeOpenfort:
 		openfortConfig, ok := config.GetConfig().(*services.OpenfortProviderConfig)
 		if !ok {
-			return ErrInvalidProviderConfig
+			return nil, ErrInvalidProviderConfig
 		}
 
-		return s.configureOpenfortAuthentication(ctx, projectID, openfortConfig.OpenfortProject)
+		return s.configureOpenfortProvider(ctx, projectID, openfortConfig.OpenfortProject)
 	case provider.TypeSupabase:
 		supabaseConfig, ok := config.GetConfig().(*services.SupabaseProviderConfig)
 		if !ok {
-			return ErrInvalidProviderConfig
+			return nil, ErrInvalidProviderConfig
 		}
 
 		return s.configureSupabaseAuthentication(ctx, projectID, supabaseConfig.SupabaseProject)
 	default:
-		return ErrUnknownProviderType
+		return nil, ErrUnknownProviderType
 	}
 }
 
-func (s *service) configureCustomAuthentication(ctx context.Context, projectID, jwkUrl string) error {
-	s.logger.InfoContext(ctx, "configuring custom authentication", slog.String("project_id", projectID))
+func (s *service) configureCustomProvider(ctx context.Context, projectID, jwkUrl string) (*provider.Provider, error) {
+	s.logger.InfoContext(ctx, "configuring custom provider", slog.String("project_id", projectID))
 
-	customAuth, err := s.repo.GetCustom(ctx, projectID)
-	if err != nil && !errors.Is(err, repositories.ErrCustomProviderNotFound) {
-		s.logger.ErrorContext(ctx, "failed to get custom authentication", slog.String("error", err.Error()))
-		return err
+	prov, err := s.repo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
+	if err != nil && !errors.Is(err, repositories.ErrProviderNotFound) {
+		s.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
+		return nil, err
 	}
 
-	if customAuth != nil {
-		s.logger.ErrorContext(ctx, "custom authentication already exists")
-		return ErrCustomProviderAlreadyExists
+	if prov != nil {
+		s.logger.ErrorContext(ctx, "provider already exists", slog.String("error", err.Error()))
+		return nil, ErrProviderAlreadyExists
 	}
 
-	customAuth = &provider.Custom{
+	prov = &provider.Provider{
 		ProjectID: projectID,
-		JWK:       jwkUrl,
+		Type:      provider.TypeCustom,
+	}
+	err = s.repo.Create(ctx, prov)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to create provider", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	customAuth := &provider.Custom{
+		ProviderID: prov.ID,
+		JWK:        jwkUrl,
 	}
 	err = s.repo.CreateCustom(ctx, customAuth)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create custom authentication", slog.String("error", err.Error()))
-		return err
+		s.logger.ErrorContext(ctx, "failed to create custom provider", slog.String("error", err.Error()))
+		errD := s.repo.Delete(ctx, prov.ID)
+		if errD != nil {
+			s.logger.ErrorContext(ctx, "failed to delete provider", slog.String("provider", prov.ID), slog.String("error", errD.Error()))
+			errors.Join(err, errD)
+		}
+		return nil, err
 	}
 
-	return nil
+	return prov, nil
 }
 
-func (s *service) configureOpenfortAuthentication(ctx context.Context, projectID, openfortProject string) error {
-	s.logger.InfoContext(ctx, "configuring openfort authentication", slog.String("project_id", projectID))
+func (s *service) configureOpenfortProvider(ctx context.Context, projectID, openfortProject string) (*provider.Provider, error) {
+	s.logger.InfoContext(ctx, "configuring openfort provider", slog.String("project_id", projectID))
 
-	openfortAuth, err := s.repo.GetOpenfort(ctx, projectID)
-	if err != nil && !errors.Is(err, repositories.ErrOpenfortProviderNotFound) {
-		s.logger.ErrorContext(ctx, "failed to get openfort authentication", slog.String("error", err.Error()))
-		return err
+	prov, err := s.repo.GetByProjectAndType(ctx, projectID, provider.TypeOpenfort)
+	if err != nil && !errors.Is(err, repositories.ErrProviderNotFound) {
+		s.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
+		return nil, err
 	}
 
-	if openfortAuth != nil {
-		s.logger.ErrorContext(ctx, "openfort authentication already exists")
-		return ErrOpenfortProviderAlreadyExists
+	if prov != nil {
+		s.logger.ErrorContext(ctx, "provider already exists", slog.String("error", err.Error()))
+		return nil, ErrProviderAlreadyExists
 	}
 
-	openfortAuth = &provider.Openfort{
-		ProjectID:         projectID,
+	prov = &provider.Provider{
+		ProjectID: projectID,
+		Type:      provider.TypeOpenfort,
+	}
+	err = s.repo.Create(ctx, prov)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to create provider", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	openfortAuth := &provider.Openfort{
+		ProviderID:        prov.ID,
 		OpenfortProjectID: openfortProject,
 	}
 	err = s.repo.CreateOpenfort(ctx, openfortAuth)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create openfort authentication", slog.String("error", err.Error()))
-		return err
+		s.logger.ErrorContext(ctx, "failed to create openfort provider", slog.String("error", err.Error()))
+		errD := s.repo.Delete(ctx, prov.ID)
+		if errD != nil {
+			s.logger.ErrorContext(ctx, "failed to delete provider", slog.String("provider", prov.ID), slog.String("error", errD.Error()))
+			errors.Join(err, errD)
+		}
+		return nil, err
 	}
 
-	return nil
+	return prov, nil
 }
 
-func (s *service) configureSupabaseAuthentication(ctx context.Context, projectID, supabaseProject string) error {
+func (s *service) configureSupabaseAuthentication(ctx context.Context, projectID, supabaseProject string) (*provider.Provider, error) {
 	s.logger.InfoContext(ctx, "configuring supabase authentication", slog.String("project_id", projectID))
 
-	supabaseAuth, err := s.repo.GetSupabase(ctx, projectID)
-	if err != nil && !errors.Is(err, repositories.ErrSupabaseProviderNotFound) {
-		s.logger.ErrorContext(ctx, "failed to get supabase authentication", slog.String("error", err.Error()))
-		return err
+	prov, err := s.repo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
+	if err != nil && !errors.Is(err, repositories.ErrProviderNotFound) {
+		s.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
+		return nil, err
 	}
 
-	if supabaseAuth != nil {
-		s.logger.ErrorContext(ctx, "supabase authentication already exists")
-		return ErrSupabaseProviderAlreadyExists
+	if prov != nil {
+		s.logger.ErrorContext(ctx, "provider already exists", slog.String("error", err.Error()))
+		return nil, ErrProviderAlreadyExists
 	}
 
-	supabaseAuth = &provider.Supabase{
-		ProjectID:                projectID,
+	prov = &provider.Provider{
+		ProjectID: projectID,
+		Type:      provider.TypeSupabase,
+	}
+	err = s.repo.Create(ctx, prov)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to create provider", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	supabaseAuth := &provider.Supabase{
+		ProviderID:               prov.ID,
 		SupabaseProjectReference: supabaseProject,
 	}
 	err = s.repo.CreateSupabase(ctx, supabaseAuth)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create supabase authentication", slog.String("error", err.Error()))
-		return err
+		s.logger.ErrorContext(ctx, "failed to create supabase provider", slog.String("error", err.Error()))
+		errD := s.repo.Delete(ctx, prov.ID)
+		if errD != nil {
+			s.logger.ErrorContext(ctx, "failed to delete provider", slog.String("provider", prov.ID), slog.String("error", errD.Error()))
+			errors.Join(err, errD)
+		}
+		return nil, err
 	}
 
-	return nil
+	return prov, nil
 }

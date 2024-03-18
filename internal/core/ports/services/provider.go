@@ -6,7 +6,7 @@ import (
 )
 
 type ProviderService interface {
-	Configure(ctx context.Context, projectID string, config ProviderConfig) error
+	Configure(ctx context.Context, projectID string, config ProviderConfig) (*provider.Provider, error)
 }
 
 type ProviderConfig interface {

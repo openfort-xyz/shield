@@ -1,7 +1,6 @@
 package provider
 
 type Supabase struct {
-	ID                       string
-	ProjectID                string
+	ProviderID               string
 	SupabaseProjectReference string
 }

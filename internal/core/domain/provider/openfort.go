@@ -1,7 +1,6 @@
 package provider
 
 type Openfort struct {
-	ID                string
-	ProjectID         string
+	ProviderID        string
 	OpenfortProjectID string
 }
