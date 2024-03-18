@@ -15,7 +15,7 @@ type Provider struct {
 }
 
 func (Provider) TableName() string {
-	return "shld_provider"
+	return "shld_providers"
 }
 
 type Type string
@@ -32,7 +32,7 @@ type ProviderOpenfort struct {
 }
 
 func (ProviderOpenfort) TableName() string {
-	return "shld_provider_openfort"
+	return "shld_openfort_providers"
 }
 
 type ProviderSupabase struct {
@@ -41,7 +41,7 @@ type ProviderSupabase struct {
 }
 
 func (ProviderSupabase) TableName() string {
-	return "shld_provider_supabase"
+	return "shld_supabase_providers"
 }
 
 type ProviderCustom struct {
@@ -50,5 +50,5 @@ type ProviderCustom struct {
 }
 
 func (ProviderCustom) TableName() string {
-	return "shld_provider_custom"
+	return "shld_custom_providers"
 }
