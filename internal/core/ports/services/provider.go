@@ -22,6 +22,10 @@ func (c *CustomProviderConfig) GetType() provider.Type {
 	return provider.TypeCustom
 }
 
+func (c *CustomProviderConfig) GetConfig() interface{} {
+	return c
+}
+
 type OpenfortProviderConfig struct {
 	OpenfortProject string
 }
@@ -30,10 +34,18 @@ func (o *OpenfortProviderConfig) GetType() provider.Type {
 	return provider.TypeOpenfort
 }
 
+func (o *OpenfortProviderConfig) GetConfig() interface{} {
+	return o
+}
+
 type SupabaseProviderConfig struct {
 	SupabaseProject string
 }
 
 func (s *SupabaseProviderConfig) GetType() provider.Type {
 	return provider.TypeSupabase
+}
+
+func (s *SupabaseProviderConfig) GetConfig() interface{} {
+	return s
 }
