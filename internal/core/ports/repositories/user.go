@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	ErrUserNotFound         = errors.New("user not found")
 	ErrExternalUserNotFound = errors.New("external user not found")
 )
 
@@ -24,6 +25,6 @@ type UserRepository interface {
 	WithProjectID(projectID string) Option
 }
 
-type Option func(*Options)
+type Option func(Options)
 
 type Options interface{}
