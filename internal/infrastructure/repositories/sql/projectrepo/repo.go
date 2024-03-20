@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
@@ -52,7 +53,7 @@ func (r *repository) Get(ctx context.Context, projectID string) (*project.Projec
 	err := r.db.Where("id = ?", projectID).First(dbProj).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repositories.ErrProjectNotFound
+			return nil, domain.ErrProjectNotFound
 		}
 		r.logger.ErrorContext(ctx, "error getting project", slog.String("error", err.Error()))
 		return nil, err
@@ -68,7 +69,7 @@ func (r *repository) GetByAPIKey(ctx context.Context, apiKey string) (*project.P
 	err := r.db.Where("api_key = ?", apiKey).First(dbProj).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repositories.ErrProjectNotFound
+			return nil, domain.ErrProjectNotFound
 		}
 		r.logger.ErrorContext(ctx, "error getting project", slog.String("error", err.Error()))
 		return nil, err

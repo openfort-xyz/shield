@@ -2,12 +2,7 @@ package repositories
 
 import (
 	"context"
-	"errors"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
-)
-
-var (
-	ErrProviderNotFound = errors.New("custom authentication not found")
 )
 
 type ProviderRepository interface {

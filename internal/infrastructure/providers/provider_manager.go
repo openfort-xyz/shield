@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"errors"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/providers"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -32,7 +33,7 @@ func (p *ProviderManager) GetProvider(ctx context.Context, projectID string, pro
 	case provider.TypeCustom:
 		config, err := p.repo.GetCustom(ctx, projectID)
 		if err != nil {
-			if errors.Is(err, repositories.ErrProviderNotFound) {
+			if errors.Is(err, domain.ErrProviderNotFound) {
 				return nil, ErrProviderNotConfigured
 			}
 			p.logger.ErrorContext(ctx, "failed to get custom provider", slog.String("error", err.Error()))
@@ -42,7 +43,7 @@ func (p *ProviderManager) GetProvider(ctx context.Context, projectID string, pro
 	case provider.TypeOpenfort:
 		config, err := p.repo.GetOpenfort(ctx, projectID)
 		if err != nil {
-			if errors.Is(err, repositories.ErrProviderNotFound) {
+			if errors.Is(err, domain.ErrProviderNotFound) {
 				return nil, ErrProviderNotConfigured
 			}
 			p.logger.ErrorContext(ctx, "failed to get openfort provider", slog.String("error", err.Error()))
@@ -52,7 +53,7 @@ func (p *ProviderManager) GetProvider(ctx context.Context, projectID string, pro
 	case provider.TypeSupabase:
 		config, err := p.repo.GetSupabase(ctx, projectID)
 		if err != nil {
-			if errors.Is(err, repositories.ErrProviderNotFound) {
+			if errors.Is(err, domain.ErrProviderNotFound) {
 				return nil, ErrProviderNotConfigured
 			}
 			p.logger.ErrorContext(ctx, "failed to get supabase provider", slog.String("error", err.Error()))

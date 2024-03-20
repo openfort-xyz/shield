@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
@@ -53,7 +54,7 @@ func (r *repository) GetByProjectAndType(ctx context.Context, projectID string, 
 	err := r.db.Preload("Custom").Preload("Openfort").Preload("Supabase").Where("project_id = ? AND type = ?", projectID, r.parser.mapProviderTypeToDatabase[providerType]).First(dbProv).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repositories.ErrProviderNotFound
+			return nil, domain.ErrProviderNotFound
 		}
 		r.logger.ErrorContext(ctx, "error getting provider", slog.String("error", err.Error()))
 		return nil, err
@@ -112,7 +113,7 @@ func (r *repository) GetCustom(ctx context.Context, providerID string) (*provide
 	err := r.db.Where("provider_id = ?", providerID).First(dbProv).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repositories.ErrProviderNotFound
+			return nil, domain.ErrProviderNotFound
 		}
 		r.logger.ErrorContext(ctx, "error getting custom provider", slog.String("error", err.Error()))
 		return nil, err
@@ -141,7 +142,7 @@ func (r *repository) GetOpenfort(ctx context.Context, providerID string) (*provi
 	err := r.db.Where("provider_id = ?", providerID).First(dbProv).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repositories.ErrProviderNotFound
+			return nil, domain.ErrProviderNotFound
 		}
 		r.logger.ErrorContext(ctx, "error getting openfort provider", slog.String("error", err.Error()))
 		return nil, err
@@ -170,7 +171,7 @@ func (r *repository) GetSupabase(ctx context.Context, providerID string) (*provi
 	err := r.db.Where("provider_id = ?", providerID).First(dbProv).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repositories.ErrProviderNotFound
+			return nil, domain.ErrProviderNotFound
 		}
 		r.logger.ErrorContext(ctx, "error getting supabase provider", slog.String("error", err.Error()))
 		return nil, err

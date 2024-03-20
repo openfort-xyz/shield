@@ -3,6 +3,7 @@ package userrepo
 import (
 	"context"
 	"errors"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/user"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
@@ -48,7 +49,7 @@ func (r *repository) Get(ctx context.Context, userID string) (*user.User, error)
 	err := r.db.Where("id = ?", userID).First(dbUsr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repositories.ErrUserNotFound
+			return nil, domain.ErrUserNotFound
 		}
 		r.logger.ErrorContext(ctx, "error getting user", slog.String("error", err.Error()))
 		return nil, err

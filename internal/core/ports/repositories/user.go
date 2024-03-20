@@ -2,13 +2,7 @@ package repositories
 
 import (
 	"context"
-	"errors"
 	"go.openfort.xyz/shield/internal/core/domain/user"
-)
-
-var (
-	ErrUserNotFound         = errors.New("user not found")
-	ErrExternalUserNotFound = errors.New("external user not found")
 )
 
 type UserRepository interface {

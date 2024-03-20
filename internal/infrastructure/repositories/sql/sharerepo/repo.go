@@ -3,6 +3,7 @@ package sharerepo
 import (
 	"context"
 	"errors"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
@@ -49,7 +50,7 @@ func (r *repository) GetByUserID(ctx context.Context, userID string) (*share.Sha
 	err := r.db.Where("user_id = ?", userID).First(dbShr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, repositories.ErrShareNotFound
+			return nil, domain.ErrShareNotFound
 		}
 		r.logger.ErrorContext(ctx, "error getting share", slog.String("error", err.Error()))
 		return nil, err

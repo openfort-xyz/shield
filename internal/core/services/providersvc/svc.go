@@ -3,6 +3,7 @@ package providersvc
 import (
 	"context"
 	"errors"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
@@ -27,33 +28,33 @@ func New(repo repositories.ProviderRepository) services.ProviderService {
 
 func (s *service) Configure(ctx context.Context, projectID string, config services.ProviderConfig) (*provider.Provider, error) {
 	if config == nil {
-		return nil, ErrNoProviderConfig
+		return nil, domain.ErrNoProviderConfig
 	}
 
 	switch config.GetType() {
 	case provider.TypeCustom:
 		customConfig, ok := config.GetConfig().(*services.CustomProviderConfig)
 		if !ok {
-			return nil, ErrInvalidProviderConfig
+			return nil, domain.ErrInvalidProviderConfig
 		}
 
 		return s.configureCustomProvider(ctx, projectID, customConfig.JWKUrl)
 	case provider.TypeOpenfort:
 		openfortConfig, ok := config.GetConfig().(*services.OpenfortProviderConfig)
 		if !ok {
-			return nil, ErrInvalidProviderConfig
+			return nil, domain.ErrInvalidProviderConfig
 		}
 
 		return s.configureOpenfortProvider(ctx, projectID, openfortConfig.OpenfortProject)
 	case provider.TypeSupabase:
 		supabaseConfig, ok := config.GetConfig().(*services.SupabaseProviderConfig)
 		if !ok {
-			return nil, ErrInvalidProviderConfig
+			return nil, domain.ErrInvalidProviderConfig
 		}
 
 		return s.configureSupabaseAuthentication(ctx, projectID, supabaseConfig.SupabaseProject)
 	default:
-		return nil, ErrUnknownProviderType
+		return nil, domain.ErrUnknownProviderType
 	}
 }
 
@@ -93,14 +94,14 @@ func (s *service) configureCustomProvider(ctx context.Context, projectID, jwkUrl
 	s.logger.InfoContext(ctx, "configuring custom provider", slog.String("project_id", projectID))
 
 	prov, err := s.repo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
-	if err != nil && !errors.Is(err, repositories.ErrProviderNotFound) {
+	if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	if prov != nil {
 		s.logger.ErrorContext(ctx, "provider already exists", slog.String("error", err.Error()))
-		return nil, ErrProviderAlreadyExists
+		return nil, domain.ErrProviderAlreadyExists
 	}
 
 	prov = &provider.Provider{
@@ -136,14 +137,14 @@ func (s *service) configureOpenfortProvider(ctx context.Context, projectID, open
 	s.logger.InfoContext(ctx, "configuring openfort provider", slog.String("project_id", projectID))
 
 	prov, err := s.repo.GetByProjectAndType(ctx, projectID, provider.TypeOpenfort)
-	if err != nil && !errors.Is(err, repositories.ErrProviderNotFound) {
+	if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	if prov != nil {
 		s.logger.ErrorContext(ctx, "provider already exists", slog.String("error", err.Error()))
-		return nil, ErrProviderAlreadyExists
+		return nil, domain.ErrProviderAlreadyExists
 	}
 
 	prov = &provider.Provider{
@@ -179,14 +180,14 @@ func (s *service) configureSupabaseAuthentication(ctx context.Context, projectID
 	s.logger.InfoContext(ctx, "configuring supabase authentication", slog.String("project_id", projectID))
 
 	prov, err := s.repo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
-	if err != nil && !errors.Is(err, repositories.ErrProviderNotFound) {
+	if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	if prov != nil {
 		s.logger.ErrorContext(ctx, "provider already exists", slog.String("error", err.Error()))
-		return nil, ErrProviderAlreadyExists
+		return nil, domain.ErrProviderAlreadyExists
 	}
 
 	prov = &provider.Provider{

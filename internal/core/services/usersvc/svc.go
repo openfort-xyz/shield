@@ -3,6 +3,7 @@ package usersvc
 import (
 	"context"
 	"errors"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/user"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
@@ -62,7 +63,7 @@ func (s *service) GetByExternal(ctx context.Context, externalUserID, providerID 
 
 	if len(extUsrs) == 0 {
 		s.logger.ErrorContext(ctx, "external user not found", slog.String("external_user_id", externalUserID), slog.String("provider_id", string(providerID)))
-		return nil, repositories.ErrExternalUserNotFound
+		return nil, domain.ErrExternalUserNotFound
 	}
 
 	extUsr := extUsrs[0]
@@ -86,23 +87,23 @@ func (s *service) CreateExternal(ctx context.Context, projectID, userID, externa
 
 	if usr == nil {
 		s.logger.ErrorContext(ctx, "user not found", slog.String("user_id", userID))
-		return nil, ErrUserNotFound
+		return nil, domain.ErrUserNotFound
 	}
 
 	if usr.ProjectID != projectID {
 		s.logger.ErrorContext(ctx, "user does not belong to project", slog.String("project_id", projectID), slog.String("user_id", userID))
-		return nil, ErrUserNotFound
+		return nil, domain.ErrUserNotFound
 	}
 
 	extUsrs, err := s.repo.FindExternalBy(ctx, s.repo.WithUserID(userID), s.repo.WithProviderID(providerID))
-	if err != nil && !errors.Is(err, repositories.ErrExternalUserNotFound) {
+	if err != nil && !errors.Is(err, domain.ErrExternalUserNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get external user", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	if len(extUsrs) != 0 {
 		s.logger.ErrorContext(ctx, "external user already exists for this user and provider", slog.String("user_id", userID), slog.String("provider_type", string(providerID)))
-		return nil, ErrExternalUserAlreadyExists
+		return nil, domain.ErrExternalUserAlreadyExists
 	}
 
 	extUsr := &user.ExternalUser{

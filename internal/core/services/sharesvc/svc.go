@@ -2,6 +2,7 @@ package sharesvc
 
 import (
 	"context"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
@@ -35,7 +36,7 @@ func (s *service) Create(ctx context.Context, userID, data string) error {
 
 	if shr != nil {
 		s.logger.ErrorContext(ctx, "share already exists", slog.String("user_id", userID))
-		return ErrShareAlreadyExists
+		return domain.ErrShareAlreadyExists
 	}
 
 	shr = &share.Share{
