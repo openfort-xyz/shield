@@ -13,6 +13,8 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
+	"go.openfort.xyz/shield/internal/infrastructure/authentication"
+	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest"
 	"go.openfort.xyz/shield/internal/infrastructure/providers"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql/projectrepo"
@@ -130,6 +132,29 @@ func ProvideProjectApplication() (a *projectapp.ProjectApplication, err error) {
 		projectapp.New,
 		ProvideProjectService,
 		ProvideProviderService,
+	)
+
+	return
+}
+
+func ProvideAuthenticationManager() (am *authentication.Manager, err error) {
+	wire.Build(
+		authentication.NewManager,
+		ProvideSQLProjectRepository,
+		ProvideProviderManager,
+		ProvideUserService,
+	)
+
+	return
+}
+
+func ProvideRESTServer() (s *rest.Server, err error) {
+	wire.Build(
+		rest.New,
+		rest.GetConfigFromEnv,
+		ProvideUserApplication,
+		ProvideProjectApplication,
+		ProvideAuthenticationManager,
 	)
 
 	return

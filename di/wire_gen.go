@@ -15,6 +15,8 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
+	"go.openfort.xyz/shield/internal/infrastructure/authentication"
+	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest"
 	"go.openfort.xyz/shield/internal/infrastructure/providers"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql/projectrepo"
@@ -118,8 +120,8 @@ func ProvideProviderManager() (*providers.Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	providerManager := providers.NewManager(config, providerRepository)
-	return providerManager, nil
+	manager := providers.NewManager(config, providerRepository)
+	return manager, nil
 }
 
 func ProvideUserApplication() (*userapp.UserApplication, error) {
@@ -139,11 +141,11 @@ func ProvideUserApplication() (*userapp.UserApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	providerManager, err := ProvideProviderManager()
+	manager, err := ProvideProviderManager()
 	if err != nil {
 		return nil, err
 	}
-	userApplication := userapp.New(userService, shareService, projectService, providerService, providerManager)
+	userApplication := userapp.New(userService, shareService, projectService, providerService, manager)
 	return userApplication, nil
 }
 
@@ -158,4 +160,42 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	}
 	projectApplication := projectapp.New(projectService, providerService)
 	return projectApplication, nil
+}
+
+func ProvideAuthenticationManager() (*authentication.Manager, error) {
+	projectRepository, err := ProvideSQLProjectRepository()
+	if err != nil {
+		return nil, err
+	}
+	manager, err := ProvideProviderManager()
+	if err != nil {
+		return nil, err
+	}
+	userService, err := ProvideUserService()
+	if err != nil {
+		return nil, err
+	}
+	authenticationManager := authentication.NewManager(projectRepository, manager, userService)
+	return authenticationManager, nil
+}
+
+func ProvideRESTServer() (*rest.Server, error) {
+	config, err := rest.GetConfigFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	projectApplication, err := ProvideProjectApplication()
+	if err != nil {
+		return nil, err
+	}
+	userApplication, err := ProvideUserApplication()
+	if err != nil {
+		return nil, err
+	}
+	manager, err := ProvideAuthenticationManager()
+	if err != nil {
+		return nil, err
+	}
+	server := rest.New(config, projectApplication, userApplication, manager)
+	return server, nil
 }
