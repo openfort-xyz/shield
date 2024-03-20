@@ -1,1 +1,44 @@
 package cli
+
+import (
+	"github.com/spf13/cobra"
+	"go.openfort.xyz/shield/di"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+)
+
+func NewCmdServer() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "server",
+		Short:   "Run the server",
+		Long:    "Run the OpenFort Shield server",
+		Example: "shield server",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			server, err := di.ProvideRESTServer()
+			if err != nil {
+				return err
+			}
+
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				<-sigCh
+				_ = server.Stop(cmd.Context())
+				wg.Done()
+			}()
+
+			if err = server.Start(cmd.Context()); err != nil {
+				return err
+			}
+
+			wg.Wait()
+			return nil
+		},
+	}
+	return cmd
+}

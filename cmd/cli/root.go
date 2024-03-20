@@ -9,6 +9,7 @@ func NewCmdRoot() *cobra.Command {
 	}
 
 	cmd.AddCommand(NewCmdDB())
+	cmd.AddCommand(NewCmdServer())
 
 	return cmd
 }

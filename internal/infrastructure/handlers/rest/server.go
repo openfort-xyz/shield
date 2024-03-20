@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"fmt"
 	"github.com/gorilla/mux"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/userapp"
@@ -22,15 +23,17 @@ type Server struct {
 	authManager *authentication.Manager
 	server      *http.Server
 	logger      *slog.Logger
+	config      *Config
 }
 
-func New(projectApp *projectapp.ProjectApplication, userApp *userapp.UserApplication, authManager *authentication.Manager) *Server {
+func New(cfg *Config, projectApp *projectapp.ProjectApplication, userApp *userapp.UserApplication, authManager *authentication.Manager) *Server {
 	return &Server{
 		projectApp:  projectApp,
 		userApp:     userApp,
 		authManager: authManager,
 		server:      new(http.Server),
 		logger:      slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("rest_server"),
+		config:      cfg,
 	}
 }
 
@@ -56,7 +59,7 @@ func (s *Server) Start(ctx context.Context) error {
 	u.HandleFunc("/", userHdl.GetShare).Methods(http.MethodGet)
 	u.HandleFunc("/", userHdl.RegisterShare).Methods(http.MethodPost)
 
-	s.server.Addr = ":8080"
+	s.server.Addr = fmt.Sprintf(":%d", s.config.Port)
 	s.server.Handler = r
 	return s.server.ListenAndServe()
 }

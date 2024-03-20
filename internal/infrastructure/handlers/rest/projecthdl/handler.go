@@ -3,7 +3,6 @@ package projecthdl
 import (
 	"encoding/json"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
-	"go.openfort.xyz/shield/pkg/ofcontext"
 	"go.openfort.xyz/shield/pkg/oflog"
 	"io"
 	"log/slog"
@@ -62,8 +61,7 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting project")
 
-	projectID := ofcontext.GetProjectID(ctx)
-	proj, err := h.app.GetProject(ctx, projectID)
+	proj, err := h.app.GetProject(ctx)
 	if err != nil { // TODO parse error
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -83,8 +81,6 @@ func (h *Handler) AddProviders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "adding providers")
 
-	projectID := ofcontext.GetProjectID(ctx)
-
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -98,7 +94,7 @@ func (h *Handler) AddProviders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	providers, err := h.app.AddProviders(ctx, projectID, h.parser.fromAddProvidersRequest(&req)...)
+	providers, err := h.app.AddProviders(ctx, h.parser.fromAddProvidersRequest(&req)...)
 	if err != nil { // TODO parse error
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -118,8 +114,7 @@ func (h *Handler) GetProviders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting providers")
 
-	projectID := ofcontext.GetProjectID(ctx)
-	providers, err := h.app.GetProviders(ctx, projectID)
+	providers, err := h.app.GetProviders(ctx)
 	if err != nil { // TODO parse error
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -140,9 +135,8 @@ func (h *Handler) GetProvider(w http.ResponseWriter, r *http.Request) {
 	h.logger.InfoContext(ctx, "getting provider")
 
 	providerID := r.URL.Query().Get("provider_id")
-	projectID := ofcontext.GetProjectID(ctx)
 
-	prov, err := h.app.GetProviderDetail(ctx, projectID, providerID)
+	prov, err := h.app.GetProviderDetail(ctx, providerID)
 	if err != nil { // TODO parse error
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -168,9 +162,8 @@ func (h *Handler) DeleteProvider(w http.ResponseWriter, r *http.Request) {
 	h.logger.InfoContext(ctx, "deleting provider")
 
 	providerID := r.URL.Query().Get("provider_id")
-	projectID := ofcontext.GetProjectID(ctx)
 
-	err := h.app.RemoveProvider(ctx, projectID, providerID)
+	err := h.app.RemoveProvider(ctx, providerID)
 	if err != nil { // TODO parse error
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

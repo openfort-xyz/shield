@@ -37,8 +37,10 @@ func (a *ProjectApplication) CreateProject(ctx context.Context, name string) (*p
 	return proj, nil
 }
 
-func (a *ProjectApplication) GetProject(ctx context.Context, projectID string) (*project.Project, error) {
+func (a *ProjectApplication) GetProject(ctx context.Context) (*project.Project, error) {
 	a.logger.InfoContext(ctx, "getting project")
+
+	projectID := ofcontext.GetProjectID(ctx)
 
 	proj, err := a.projectSvc.Get(ctx, projectID)
 	if err != nil {
@@ -54,8 +56,10 @@ func (a *ProjectApplication) GetProject(ctx context.Context, projectID string) (
 	return proj, nil
 }
 
-func (a *ProjectApplication) AddProviders(ctx context.Context, projectID string, opts ...ProviderOption) ([]*provider.Provider, error) {
+func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderOption) ([]*provider.Provider, error) {
 	a.logger.InfoContext(ctx, "adding providers")
+
+	projectID := ofcontext.GetProjectID(ctx)
 
 	cfg := &providerConfig{}
 	for _, opt := range opts {
@@ -111,8 +115,10 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, projectID string,
 	return providers, nil
 }
 
-func (a *ProjectApplication) GetProviders(ctx context.Context, projectID string) ([]*provider.Provider, error) {
+func (a *ProjectApplication) GetProviders(ctx context.Context) ([]*provider.Provider, error) {
 	a.logger.InfoContext(ctx, "listing providers")
+
+	projectID := ofcontext.GetProjectID(ctx)
 
 	proj, err := a.projectSvc.Get(ctx, projectID)
 	if err != nil {
@@ -134,8 +140,10 @@ func (a *ProjectApplication) GetProviders(ctx context.Context, projectID string)
 	return providers, nil
 }
 
-func (a *ProjectApplication) GetProviderDetail(ctx context.Context, projectID string, providerID string) (*provider.Provider, error) { // TODO return provider detail (custom, openfort, supabase)
+func (a *ProjectApplication) GetProviderDetail(ctx context.Context, providerID string) (*provider.Provider, error) { // TODO return provider detail (custom, openfort, supabase)
 	a.logger.InfoContext(ctx, "getting provider detail")
+
+	projectID := ofcontext.GetProjectID(ctx)
 
 	proj, err := a.projectSvc.Get(ctx, projectID)
 	if err != nil {
@@ -162,8 +170,10 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context) error {
 	return nil
 }
 
-func (a *ProjectApplication) RemoveProvider(ctx context.Context, projectID, providerID string) error { // TODO delete external users
+func (a *ProjectApplication) RemoveProvider(ctx context.Context, providerID string) error { // TODO delete external users
 	a.logger.InfoContext(ctx, "removing provider")
+
+	projectID := ofcontext.GetProjectID(ctx)
 
 	proj, err := a.projectSvc.Get(ctx, projectID)
 	if err != nil {

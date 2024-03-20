@@ -4,6 +4,9 @@ import (
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/authentication"
+	"go.openfort.xyz/shield/internal/core/ports/repositories"
+	"go.openfort.xyz/shield/internal/core/ports/services"
+	"go.openfort.xyz/shield/internal/infrastructure/providers"
 	"strings"
 )
 
@@ -13,11 +16,11 @@ type Manager struct {
 	UserAuthenticator      authentication.UserAuthenticator
 }
 
-func NewManager(apiKeyAuthenticator authentication.APIKeyAuthenticator, apiSecretAuthenticator authentication.APISecretAuthenticator, userAuthenticator authentication.UserAuthenticator) *Manager {
+func NewManager(repo repositories.ProjectRepository, providerManager *providers.Manager, userService services.UserService) *Manager {
 	return &Manager{
-		APIKeyAuthenticator:    apiKeyAuthenticator,
-		APISecretAuthenticator: apiSecretAuthenticator,
-		UserAuthenticator:      userAuthenticator,
+		APIKeyAuthenticator:    newAPIKeyAuthenticator(repo),
+		APISecretAuthenticator: newAPISecretAuthenticator(repo),
+		UserAuthenticator:      newUserAuthenticator(repo, providerManager, userService),
 	}
 }
 
