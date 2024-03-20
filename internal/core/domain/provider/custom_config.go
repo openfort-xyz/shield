@@ -1,6 +1,6 @@
 package provider
 
-type Custom struct {
+type CustomConfig struct {
 	ProviderID string
 	JWK        string
 }

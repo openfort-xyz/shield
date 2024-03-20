@@ -60,3 +60,19 @@ func (r *repository) Get(ctx context.Context, projectID string) (*project.Projec
 
 	return r.parser.toDomain(dbProj), nil
 }
+
+func (r *repository) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {
+	r.logger.InfoContext(ctx, "getting project by API key")
+
+	var dbProj *Project
+	err := r.db.Where("api_key = ?", apiKey).First(dbProj).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, repositories.ErrProjectNotFound
+		}
+		r.logger.ErrorContext(ctx, "error getting project", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	return r.parser.toDomain(dbProj), nil
+}

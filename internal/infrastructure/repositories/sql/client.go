@@ -2,9 +2,11 @@ package sql
 
 import (
 	"database/sql"
+	"github.com/pressly/goose"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"path/filepath"
 )
 
 type Client struct {
@@ -53,4 +55,58 @@ func newPostgres(cfg *Config) (*Client, error) {
 	}
 
 	return &Client{db}, nil
+}
+
+func (c *Client) Migrate() error {
+	migrationDir, err := filepath.Abs(migrationDirectory)
+	if err != nil {
+		return err
+	}
+
+	if err := goose.SetDialect(c.DB.Dialector.Name()); err != nil {
+		return err
+	}
+
+	db, err := c.DB.DB()
+	if err != nil {
+		return err
+	}
+
+	return goose.Run("up", db, migrationDir)
+}
+
+func (c *Client) Rollback() error {
+	migrationDir, err := filepath.Abs(migrationDirectory)
+	if err != nil {
+		return err
+	}
+
+	if err := goose.SetDialect(c.DB.Dialector.Name()); err != nil {
+		return err
+	}
+
+	db, err := c.DB.DB()
+	if err != nil {
+		return err
+	}
+
+	return goose.Run("down", db, migrationDir)
+}
+
+func CreateMigration(name string) error {
+	migrationDir, err := filepath.Abs(migrationDirectory)
+	if err != nil {
+		return err
+	}
+
+	return goose.Run("create", nil, migrationDir, name, "sql")
+}
+
+func (c *Client) Close() error {
+	sqlDB, err := c.DB.DB()
+	if err != nil {
+		return err
+	}
+
+	return sqlDB.Close()
 }

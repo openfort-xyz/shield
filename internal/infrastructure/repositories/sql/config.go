@@ -9,9 +9,9 @@ type Config struct {
 	Driver Driver `env:"DB_DRIVER" envDefault:"mysql"`
 	Host   string `env:"DB_HOST" envDefault:"localhost"`
 	Port   int    `env:"DB_PORT" envDefault:"3306"`
-	User   string `env:"DB_USER,required"`
-	Pass   string `env:"DB_PASS,required"`
-	DBName string `env:"DB_NAME,required"`
+	User   string `env:"DB_USER" envDefault:"user"`
+	Pass   string `env:"DB_PASS" envDefault:"password"`
+	DBName string `env:"DB_NAME" envDefault:"shield"`
 
 	// MySQL
 	Charset   string `env:"DB_MYSQL_CHARSET" envDefault:"utf8mb4"`
@@ -22,6 +22,8 @@ type Config struct {
 	SSLMode  string `env:"DB_POSTGRES_SSL_MODE" envDefault:"disable"`
 	TimeZone string `env:"DB_POSTGRES_TIME_ZONE" envDefault:"Europe/Madrid"`
 }
+
+const migrationDirectory = "internal/infrastructure/repositories/sql/migrations"
 
 func GetConfigFromEnv() (*Config, error) {
 	cfg := &Config{}

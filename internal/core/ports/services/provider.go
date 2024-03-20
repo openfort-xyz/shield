@@ -7,6 +7,9 @@ import (
 
 type ProviderService interface {
 	Configure(ctx context.Context, projectID string, config ProviderConfig) (*provider.Provider, error)
+	Get(ctx context.Context, providerID string) (*provider.Provider, error)
+	List(ctx context.Context, projectID string) ([]*provider.Provider, error)
+	Remove(ctx context.Context, projectID string, providerID string) error
 }
 
 type ProviderConfig interface {

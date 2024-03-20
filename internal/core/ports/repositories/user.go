@@ -3,7 +3,6 @@ package repositories
 import (
 	"context"
 	"errors"
-	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/domain/user"
 )
 
@@ -19,10 +18,9 @@ type UserRepository interface {
 	CreateExternal(ctx context.Context, user *user.ExternalUser) error
 	FindExternalBy(ctx context.Context, opts ...Option) ([]*user.ExternalUser, error)
 
-	WithProviderType(providerType provider.Type) Option
 	WithUserID(userID string) Option
 	WithExternalUserID(externalUserID string) Option
-	WithProjectID(projectID string) Option
+	WithProviderID(providerID string) Option
 }
 
 type Option func(Options)

@@ -16,11 +16,11 @@ type ProviderRepository interface {
 	List(ctx context.Context, projectID string) ([]*provider.Provider, error)
 	Delete(ctx context.Context, providerID string) error
 
-	CreateCustom(ctx context.Context, provider *provider.Custom) error
-	GetCustom(ctx context.Context, providerID string) (*provider.Custom, error)
+	CreateCustom(ctx context.Context, provider *provider.CustomConfig) error
+	GetCustom(ctx context.Context, providerID string) (*provider.CustomConfig, error)
 
-	CreateOpenfort(ctx context.Context, provider *provider.Openfort) error
-	GetOpenfort(ctx context.Context, providerID string) (*provider.Openfort, error)
+	CreateOpenfort(ctx context.Context, provider *provider.OpenfortConfig) error
+	GetOpenfort(ctx context.Context, providerID string) (*provider.OpenfortConfig, error)
 
 	CreateSupabase(ctx context.Context, provider *provider.Supabase) error
 	GetSupabase(ctx context.Context, providerID string) (*provider.Supabase, error)

@@ -51,3 +51,14 @@ func (s *service) Get(ctx context.Context, projectID string) (*project.Project, 
 
 	return proj, nil
 }
+
+func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {
+	s.logger.InfoContext(ctx, "getting project by API key", slog.String("api_key", apiKey))
+	proj, err := s.repo.GetByAPIKey(ctx, apiKey)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to get project by API key", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	return proj, nil
+}

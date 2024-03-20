@@ -12,6 +12,10 @@ type Provider struct {
 	CreatedAt time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`
+
+	Openfort *ProviderOpenfort
+	Supabase *ProviderSupabase
+	Custom   *ProviderCustom
 }
 
 func (Provider) TableName() string {
@@ -27,8 +31,8 @@ const (
 )
 
 type ProviderOpenfort struct {
-	ProviderID      string `gorm:"column:provider_id;primary_key"`
-	OpenfortProject string `gorm:"column:openfort_project"`
+	ProviderID     string `gorm:"column:provider_id;primary_key"`
+	PublishableKey string `gorm:"column:publishable_key"`
 }
 
 func (ProviderOpenfort) TableName() string {

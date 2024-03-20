@@ -148,7 +148,7 @@ func (a *ProjectApplication) GetProviderDetail(ctx context.Context, projectID st
 		return nil, ErrProjectNotFound
 	}
 
-	prov, err := a.providerSvc.Get(ctx, projectID, providerID)
+	prov, err := a.providerSvc.Get(ctx, providerID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
 		return nil, err

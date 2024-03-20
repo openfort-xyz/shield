@@ -57,6 +57,38 @@ func (s *service) Configure(ctx context.Context, projectID string, config servic
 	}
 }
 
+func (s *service) Get(ctx context.Context, providerID string) (*provider.Provider, error) {
+	s.logger.InfoContext(ctx, "getting provider", slog.String("provider_id", providerID))
+
+	// TODO
+
+	return nil, nil
+}
+
+func (s *service) List(ctx context.Context, projectID string) ([]*provider.Provider, error) {
+	s.logger.InfoContext(ctx, "listing providers", slog.String("project_id", projectID))
+
+	provs, err := s.repo.List(ctx, projectID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to list providers", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	return provs, nil
+}
+
+func (s *service) Remove(ctx context.Context, projectID string, providerID string) error {
+	s.logger.InfoContext(ctx, "removing provider", slog.String("project_id", projectID), slog.String("provider_id", providerID))
+
+	err := s.repo.Delete(ctx, providerID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to delete provider", slog.String("error", err.Error()))
+		return err
+	}
+
+	return nil
+}
+
 func (s *service) configureCustomProvider(ctx context.Context, projectID, jwkUrl string) (*provider.Provider, error) {
 	s.logger.InfoContext(ctx, "configuring custom provider", slog.String("project_id", projectID))
 
@@ -81,7 +113,7 @@ func (s *service) configureCustomProvider(ctx context.Context, projectID, jwkUrl
 		return nil, err
 	}
 
-	customAuth := &provider.Custom{
+	customAuth := &provider.CustomConfig{
 		ProviderID: prov.ID,
 		JWK:        jwkUrl,
 	}
@@ -96,6 +128,7 @@ func (s *service) configureCustomProvider(ctx context.Context, projectID, jwkUrl
 		return nil, err
 	}
 
+	prov.Config = customAuth
 	return prov, nil
 }
 
@@ -123,9 +156,9 @@ func (s *service) configureOpenfortProvider(ctx context.Context, projectID, open
 		return nil, err
 	}
 
-	openfortAuth := &provider.Openfort{
-		ProviderID:        prov.ID,
-		OpenfortProjectID: openfortProject,
+	openfortAuth := &provider.OpenfortConfig{
+		ProviderID:     prov.ID,
+		PublishableKey: openfortProject,
 	}
 	err = s.repo.CreateOpenfort(ctx, openfortAuth)
 	if err != nil {
@@ -138,6 +171,7 @@ func (s *service) configureOpenfortProvider(ctx context.Context, projectID, open
 		return nil, err
 	}
 
+	prov.Config = openfortAuth
 	return prov, nil
 }
 
@@ -180,5 +214,6 @@ func (s *service) configureSupabaseAuthentication(ctx context.Context, projectID
 		return nil, err
 	}
 
+	prov.Config = supabaseAuth
 	return prov, nil
 }

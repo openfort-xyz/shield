@@ -8,4 +8,5 @@ import (
 type ProjectService interface {
 	Create(ctx context.Context, name string) (*project.Project, error)
 	Get(ctx context.Context, projectID string) (*project.Project, error)
+	GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error)
 }
