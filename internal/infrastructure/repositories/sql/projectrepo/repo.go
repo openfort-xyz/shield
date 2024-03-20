@@ -48,7 +48,7 @@ func (r *repository) Create(ctx context.Context, proj *project.Project) error {
 func (r *repository) Get(ctx context.Context, projectID string) (*project.Project, error) {
 	r.logger.InfoContext(ctx, "getting project")
 
-	var dbProj *Project
+	dbProj := &Project{}
 	err := r.db.Where("id = ?", projectID).First(dbProj).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -64,7 +64,7 @@ func (r *repository) Get(ctx context.Context, projectID string) (*project.Projec
 func (r *repository) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {
 	r.logger.InfoContext(ctx, "getting project by API key")
 
-	var dbProj *Project
+	dbProj := &Project{}
 	err := r.db.Where("api_key = ?", apiKey).First(dbProj).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

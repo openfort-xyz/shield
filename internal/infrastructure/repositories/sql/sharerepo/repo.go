@@ -45,7 +45,7 @@ func (r *repository) Create(ctx context.Context, shr *share.Share) error {
 func (r *repository) GetByUserID(ctx context.Context, userID string) (*share.Share, error) {
 	r.logger.InfoContext(ctx, "getting share", slog.String("user_id", userID))
 
-	var dbShr *Share
+	dbShr := &Share{}
 	err := r.db.Where("user_id = ?", userID).First(dbShr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

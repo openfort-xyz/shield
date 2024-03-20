@@ -44,7 +44,7 @@ func (r *repository) Create(ctx context.Context, usr *user.User) error {
 func (r *repository) Get(ctx context.Context, userID string) (*user.User, error) {
 	r.logger.InfoContext(ctx, "getting user", slog.String("user_id", userID))
 
-	var dbUsr *User
+	dbUsr := &User{}
 	err := r.db.Where("id = ?", userID).First(dbUsr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -80,7 +80,7 @@ func (r *repository) FindExternalBy(ctx context.Context, opts ...repositories.Op
 		opt(options)
 	}
 
-	var dbExtUsrs []*ExternalUser
+	dbExtUsrs := []*ExternalUser{}
 	err := r.db.Where(options.query).Find(&dbExtUsrs).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error finding external user", slog.String("error", err.Error()))
