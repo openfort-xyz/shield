@@ -66,15 +66,15 @@ func (p *parser) toDomainOpenfortProvider(prov *ProviderOpenfort) *provider.Open
 	}
 }
 
-func (p *parser) toDatabaseSupabaseProvider(prov *provider.Supabase) *ProviderSupabase {
+func (p *parser) toDatabaseSupabaseProvider(prov *provider.SupabaseConfig) *ProviderSupabase {
 	return &ProviderSupabase{
 		ProviderID:      prov.ProviderID,
 		SupabaseProject: prov.SupabaseProjectReference,
 	}
 }
 
-func (p *parser) toDomainSupabaseProvider(prov *ProviderSupabase) *provider.Supabase {
-	return &provider.Supabase{
+func (p *parser) toDomainSupabaseProvider(prov *ProviderSupabase) *provider.SupabaseConfig {
+	return &provider.SupabaseConfig{
 		ProviderID:               prov.ProviderID,
 		SupabaseProjectReference: prov.SupabaseProject,
 	}

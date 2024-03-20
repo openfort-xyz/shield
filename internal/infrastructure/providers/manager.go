@@ -12,21 +12,21 @@ import (
 	"os"
 )
 
-type ProviderManager struct {
+type Manager struct {
 	config *Config
 	repo   repositories.ProviderRepository
 	logger *slog.Logger
 }
 
-func NewProviderManager(cfg *Config, repo repositories.ProviderRepository) *ProviderManager {
-	return &ProviderManager{
+func NewManager(cfg *Config, repo repositories.ProviderRepository) *Manager {
+	return &Manager{
 		config: cfg,
 		repo:   repo,
 		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("provider_manager"),
 	}
 }
 
-func (p *ProviderManager) GetProvider(ctx context.Context, projectID string, providerType provider.Type) (providers.IdentityProvider, error) {
+func (p *Manager) GetProvider(ctx context.Context, projectID string, providerType provider.Type) (providers.IdentityProvider, error) {
 	p.logger.InfoContext(ctx, "getting provider", slog.String("provider_type", string(providerType)))
 
 	switch providerType {

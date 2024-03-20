@@ -109,7 +109,7 @@ func ProvideShareService() (services.ShareService, error) {
 	return shareService, nil
 }
 
-func ProvideProviderManager() (*providers.ProviderManager, error) {
+func ProvideProviderManager() (*providers.Manager, error) {
 	config, err := providers.GetConfigFromEnv()
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func ProvideProviderManager() (*providers.ProviderManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	providerManager := providers.NewProviderManager(config, providerRepository)
+	providerManager := providers.NewManager(config, providerRepository)
 	return providerManager, nil
 }
 

@@ -9,27 +9,27 @@ import (
 	"os"
 )
 
-type customProvider struct {
+type custom struct {
 	jwkUrl     string
 	providerID string
 	logger     *slog.Logger
 }
 
-var _ providers.IdentityProvider = (*customProvider)(nil)
+var _ providers.IdentityProvider = (*custom)(nil)
 
 func newCustomProvider(providerConfig *provider.CustomConfig) providers.IdentityProvider {
-	return &customProvider{
+	return &custom{
 		jwkUrl:     providerConfig.JWK,
 		providerID: providerConfig.ProviderID,
 		logger:     slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("custom_provider"),
 	}
 }
 
-func (c *customProvider) GetProviderID() string {
+func (c *custom) GetProviderID() string {
 	return c.providerID
 }
 
-func (c *customProvider) Identify(ctx context.Context, token string) (string, error) {
+func (c *custom) Identify(ctx context.Context, token string) (string, error) {
 	c.logger.InfoContext(ctx, "identifying user")
 
 	externalUserID, err := validateJWKs(ctx, token, c.jwkUrl)

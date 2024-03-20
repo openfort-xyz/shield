@@ -2,10 +2,12 @@ package projectsvc
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/oflog"
+	"golang.org/x/crypto/bcrypt"
 	"log/slog"
 	"os"
 )
@@ -26,18 +28,26 @@ func New(repo repositories.ProjectRepository) services.ProjectService {
 
 func (s *service) Create(ctx context.Context, name string) (*project.Project, error) {
 	s.logger.InfoContext(ctx, "creating project", slog.String("name", name))
-	proj := &project.Project{
-		Name:      name,
-		APIKey:    "", // TODO
-		APISecret: "", // TODO
+	apiSecret := uuid.NewString()
+	encryptedSecret, err := bcrypt.GenerateFromPassword([]byte(apiSecret), bcrypt.DefaultCost)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to encrypt secret", slog.String("error", err.Error()))
+		return nil, err
 	}
 
-	err := s.repo.Create(ctx, proj)
+	proj := &project.Project{
+		Name:      name,
+		APIKey:    uuid.NewString(),
+		APISecret: string(encryptedSecret),
+	}
+
+	err = s.repo.Create(ctx, proj)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create project", slog.String("error", err.Error()))
 		return nil, err
 	}
 
+	proj.APISecret = apiSecret
 	return proj, nil
 }
 

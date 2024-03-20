@@ -102,9 +102,9 @@ func ProvideShareService() (s services.ShareService, err error) {
 	return
 }
 
-func ProvideProviderManager() (pm *providers.ProviderManager, err error) {
+func ProvideProviderManager() (pm *providers.Manager, err error) {
 	wire.Build(
-		providers.NewProviderManager,
+		providers.NewManager,
 		providers.GetConfigFromEnv,
 		ProvideSQLProviderRepository,
 	)

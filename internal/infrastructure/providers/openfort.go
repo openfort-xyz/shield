@@ -10,17 +10,17 @@ import (
 	"os"
 )
 
-type openfortProvider struct {
+type openfort struct {
 	publishableKey string
 	baseURL        string
 	providerID     string
 	logger         *slog.Logger
 }
 
-var _ providers.IdentityProvider = (*openfortProvider)(nil)
+var _ providers.IdentityProvider = (*openfort)(nil)
 
 func newOpenfortProvider(config openfortConfig, providerConfig *provider.OpenfortConfig) providers.IdentityProvider {
-	return &openfortProvider{
+	return &openfort{
 		publishableKey: providerConfig.PublishableKey,
 		providerID:     providerConfig.ProviderID,
 		baseURL:        config.OpenfortBaseURL,
@@ -28,11 +28,11 @@ func newOpenfortProvider(config openfortConfig, providerConfig *provider.Openfor
 	}
 }
 
-func (o *openfortProvider) GetProviderID() string {
+func (o *openfort) GetProviderID() string {
 	return o.providerID
 }
 
-func (o *openfortProvider) Identify(ctx context.Context, token string) (string, error) {
+func (o *openfort) Identify(ctx context.Context, token string) (string, error) {
 	o.logger.InfoContext(ctx, "identifying user")
 
 	externalUserID, err := validateJWKs(ctx, token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey))

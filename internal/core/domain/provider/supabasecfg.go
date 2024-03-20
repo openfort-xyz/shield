@@ -1,6 +1,6 @@
 package provider
 
-type Supabase struct {
+type SupabaseConfig struct {
 	ProviderID               string
 	SupabaseProjectReference string
 }

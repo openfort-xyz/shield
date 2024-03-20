@@ -53,3 +53,16 @@ func GetAPISecret(ctx context.Context) string {
 
 	return apiSecret
 }
+
+func WithUserID(ctx context.Context, userID string) context.Context {
+	return context.WithValue(ctx, ContextKeyUserID, userID)
+}
+
+func GetUserID(ctx context.Context) string {
+	userID, ok := ctx.Value(ContextKeyUserID).(string)
+	if !ok {
+		return ""
+	}
+
+	return userID
+}

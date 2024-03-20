@@ -111,7 +111,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, projectID string,
 	return providers, nil
 }
 
-func (a *ProjectApplication) ListProviders(ctx context.Context, projectID string) ([]*provider.Provider, error) {
+func (a *ProjectApplication) GetProviders(ctx context.Context, projectID string) ([]*provider.Provider, error) {
 	a.logger.InfoContext(ctx, "listing providers")
 
 	proj, err := a.projectSvc.Get(ctx, projectID)
@@ -155,6 +155,11 @@ func (a *ProjectApplication) GetProviderDetail(ctx context.Context, projectID st
 	}
 
 	return prov, nil
+}
+
+func (a *ProjectApplication) UpdateProvider(ctx context.Context) error {
+	// TODO implement
+	return nil
 }
 
 func (a *ProjectApplication) RemoveProvider(ctx context.Context, projectID, providerID string) error { // TODO delete external users

@@ -17,6 +17,6 @@ type ProviderRepository interface {
 	CreateOpenfort(ctx context.Context, provider *provider.OpenfortConfig) error
 	GetOpenfort(ctx context.Context, providerID string) (*provider.OpenfortConfig, error)
 
-	CreateSupabase(ctx context.Context, provider *provider.Supabase) error
-	GetSupabase(ctx context.Context, providerID string) (*provider.Supabase, error)
+	CreateSupabase(ctx context.Context, provider *provider.SupabaseConfig) error
+	GetSupabase(ctx context.Context, providerID string) (*provider.SupabaseConfig, error)
 }

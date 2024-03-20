@@ -200,7 +200,7 @@ func (s *service) configureSupabaseAuthentication(ctx context.Context, projectID
 		return nil, err
 	}
 
-	supabaseAuth := &provider.Supabase{
+	supabaseAuth := &provider.SupabaseConfig{
 		ProviderID:               prov.ID,
 		SupabaseProjectReference: supabaseProject,
 	}

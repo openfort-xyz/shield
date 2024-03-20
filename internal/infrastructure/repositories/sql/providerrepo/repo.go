@@ -151,7 +151,7 @@ func (r *repository) GetOpenfort(ctx context.Context, providerID string) (*provi
 	return r.parser.toDomainOpenfortProvider(dbProv), nil
 }
 
-func (r *repository) CreateSupabase(ctx context.Context, prov *provider.Supabase) error {
+func (r *repository) CreateSupabase(ctx context.Context, prov *provider.SupabaseConfig) error {
 	r.logger.InfoContext(ctx, "creating supabase provider", slog.String("provider_id", prov.ProviderID))
 
 	dbProv := r.parser.toDatabaseSupabaseProvider(prov)
@@ -164,7 +164,7 @@ func (r *repository) CreateSupabase(ctx context.Context, prov *provider.Supabase
 	return nil
 }
 
-func (r *repository) GetSupabase(ctx context.Context, providerID string) (*provider.Supabase, error) {
+func (r *repository) GetSupabase(ctx context.Context, providerID string) (*provider.SupabaseConfig, error) {
 	r.logger.InfoContext(ctx, "getting supabase provider", slog.String("provider_id", providerID))
 
 	dbProv := &ProviderSupabase{}
