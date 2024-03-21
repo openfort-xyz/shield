@@ -29,35 +29,32 @@ func NewManager(cfg *Config, repo repositories.ProviderRepository) *Manager {
 func (p *Manager) GetProvider(ctx context.Context, projectID string, providerType provider.Type) (providers.IdentityProvider, error) {
 	p.logger.InfoContext(ctx, "getting provider", slog.String("provider_type", string(providerType)))
 
-	switch providerType {
+	prov, err := p.repo.GetByProjectAndType(ctx, projectID, providerType)
+	if err != nil {
+		if errors.Is(err, domain.ErrProjectNotFound) {
+			return nil, ErrProviderNotConfigured
+		}
+		p.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	switch prov.Type {
 	case provider.TypeCustom:
-		config, err := p.repo.GetCustom(ctx, projectID)
-		if err != nil {
-			if errors.Is(err, domain.ErrProviderNotFound) {
-				return nil, ErrProviderNotConfigured
-			}
-			p.logger.ErrorContext(ctx, "failed to get custom provider", slog.String("error", err.Error()))
-			return nil, err
+		config, ok := prov.Config.(*provider.CustomConfig)
+		if !ok {
+			return nil, ErrProviderConfigMismatch
 		}
 		return newCustomProvider(config), nil
 	case provider.TypeOpenfort:
-		config, err := p.repo.GetOpenfort(ctx, projectID)
-		if err != nil {
-			if errors.Is(err, domain.ErrProviderNotFound) {
-				return nil, ErrProviderNotConfigured
-			}
-			p.logger.ErrorContext(ctx, "failed to get openfort provider", slog.String("error", err.Error()))
-			return nil, err
+		config, ok := prov.Config.(*provider.OpenfortConfig)
+		if !ok {
+			return nil, ErrProviderConfigMismatch
 		}
 		return newOpenfortProvider(p.config.openfortConfig, config), nil
 	case provider.TypeSupabase:
-		config, err := p.repo.GetSupabase(ctx, projectID)
-		if err != nil {
-			if errors.Is(err, domain.ErrProviderNotFound) {
-				return nil, ErrProviderNotConfigured
-			}
-			p.logger.ErrorContext(ctx, "failed to get supabase provider", slog.String("error", err.Error()))
-			return nil, err
+		config, ok := prov.Config.(*provider.SupabaseConfig)
+		if !ok {
+			return nil, ErrProviderConfigMismatch
 		}
 		return newSupabaseProvider(p.config.supabaseConfig, config), nil
 	default:

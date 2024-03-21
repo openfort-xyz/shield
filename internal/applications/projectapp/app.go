@@ -2,6 +2,7 @@ package projectapp
 
 import (
 	"context"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/services"
@@ -48,11 +49,6 @@ func (a *ProjectApplication) GetProject(ctx context.Context) (*project.Project, 
 		return nil, err
 	}
 
-	if proj.APIKey != ofcontext.GetAPIKey(ctx) {
-		a.logger.ErrorContext(ctx, "unauthorized access, trying to access project with different API key", slog.String("project_id", projectID), slog.String("api_key", ofcontext.GetAPIKey(ctx)))
-		return nil, ErrProjectNotFound
-	}
-
 	return proj, nil
 }
 
@@ -64,17 +60,6 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	cfg := &providerConfig{}
 	for _, opt := range opts {
 		opt(cfg)
-	}
-
-	proj, err := a.projectSvc.Get(ctx, projectID)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get project", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	if proj.APIKey != ofcontext.GetAPIKey(ctx) || proj.APISecret != ofcontext.GetAPISecret(ctx) { // TODO this is not secure cypher the secret and compare
-		a.logger.ErrorContext(ctx, "unauthorized access, trying to access project with different API key or secret", slog.String("project_id", projectID), slog.String("api_key", ofcontext.GetAPIKey(ctx)))
-		return nil, ErrProjectNotFound
 	}
 
 	var providers []*provider.Provider
@@ -120,17 +105,6 @@ func (a *ProjectApplication) GetProviders(ctx context.Context) ([]*provider.Prov
 
 	projectID := ofcontext.GetProjectID(ctx)
 
-	proj, err := a.projectSvc.Get(ctx, projectID)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get project", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	if proj.APIKey != ofcontext.GetAPIKey(ctx) || proj.APISecret != ofcontext.GetAPISecret(ctx) { // TODO this is not secure cypher the secret and compare
-		a.logger.ErrorContext(ctx, "unauthorized access, trying to access project with different API key or secret", slog.String("project_id", projectID), slog.String("api_key", ofcontext.GetAPIKey(ctx)))
-		return nil, ErrProjectNotFound
-	}
-
 	providers, err := a.providerSvc.List(ctx, projectID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to list providers", slog.String("error", err.Error()))
@@ -145,21 +119,15 @@ func (a *ProjectApplication) GetProviderDetail(ctx context.Context, providerID s
 
 	projectID := ofcontext.GetProjectID(ctx)
 
-	proj, err := a.projectSvc.Get(ctx, projectID)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get project", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	if proj.APIKey != ofcontext.GetAPIKey(ctx) || proj.APISecret != ofcontext.GetAPISecret(ctx) { // TODO this is not secure cypher the secret and compare
-		a.logger.ErrorContext(ctx, "unauthorized access, trying to access project with different API key or secret", slog.String("project_id", projectID), slog.String("api_key", ofcontext.GetAPIKey(ctx)))
-		return nil, ErrProjectNotFound
-	}
-
 	prov, err := a.providerSvc.Get(ctx, providerID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
 		return nil, err
+	}
+
+	if prov.ProjectID != projectID {
+		a.logger.ErrorContext(ctx, "unauthorized access, trying to access provider from different project", slog.String("project_id", projectID), slog.String("provider_project_id", prov.ProjectID))
+		return nil, domain.ErrProviderNotFound
 	}
 
 	return prov, nil
@@ -175,18 +143,7 @@ func (a *ProjectApplication) RemoveProvider(ctx context.Context, providerID stri
 
 	projectID := ofcontext.GetProjectID(ctx)
 
-	proj, err := a.projectSvc.Get(ctx, projectID)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get project", slog.String("error", err.Error()))
-		return err
-	}
-
-	if proj.APIKey != ofcontext.GetAPIKey(ctx) || proj.APISecret != ofcontext.GetAPISecret(ctx) { // TODO this is not secure cypher the secret and compare
-		a.logger.ErrorContext(ctx, "unauthorized access, trying to access project with different API key or secret", slog.String("project_id", projectID), slog.String("api_key", ofcontext.GetAPIKey(ctx)))
-		return ErrProjectNotFound
-	}
-
-	err = a.providerSvc.Remove(ctx, projectID, providerID)
+	err := a.providerSvc.Remove(ctx, projectID, providerID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to remove provider", slog.String("error", err.Error()))
 		return err

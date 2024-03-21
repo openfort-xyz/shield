@@ -63,11 +63,27 @@ func (r *repository) GetByProjectAndType(ctx context.Context, projectID string, 
 	return r.parser.toDomainProvider(dbProv), nil
 }
 
+func (r *repository) Get(ctx context.Context, id string) (*provider.Provider, error) {
+	r.logger.InfoContext(ctx, "getting provider", slog.String("provider_id", id))
+
+	dbProv := &Provider{}
+	err := r.db.Preload("Custom").Preload("Openfort").Preload("Supabase").Where("id = ?", id).First(dbProv).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrProviderNotFound
+		}
+		r.logger.ErrorContext(ctx, "error getting provider", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	return r.parser.toDomainProvider(dbProv), nil
+}
+
 func (r *repository) List(ctx context.Context, projectID string) ([]*provider.Provider, error) {
 	r.logger.InfoContext(ctx, "listing providers", slog.String("project_id", projectID))
 
-	dbProvs := []*Provider{}
-	err := r.db.Where("project_id = ?", projectID).Find(dbProvs).Error
+	var dbProvs []Provider
+	err := r.db.Where("project_id = ?", projectID).Find(&dbProvs).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error listing providers", slog.String("error", err.Error()))
 		return nil, err
@@ -75,7 +91,7 @@ func (r *repository) List(ctx context.Context, projectID string) ([]*provider.Pr
 
 	var provs []*provider.Provider
 	for _, dbProv := range dbProvs {
-		provs = append(provs, r.parser.toDomainProvider(dbProv))
+		provs = append(provs, r.parser.toDomainProvider(&dbProv))
 	}
 
 	return provs, nil
@@ -84,7 +100,7 @@ func (r *repository) List(ctx context.Context, projectID string) ([]*provider.Pr
 func (r *repository) Delete(ctx context.Context, providerID string) error {
 	r.logger.InfoContext(ctx, "deleting provider", slog.String("provider_id", providerID))
 
-	err := r.db.Delete(&Provider{}, providerID).Error
+	err := r.db.Delete(&Provider{ID: providerID}).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error deleting provider", slog.String("error", err.Error()))
 		return err

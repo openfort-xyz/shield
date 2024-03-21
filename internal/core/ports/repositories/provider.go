@@ -7,6 +7,7 @@ import (
 
 type ProviderRepository interface {
 	Create(ctx context.Context, prov *provider.Provider) error
+	Get(ctx context.Context, id string) (*provider.Provider, error)
 	GetByProjectAndType(ctx context.Context, projectID string, providerType provider.Type) (*provider.Provider, error)
 	List(ctx context.Context, projectID string) ([]*provider.Provider, error)
 	Delete(ctx context.Context, providerID string) error

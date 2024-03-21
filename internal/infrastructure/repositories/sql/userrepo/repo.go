@@ -3,6 +3,7 @@ package userrepo
 import (
 	"context"
 	"errors"
+	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/user"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -31,6 +32,10 @@ func New(db *sql.Client) repositories.UserRepository {
 
 func (r *repository) Create(ctx context.Context, usr *user.User) error {
 	r.logger.InfoContext(ctx, "creating user")
+
+	if usr.ID == "" {
+		usr.ID = uuid.NewString()
+	}
 
 	dbUsr := r.parser.toDatabase(usr)
 	err := r.db.Create(dbUsr).Error
@@ -81,7 +86,7 @@ func (r *repository) FindExternalBy(ctx context.Context, opts ...repositories.Op
 		opt(options)
 	}
 
-	dbExtUsrs := []*ExternalUser{}
+	var dbExtUsrs []ExternalUser
 	err := r.db.Where(options.query).Find(&dbExtUsrs).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error finding external user", slog.String("error", err.Error()))
@@ -90,7 +95,7 @@ func (r *repository) FindExternalBy(ctx context.Context, opts ...repositories.Op
 
 	extUsrs := make([]*user.ExternalUser, len(dbExtUsrs))
 	for i, dbExtUsr := range dbExtUsrs {
-		extUsrs[i] = r.parser.toDomainExternalUser(dbExtUsr)
+		extUsrs[i] = r.parser.toDomainExternalUser(&dbExtUsr)
 	}
 
 	return extUsrs, nil

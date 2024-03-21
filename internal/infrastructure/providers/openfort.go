@@ -35,6 +35,7 @@ func (o *openfort) GetProviderID() string {
 func (o *openfort) Identify(ctx context.Context, token string) (string, error) {
 	o.logger.InfoContext(ctx, "identifying user")
 
+	fmt.Println("o.baseURL", o.baseURL)
 	externalUserID, err := validateJWKs(ctx, token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey))
 	if err != nil {
 		o.logger.ErrorContext(ctx, "failed to validate jwks", slog.String("error", err.Error()))

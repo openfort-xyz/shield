@@ -2,6 +2,7 @@ package projecthdl
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/pkg/oflog"
 	"io"
@@ -134,7 +135,11 @@ func (h *Handler) GetProvider(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting provider")
 
-	providerID := r.URL.Query().Get("provider_id")
+	providerID := mux.Vars(r)["provider"]
+	if providerID == "" {
+		http.Error(w, "provider id is required", http.StatusBadRequest)
+		return
+	}
 
 	prov, err := h.app.GetProviderDetail(ctx, providerID)
 	if err != nil { // TODO parse error
@@ -161,7 +166,11 @@ func (h *Handler) DeleteProvider(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "deleting provider")
 
-	providerID := r.URL.Query().Get("provider_id")
+	providerID := mux.Vars(r)["provider"]
+	if providerID == "" {
+		http.Error(w, "provider id is required", http.StatusBadRequest)
+		return
+	}
 
 	err := h.app.RemoveProvider(ctx, providerID)
 	if err != nil { // TODO parse error

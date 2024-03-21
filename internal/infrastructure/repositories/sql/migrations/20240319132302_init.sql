@@ -49,7 +49,7 @@ ALTER TABLE shld_users ADD CONSTRAINT fk_user_project FOREIGN KEY (project_id) R
 CREATE TABLE IF NOT EXISTS shld_external_users (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
-    external_user_id VARCHAR(36) NOT NULL,
+    external_user_id VARCHAR(255) NOT NULL,
     type ENUM('OPENFORT', 'SUPABASE', 'CUSTOM') NOT NULL,
     provider_id VARCHAR(36) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

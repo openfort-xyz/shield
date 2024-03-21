@@ -61,9 +61,13 @@ func (s *service) Configure(ctx context.Context, projectID string, config servic
 func (s *service) Get(ctx context.Context, providerID string) (*provider.Provider, error) {
 	s.logger.InfoContext(ctx, "getting provider", slog.String("provider_id", providerID))
 
-	// TODO
+	prov, err := s.repo.Get(ctx, providerID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
+		return nil, err
+	}
 
-	return nil, nil
+	return prov, nil
 }
 
 func (s *service) List(ctx context.Context, projectID string) ([]*provider.Provider, error) {
@@ -100,7 +104,7 @@ func (s *service) configureCustomProvider(ctx context.Context, projectID, jwkUrl
 	}
 
 	if prov != nil {
-		s.logger.ErrorContext(ctx, "provider already exists", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "provider already exists")
 		return nil, domain.ErrProviderAlreadyExists
 	}
 
@@ -143,7 +147,7 @@ func (s *service) configureOpenfortProvider(ctx context.Context, projectID, open
 	}
 
 	if prov != nil {
-		s.logger.ErrorContext(ctx, "provider already exists", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "provider already exists")
 		return nil, domain.ErrProviderAlreadyExists
 	}
 
@@ -179,14 +183,14 @@ func (s *service) configureOpenfortProvider(ctx context.Context, projectID, open
 func (s *service) configureSupabaseAuthentication(ctx context.Context, projectID, supabaseProject string) (*provider.Provider, error) {
 	s.logger.InfoContext(ctx, "configuring supabase authentication", slog.String("project_id", projectID))
 
-	prov, err := s.repo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
+	prov, err := s.repo.GetByProjectAndType(ctx, projectID, provider.TypeSupabase)
 	if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	if prov != nil {
-		s.logger.ErrorContext(ctx, "provider already exists", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "provider already exists")
 		return nil, domain.ErrProviderAlreadyExists
 	}
 

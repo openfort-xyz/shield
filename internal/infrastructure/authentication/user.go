@@ -2,6 +2,8 @@ package authentication
 
 import (
 	"context"
+	"errors"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/authentication"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -42,6 +44,7 @@ func (a *user) Authenticate(ctx context.Context, apiKey string, token string, pr
 	prov, err := a.providerManager.GetProvider(ctx, proj.ID, providerType)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
+		return "", err
 	}
 
 	externalUserID, err := prov.Identify(ctx, token)
@@ -52,8 +55,21 @@ func (a *user) Authenticate(ctx context.Context, apiKey string, token string, pr
 
 	usr, err := a.userService.GetByExternal(ctx, externalUserID, prov.GetProviderID())
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get user by external", slog.String("error", err.Error()))
-		return "", err
+		if !errors.Is(err, domain.ErrUserNotFound) && !errors.Is(err, domain.ErrExternalUserNotFound) {
+			a.logger.ErrorContext(ctx, "failed to get user by external", slog.String("error", err.Error()))
+			return "", err
+		}
+		usr, err = a.userService.Create(ctx, proj.ID)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to create user", slog.String("error", err.Error()))
+			return "", err
+		}
+
+		_, err = a.userService.CreateExternal(ctx, proj.ID, usr.ID, externalUserID, prov.GetProviderID())
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to create external user", slog.String("error", err.Error()))
+			return "", err
+		}
 	}
 
 	return usr.ID, nil

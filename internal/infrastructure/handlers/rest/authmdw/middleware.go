@@ -4,6 +4,7 @@ import (
 	"go.openfort.xyz/shield/internal/infrastructure/authentication"
 	"go.openfort.xyz/shield/pkg/ofcontext"
 	"net/http"
+	"strings"
 )
 
 const TokenHeader = "Authorization"
@@ -76,6 +77,14 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 			http.Error(w, "missing token", http.StatusUnauthorized)
 			return
 		}
+
+		splittedToken := strings.Split(token, " ")
+		if len(splittedToken) != 2 {
+			http.Error(w, "invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		token = splittedToken[1]
 
 		providerStr := r.Header.Get(AuthProviderHeader)
 		if providerStr == "" {

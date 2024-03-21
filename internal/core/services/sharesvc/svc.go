@@ -2,6 +2,7 @@ package sharesvc
 
 import (
 	"context"
+	"errors"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -29,7 +30,7 @@ func (s *service) Create(ctx context.Context, userID, data string) error {
 	s.logger.InfoContext(ctx, "creating share", slog.String("user_id", userID))
 
 	shr, err := s.repo.GetByUserID(ctx, userID)
-	if err != nil {
+	if err != nil && !errors.Is(err, domain.ErrShareNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get share", slog.String("error", err.Error()))
 		return err
 	}

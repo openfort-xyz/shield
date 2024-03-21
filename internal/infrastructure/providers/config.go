@@ -3,12 +3,12 @@ package providers
 import "github.com/caarlos0/env/v10"
 
 type openfortConfig struct {
-	OpenfortBaseURL string `envconfig:"OPENFORT_BASE_URL" envDefault:"https://api.openfort.xyz"`
+	OpenfortBaseURL string `env:"OPENFORT_BASE_URL" envDefault:"https://api.openfort.xyz"`
 }
 
 type supabaseConfig struct {
-	SupabaseAPIKey  string `envconfig:"SUPABASE_API_KEY"`
-	SupabaseBaseURL string `envconfig:"SUPABASE_BASE_URL"`
+	SupabaseAPIKey  string `env:"SUPABASE_API_KEY"`
+	SupabaseBaseURL string `env:"SUPABASE_BASE_URL"`
 }
 
 type Config struct {
@@ -17,7 +17,18 @@ type Config struct {
 }
 
 func GetConfigFromEnv() (*Config, error) {
-	config := &Config{}
-	err := env.Parse(config)
-	return config, err
+	ofCf := openfortConfig{}
+	err := env.Parse(&ofCf)
+	if err != nil {
+		return nil, err
+	}
+	supCf := supabaseConfig{}
+	err = env.Parse(&supCf)
+	if err != nil {
+		return nil, err
+	}
+	return &Config{
+		openfortConfig: ofCf,
+		supabaseConfig: supCf,
+	}, nil
 }
