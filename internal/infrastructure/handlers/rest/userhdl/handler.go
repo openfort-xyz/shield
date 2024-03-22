@@ -24,6 +24,23 @@ func New(app *userapp.UserApplication) *Handler {
 	}
 }
 
+// RegisterShare registers a new share
+// @Summary Register new share
+// @Description Register a new share for the user
+// @Tags Share
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param Authorization header string true "Bearer token"
+// @Param X-Auth-Provider header string true "Auth Provider"
+// @Param X-Openfort-Provider header string false "Openfort Provider"
+// @Param X-Openfort-Token-Type header string false "Openfort Token Type"
+// @Param registerShareRequest body RegisterShareRequest true "Register Share Request"
+// @Success 201 "Description: Share registered successfully"
+// @Failure 400 {object} api.Error "Bad Request"
+// @Failure 404 {object} api.Error "Not Found"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /shares/register [post]
 func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "registering share")
@@ -50,6 +67,21 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// GetShare gets a share
+// @Summary Get share
+// @Description Get a share for the user
+// @Tags Share
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param Authorization header string true "Bearer token"
+// @Param X-Auth-Provider header string true "Auth Provider"
+// @Param X-Openfort-Provider header string false "Openfort Provider"
+// @Param X-Openfort-Token-Type header string false "Openfort Token Type"
+// @Success 200 {object} GetShareResponse "Successful response"
+// @Failure 404 "Description: Not Found"
+// @Failure 500 "Description: Internal Server Error"
+// @Router /shares [get]
 func (h *Handler) GetShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting share")

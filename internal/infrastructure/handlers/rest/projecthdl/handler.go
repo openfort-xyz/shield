@@ -27,6 +27,17 @@ func New(app *projectapp.ProjectApplication) *Handler {
 	}
 }
 
+// CreateProject creates a new project
+// @Summary Create a new project
+// @Description Create a new project with the provided name
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param createProjectRequest body CreateProjectRequest true "Create Project Request"
+// @Success 201 {object} CreateProjectResponse "Project created successfully"
+// @Failure 400 {object} api.Error "Bad Request"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /register [post]
 func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "creating project")
@@ -60,6 +71,17 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// GetProject retrieves a project
+// @Summary Get a project
+// @Description Get details of a project
+// @Tags Project
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 200 {object} GetProjectResponse "Successful response"
+// @Failure 404 {object} api.Error "Not Found"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project [get]
 func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting project")
@@ -80,6 +102,19 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// AddProviders adds providers to a project
+// @Summary Add providers
+// @Description Add one or more providers to a project
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param addProvidersRequest body AddProvidersRequest true "Add Providers Request"
+// @Success 200 {object} AddProvidersResponse "Providers added successfully"
+// @Failure 400 "Bad Request"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/providers [post]
 func (h *Handler) AddProviders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "adding providers")
@@ -113,6 +148,16 @@ func (h *Handler) AddProviders(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// GetProviders lists all providers of a project
+// @Summary List providers
+// @Description Get a list of all providers associated with a project
+// @Tags Project
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 200 {object} GetProvidersResponse "Successful response"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/providers [get]
 func (h *Handler) GetProviders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting providers")
@@ -133,6 +178,18 @@ func (h *Handler) GetProviders(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// GetProvider retrieves a specific provider
+// @Summary Get a provider
+// @Description Get details of a specific provider
+// @Tags Project
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param provider path string true "Provider ID"
+// @Success 200 {object} GetProviderResponse "Successful response"
+// @Failure 404 "Provider not found"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/providers/{provider} [get]
 func (h *Handler) GetProvider(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting provider")
@@ -159,6 +216,19 @@ func (h *Handler) GetProvider(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// UpdateProvider updates a provider's configuration
+// @Summary Update a provider
+// @Description Update the configuration of a specific provider
+// @Tags Project
+// @Accept json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param provider path string true "Provider ID"
+// @Param updateProviderRequest body UpdateProviderRequest true "Update Provider Request"
+// @Success 200 "Provider updated successfully"
+// @Failure 400 "Bad Request"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/providers/{provider} [put]
 func (h *Handler) UpdateProvider(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "updating provider")
@@ -200,6 +270,17 @@ func (h *Handler) UpdateProvider(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// DeleteProvider removes a provider from a project
+// @Summary Delete a provider
+// @Description Remove a specific provider from a project
+// @Tags Project
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param provider path string true "Provider ID"
+// @Success 200 "Provider deleted successfully"
+// @Failure 404 "Provider not found"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/providers/{provider} [delete]
 func (h *Handler) DeleteProvider(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "deleting provider")
