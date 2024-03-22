@@ -38,6 +38,13 @@ func TestCreateProject(t *testing.T) {
 				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(errors.New("repository error"))
 			},
 		},
+		{
+			name: "failed to encrypt secret",
+			mock: func() {
+				svc.(*service).cost = 9999
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tc {

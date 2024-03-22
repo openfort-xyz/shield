@@ -16,6 +16,7 @@ import (
 type service struct {
 	repo   repositories.ProjectRepository
 	logger *slog.Logger
+	cost   int
 }
 
 var _ services.ProjectService = (*service)(nil)
@@ -24,13 +25,14 @@ func New(repo repositories.ProjectRepository) services.ProjectService {
 	return &service{
 		repo:   repo,
 		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("project_service"),
+		cost:   bcrypt.DefaultCost,
 	}
 }
 
 func (s *service) Create(ctx context.Context, name string) (*project.Project, error) {
 	s.logger.InfoContext(ctx, "creating project", slog.String("name", name))
 	apiSecret := uuid.NewString()
-	encryptedSecret, err := bcrypt.GenerateFromPassword([]byte(apiSecret), bcrypt.DefaultCost)
+	encryptedSecret, err := bcrypt.GenerateFromPassword([]byte(apiSecret), s.cost)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to encrypt secret", slog.String("error", err.Error()))
 		return nil, err
