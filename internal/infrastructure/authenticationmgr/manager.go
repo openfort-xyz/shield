@@ -11,21 +11,15 @@ import (
 )
 
 type Manager struct {
-	APIKeyAuthenticator    authentication.APIKeyAuthenticator
 	APISecretAuthenticator authentication.APISecretAuthenticator
 	UserAuthenticator      authentication.UserAuthenticator
 }
 
 func NewManager(repo repositories.ProjectRepository, providerManager *providersmgr.Manager, userService services.UserService) *Manager {
 	return &Manager{
-		APIKeyAuthenticator:    newAPIKeyAuthenticator(repo),
 		APISecretAuthenticator: newAPISecretAuthenticator(repo),
 		UserAuthenticator:      newUserAuthenticator(repo, providerManager, userService),
 	}
-}
-
-func (m *Manager) GetAPIKeyAuthenticator() authentication.APIKeyAuthenticator {
-	return m.APIKeyAuthenticator
 }
 
 func (m *Manager) GetAPISecretAuthenticator() authentication.APISecretAuthenticator {

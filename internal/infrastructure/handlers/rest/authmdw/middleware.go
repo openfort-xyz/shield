@@ -23,25 +23,6 @@ func New(manager *authenticationmgr.Manager) *Middleware {
 	return &Middleware{manager: manager}
 }
 
-func (m *Middleware) AuthenticateAPIKey(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		apiKey := r.Header.Get(APIKeyHeader)
-		if apiKey == "" {
-			http.Error(w, "missing api key", http.StatusUnauthorized)
-			return
-		}
-
-		projectID, err := m.manager.GetAPIKeyAuthenticator().Authenticate(r.Context(), apiKey)
-		if err != nil {
-			http.Error(w, "invalid api key", http.StatusUnauthorized)
-			return
-		}
-
-		ctx := ofcontext.WithProjectID(r.Context(), projectID)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get(APIKeyHeader)
