@@ -48,17 +48,17 @@ func (a *user) Authenticate(ctx context.Context, apiKey, token string, providerT
 		return "", err
 	}
 
-	opt := make(authentication.CustomOptions)
+	var opt authentication.CustomOptions
 	for _, o := range opts {
 		o(&opt)
 	}
 
 	var providerCustomOptions []providers.CustomOption
-	if ofProvider, ok := opt[authentication.CustomOptionOpenfortProvider]; ok {
-		providerCustomOptions = append(providerCustomOptions, providers.WithCustomOption(providers.CustomOptionOpenfortProvider, ofProvider))
+	if opt.OpenfortProvider != nil {
+		providerCustomOptions = append(providerCustomOptions, providers.WithOpenfortProvider(*opt.OpenfortProvider))
 	}
-	if ofTokenType, ok := opt[authentication.CustomOptionOpenfortTokenType]; ok {
-		providerCustomOptions = append(providerCustomOptions, providers.WithCustomOption(providers.CustomOptionOpenfortTokenType, ofTokenType))
+	if opt.OpenfortTokenType != nil {
+		providerCustomOptions = append(providerCustomOptions, providers.WithOpenfortTokenType(*opt.OpenfortTokenType))
 	}
 
 	externalUserID, err := prov.Identify(ctx, token, providerCustomOptions...)

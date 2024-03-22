@@ -10,13 +10,19 @@ type UserAuthenticator interface {
 }
 
 type CustomOption func(*CustomOptions)
-type CustomOptions map[string]interface{}
+type CustomOptions struct {
+	OpenfortProvider  *string
+	OpenfortTokenType *string
+}
 
-func WithCustomOption(key string, value interface{}) CustomOption {
-	return func(o *CustomOptions) {
-		(*o)[key] = value
+func WithOpenfortProvider(value string) CustomOption {
+	return func(opts *CustomOptions) {
+		opts.OpenfortProvider = &value
 	}
 }
 
-const CustomOptionOpenfortProvider = "openfort_provider"
-const CustomOptionOpenfortTokenType = "openfort_token_type"
+func WithOpenfortTokenType(value string) CustomOption {
+	return func(opts *CustomOptions) {
+		opts.OpenfortTokenType = &value
+	}
+}

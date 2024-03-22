@@ -64,6 +64,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 
 	var providers []*provider.Provider
 	if cfg.jwkUrl != nil {
+		a.logger.InfoContext(ctx, "configuring custom provider")
 		prov, err := a.providerSvc.Configure(ctx, projectID, &services.CustomProviderConfig{JWKUrl: *cfg.jwkUrl})
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to configure custom provider", slog.String("error", err.Error()))
@@ -74,6 +75,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	}
 
 	if cfg.openfortPublishableKey != nil {
+		a.logger.InfoContext(ctx, "configuring openfort provider")
 		prov, err := a.providerSvc.Configure(ctx, projectID, &services.OpenfortProviderConfig{OpenfortProject: *cfg.openfortPublishableKey})
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to configure openfort provider", slog.String("error", err.Error()))

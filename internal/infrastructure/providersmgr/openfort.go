@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 )
 
 type openfort struct {
@@ -40,7 +41,6 @@ func (o *openfort) GetProviderID() string {
 func (o *openfort) Identify(ctx context.Context, token string, opts ...providers.CustomOption) (string, error) {
 	o.logger.InfoContext(ctx, "identifying user")
 
-	fmt.Println("o.baseURL", o.baseURL)
 	userID, err := validateJWKs(ctx, token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey))
 	if err != nil {
 		if !errors.Is(err, ErrInvalidToken) {
@@ -48,34 +48,32 @@ func (o *openfort) Identify(ctx context.Context, token string, opts ...providers
 			return "", err
 		}
 
-		return o.identifyOAuth(ctx, token, opts)
+		return o.identifyOAuth(ctx, token, opts...)
 	}
 
 	return userID, nil
 }
 
-func (o *openfort) identifyOAuth(ctx context.Context, token string, opts []providers.CustomOption) (string, error) {
+func (o *openfort) identifyOAuth(ctx context.Context, token string, opts ...providers.CustomOption) (string, error) {
 	var opt providers.CustomOptions
 	for _, o := range opts {
 		o(&opt)
 	}
 
-	ofProvider, ok := opt[providers.CustomOptionOpenfortProvider]
-	if !ok {
+	if opt.OpenfortProvider == nil {
 		return "", ErrMissingOpenfortProvider
 	}
 
-	ofTokenType, ok := opt[providers.CustomOptionOpenfortTokenType]
-	if !ok {
+	if opt.OpenfortTokenType == nil {
 		return "", ErrMissingOpenfortTokenType
 	}
 
 	url := fmt.Sprintf("%s/iam/v1/oauth/authenticate", o.baseURL)
 
 	reqBody := authenticateOauthRequest{
-		Provider:  ofProvider.(string),
+		Provider:  *opt.OpenfortProvider,
 		Token:     token,
-		TokenType: ofTokenType.(string),
+		TokenType: *opt.OpenfortTokenType,
 	}
 
 	rawReqBody, err := json.Marshal(reqBody)
@@ -87,11 +85,15 @@ func (o *openfort) identifyOAuth(ctx context.Context, token string, opts []provi
 		return "", err
 	}
 
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", o.publishableKey))
-	resp, err := http.DefaultClient.Do(req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", o.publishableKey))
+	client := http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode/100 != 2 {
 		return "", ErrUnexpectedStatusCode

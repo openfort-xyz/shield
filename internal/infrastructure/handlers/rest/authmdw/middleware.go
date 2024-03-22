@@ -100,8 +100,8 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 
 		var customOptions []authenticate.CustomOption
 		if openfortProvider != "" && openfortTokenType != "" {
-			customOptions = append(customOptions, authenticate.WithCustomOption(authenticate.CustomOptionOpenfortProvider, openfortProvider))
-			customOptions = append(customOptions, authenticate.WithCustomOption(authenticate.CustomOptionOpenfortTokenType, openfortTokenType))
+			customOptions = append(customOptions, authenticate.WithOpenfortProvider(openfortProvider))
+			customOptions = append(customOptions, authenticate.WithOpenfortTokenType(openfortTokenType))
 		}
 
 		provider, err := m.manager.GetAuthProvider(providerStr)
