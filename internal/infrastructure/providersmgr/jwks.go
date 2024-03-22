@@ -1,13 +1,12 @@
 package providersmgr
 
 import (
-	"context"
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func validateJWKs(ctx context.Context, token, jwkUrl string) (string, error) {
-	k, err := keyfunc.NewDefault([]string{jwkUrl})
+func validateJWKs(token, jwkURL string) (string, error) {
+	k, err := keyfunc.NewDefault([]string{jwkURL})
 	if err != nil {
 		return "", err
 	}

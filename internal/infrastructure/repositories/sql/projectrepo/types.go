@@ -1,8 +1,9 @@
 package projectrepo
 
 import (
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Project struct {

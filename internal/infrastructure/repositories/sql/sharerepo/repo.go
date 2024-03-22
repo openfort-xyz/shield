@@ -3,6 +3,9 @@ package sharerepo
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
@@ -10,8 +13,6 @@ import (
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
 	"go.openfort.xyz/shield/pkg/oflog"
 	"gorm.io/gorm"
-	"log/slog"
-	"os"
 )
 
 type repository struct {
@@ -28,7 +29,6 @@ func New(db *sql.Client) repositories.ShareRepository {
 		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("share_repository"),
 		parser: newParser(),
 	}
-
 }
 
 func (r *repository) Create(ctx context.Context, shr *share.Share) error {

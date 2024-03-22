@@ -3,13 +3,14 @@ package sharesvc
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/oflog"
-	"log/slog"
-	"os"
 )
 
 type service struct {

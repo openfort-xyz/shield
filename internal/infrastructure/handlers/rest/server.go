@@ -3,6 +3,10 @@ package rest
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+
 	"github.com/gorilla/mux"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/userapp"
@@ -13,9 +17,6 @@ import (
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/responsemdw"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/userhdl"
 	"go.openfort.xyz/shield/pkg/oflog"
-	"log/slog"
-	"net/http"
-	"os"
 )
 
 type Server struct {

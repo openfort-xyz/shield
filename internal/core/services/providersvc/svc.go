@@ -3,13 +3,14 @@ package providersvc
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/oflog"
-	"log/slog"
-	"os"
 )
 
 type service struct {
@@ -115,7 +116,7 @@ func (s *service) Remove(ctx context.Context, projectID string, providerID strin
 	return nil
 }
 
-func (s *service) configureCustomProvider(ctx context.Context, projectID, jwkUrl string) (*provider.Provider, error) {
+func (s *service) configureCustomProvider(ctx context.Context, projectID, jwkURL string) (*provider.Provider, error) {
 	s.logger.InfoContext(ctx, "configuring custom provider", slog.String("project_id", projectID))
 
 	prov, err := s.repo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
@@ -141,7 +142,7 @@ func (s *service) configureCustomProvider(ctx context.Context, projectID, jwkUrl
 
 	customAuth := &provider.CustomConfig{
 		ProviderID: prov.ID,
-		JWK:        jwkUrl,
+		JWK:        jwkURL,
 	}
 	err = s.repo.CreateCustom(ctx, customAuth)
 	if err != nil {
@@ -149,7 +150,7 @@ func (s *service) configureCustomProvider(ctx context.Context, projectID, jwkUrl
 		errD := s.repo.Delete(ctx, prov.ID)
 		if errD != nil {
 			s.logger.ErrorContext(ctx, "failed to delete provider", slog.String("provider", prov.ID), slog.String("error", errD.Error()))
-			errors.Join(err, errD)
+			err = errors.Join(err, errD)
 		}
 		return nil, err
 	}
@@ -192,7 +193,7 @@ func (s *service) configureOpenfortProvider(ctx context.Context, projectID, open
 		errD := s.repo.Delete(ctx, prov.ID)
 		if errD != nil {
 			s.logger.ErrorContext(ctx, "failed to delete provider", slog.String("provider", prov.ID), slog.String("error", errD.Error()))
-			errors.Join(err, errD)
+			err = errors.Join(err, errD)
 		}
 		return nil, err
 	}

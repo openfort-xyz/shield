@@ -1,8 +1,9 @@
 package sharerepo
 
 import (
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Share struct {

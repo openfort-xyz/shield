@@ -2,14 +2,14 @@ package projectapp
 
 import (
 	"context"
-	"go.openfort.xyz/shield/internal/core/domain"
+	"log/slog"
+	"os"
+
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/ofcontext"
 	"go.openfort.xyz/shield/pkg/oflog"
-	"log/slog"
-	"os"
 )
 
 type ProjectApplication struct {
@@ -32,7 +32,7 @@ func (a *ProjectApplication) CreateProject(ctx context.Context, name string) (*p
 	proj, err := a.projectSvc.Create(ctx, name)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create project", slog.String("error", err.Error()))
-		return nil, err
+		return nil, fromDomainError(err)
 	}
 
 	return proj, nil
@@ -46,7 +46,7 @@ func (a *ProjectApplication) GetProject(ctx context.Context) (*project.Project, 
 	proj, err := a.projectSvc.Get(ctx, projectID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get project", slog.String("error", err.Error()))
-		return nil, err
+		return nil, fromDomainError(err)
 	}
 
 	return proj, nil
@@ -63,12 +63,12 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	}
 
 	var providers []*provider.Provider
-	if cfg.jwkUrl != nil {
+	if cfg.jwkURL != nil {
 		a.logger.InfoContext(ctx, "configuring custom provider")
-		prov, err := a.providerSvc.Configure(ctx, projectID, &services.CustomProviderConfig{JWKUrl: *cfg.jwkUrl})
+		prov, err := a.providerSvc.Configure(ctx, projectID, &services.CustomProviderConfig{JWKUrl: *cfg.jwkURL})
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to configure custom provider", slog.String("error", err.Error()))
-			return nil, err
+			return nil, fromDomainError(err)
 		}
 
 		providers = append(providers, prov)
@@ -79,7 +79,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 		prov, err := a.providerSvc.Configure(ctx, projectID, &services.OpenfortProviderConfig{OpenfortProject: *cfg.openfortPublishableKey})
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to configure openfort provider", slog.String("error", err.Error()))
-			return nil, err
+			return nil, fromDomainError(err)
 		}
 
 		providers = append(providers, prov)
@@ -100,7 +100,7 @@ func (a *ProjectApplication) GetProviders(ctx context.Context) ([]*provider.Prov
 	providers, err := a.providerSvc.List(ctx, projectID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to list providers", slog.String("error", err.Error()))
-		return nil, err
+		return nil, fromDomainError(err)
 	}
 
 	return providers, nil
@@ -114,12 +114,12 @@ func (a *ProjectApplication) GetProviderDetail(ctx context.Context, providerID s
 	prov, err := a.providerSvc.Get(ctx, providerID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
-		return nil, err
+		return nil, fromDomainError(err)
 	}
 
 	if prov.ProjectID != projectID {
 		a.logger.ErrorContext(ctx, "unauthorized access, trying to access provider from different project", slog.String("project_id", projectID), slog.String("provider_project_id", prov.ProjectID))
-		return nil, domain.ErrProviderNotFound
+		return nil, ErrProviderNotFound
 	}
 
 	return prov, nil
@@ -133,12 +133,12 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 	prov, err := a.providerSvc.Get(ctx, providerID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
-		return err
+		return fromDomainError(err)
 	}
 
 	if prov.ProjectID != projectID {
 		a.logger.ErrorContext(ctx, "unauthorized access, trying to update provider from different project", slog.String("project_id", projectID), slog.String("provider_project_id", prov.ProjectID))
-		return domain.ErrProviderNotFound
+		return ErrProviderNotFound
 	}
 
 	cfg := &providerConfig{}
@@ -146,15 +146,15 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 		opt(cfg)
 	}
 
-	if cfg.jwkUrl != nil {
+	if cfg.jwkURL != nil {
 		if prov.Type != provider.TypeCustom {
 			return ErrProviderMismatch
 		}
 
-		err := a.providerSvc.UpdateConfig(ctx, &provider.CustomConfig{ProviderID: providerID, JWK: *cfg.jwkUrl})
+		err := a.providerSvc.UpdateConfig(ctx, &provider.CustomConfig{ProviderID: providerID, JWK: *cfg.jwkURL})
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to update custom provider", slog.String("error", err.Error()))
-			return err
+			return fromDomainError(err)
 		}
 	}
 
@@ -163,16 +163,16 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 			return ErrProviderMismatch
 		}
 
-		err := a.providerSvc.UpdateConfig(ctx, &provider.OpenfortConfig{ProviderID: providerID, PublishableKey: *cfg.openfortPublishableKey})
+		err = a.providerSvc.UpdateConfig(ctx, &provider.OpenfortConfig{ProviderID: providerID, PublishableKey: *cfg.openfortPublishableKey})
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to update openfort provider", slog.String("error", err.Error()))
-			return err
+			return fromDomainError(err)
 		}
 	}
 	return nil
 }
 
-func (a *ProjectApplication) RemoveProvider(ctx context.Context, providerID string) error { // TODO delete external users
+func (a *ProjectApplication) RemoveProvider(ctx context.Context, providerID string) error {
 	a.logger.InfoContext(ctx, "removing provider")
 
 	projectID := ofcontext.GetProjectID(ctx)
@@ -180,7 +180,7 @@ func (a *ProjectApplication) RemoveProvider(ctx context.Context, providerID stri
 	err := a.providerSvc.Remove(ctx, projectID, providerID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to remove provider", slog.String("error", err.Error()))
-		return err
+		return fromDomainError(err)
 	}
 
 	return nil

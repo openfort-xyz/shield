@@ -1,9 +1,10 @@
 package requestmdw
 
 import (
+	"net/http"
+
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/pkg/ofcontext"
-	"net/http"
 )
 
 func RequestIDMiddleware(next http.Handler) http.Handler {

@@ -4,7 +4,7 @@ type ProviderOption func(*providerConfig)
 
 func WithCustom(url string) ProviderOption {
 	return func(c *providerConfig) {
-		c.jwkUrl = &url
+		c.jwkURL = &url
 	}
 }
 
@@ -15,6 +15,6 @@ func WithOpenfort(openfortProjectID string) ProviderOption {
 }
 
 type providerConfig struct {
-	jwkUrl                 *string
+	jwkURL                 *string
 	openfortPublishableKey *string
 }

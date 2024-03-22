@@ -3,13 +3,14 @@ package providersmgr
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/providers"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/pkg/oflog"
-	"log/slog"
-	"os"
 )
 
 type Manager struct {

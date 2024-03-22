@@ -23,7 +23,7 @@ func NewCmdMigrate() *cobra.Command {
 		Long:    "Migrate the database to the latest version",
 		Example: "shield db migrate",
 		Args:    cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			repo, err := di.ProvideSQL()
 			if err != nil {
 				return err
@@ -42,7 +42,7 @@ func NewCmdCreateMigration() *cobra.Command {
 		Long:    "Create a new migration file with the given name. The migration file will be created in the migrations directory.",
 		Example: "shield db create-migration [migration_name]",
 		Args:    cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			return sql.CreateMigration(args[0])
 		},
 	}

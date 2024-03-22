@@ -3,6 +3,10 @@ package projectrepo
 import (
 	"context"
 	"errors"
+
+	"log/slog"
+	"os"
+
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/project"
@@ -10,8 +14,6 @@ import (
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
 	"go.openfort.xyz/shield/pkg/oflog"
 	"gorm.io/gorm"
-	"log/slog"
-	"os"
 )
 
 type repository struct {

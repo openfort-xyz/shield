@@ -1,12 +1,13 @@
 package cli
 
 import (
-	"github.com/spf13/cobra"
-	"go.openfort.xyz/shield/di"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/spf13/cobra"
+	"go.openfort.xyz/shield/di"
 )
 
 func NewCmdServer() *cobra.Command {
@@ -16,7 +17,7 @@ func NewCmdServer() *cobra.Command {
 		Long:    "Run the OpenFort Shield server",
 		Example: "shield server",
 		Args:    cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			server, err := di.ProvideRESTServer()
 			if err != nil {
 				return err

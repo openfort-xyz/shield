@@ -1,9 +1,10 @@
 package main
 
 import (
-	"go.openfort.xyz/shield/cmd/cli"
 	"log/slog"
 	"os"
+
+	"go.openfort.xyz/shield/cmd/cli"
 )
 
 func main() {

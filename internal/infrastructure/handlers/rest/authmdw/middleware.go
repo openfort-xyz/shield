@@ -1,19 +1,21 @@
 package authmdw
 
 import (
-	authenticate "go.openfort.xyz/shield/internal/core/ports/authentication"
-	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
-	"go.openfort.xyz/shield/pkg/ofcontext"
 	"net/http"
 	"strings"
+
+	authenticate "go.openfort.xyz/shield/internal/core/ports/authentication"
+	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
+	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/api"
+	"go.openfort.xyz/shield/pkg/ofcontext"
 )
 
-const TokenHeader = "Authorization"
-const AuthProviderHeader = "X-Auth-Provider"
-const APIKeyHeader = "X-API-Key"
-const APISecretHeader = "X-API-Secret"
-const OpenfortProviderHeader = "X-Openfort-Provider"
-const OpenfortTokenTypeHeader = "X-Openfort-Token-Type"
+const TokenHeader = "Authorization"                     //nolint:gosec
+const AuthProviderHeader = "X-Auth-Provider"            //nolint:gosec
+const APIKeyHeader = "X-API-Key"                        //nolint:gosec
+const APISecretHeader = "X-API-Secret"                  //nolint:gosec
+const OpenfortProviderHeader = "X-Openfort-Provider"    //nolint:gosec
+const OpenfortTokenTypeHeader = "X-Openfort-Token-Type" //nolint:gosec
 
 type Middleware struct {
 	manager *authenticationmgr.Manager
@@ -27,19 +29,19 @@ func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get(APIKeyHeader)
 		if apiKey == "" {
-			http.Error(w, "missing api key", http.StatusUnauthorized)
+			api.RespondWithError(w, api.ErrMissingAPIKey)
 			return
 		}
 
 		apiSecret := r.Header.Get(APISecretHeader)
 		if apiSecret == "" {
-			http.Error(w, "missing api secret", http.StatusUnauthorized)
+			api.RespondWithError(w, api.ErrMissingAPISecret)
 			return
 		}
 
 		projectID, err := m.manager.GetAPISecretAuthenticator().Authenticate(r.Context(), apiKey, apiSecret)
 		if err != nil {
-			http.Error(w, "invalid api secret", http.StatusUnauthorized)
+			api.RespondWithError(w, api.ErrInvalidAPISecret)
 			return
 		}
 
@@ -52,19 +54,19 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get(APIKeyHeader)
 		if apiKey == "" {
-			http.Error(w, "missing api key", http.StatusUnauthorized)
+			api.RespondWithError(w, api.ErrMissingAPIKey)
 			return
 		}
 
 		token := r.Header.Get(TokenHeader)
 		if token == "" {
-			http.Error(w, "missing token", http.StatusUnauthorized)
+			api.RespondWithError(w, api.ErrMissingToken)
 			return
 		}
 
 		splittedToken := strings.Split(token, " ")
 		if len(splittedToken) != 2 {
-			http.Error(w, "invalid token", http.StatusUnauthorized)
+			api.RespondWithError(w, api.ErrInvalidToken)
 			return
 		}
 
@@ -72,7 +74,7 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 
 		providerStr := r.Header.Get(AuthProviderHeader)
 		if providerStr == "" {
-			http.Error(w, "missing auth provider", http.StatusUnauthorized)
+			api.RespondWithError(w, api.ErrMissingAuthProvider)
 			return
 		}
 
@@ -87,13 +89,13 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 
 		provider, err := m.manager.GetAuthProvider(providerStr)
 		if err != nil {
-			http.Error(w, "invalid auth provider", http.StatusUnauthorized)
+			api.RespondWithError(w, api.ErrInvalidAuthProvider)
 			return
 		}
 
 		userID, err := m.manager.GetUserAuthenticator().Authenticate(r.Context(), apiKey, token, provider, customOptions...)
 		if err != nil {
-			http.Error(w, "invalid token", http.StatusUnauthorized)
+			api.RespondWithError(w, api.ErrInvalidToken)
 			return
 		}
 

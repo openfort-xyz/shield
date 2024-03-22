@@ -25,7 +25,7 @@ func (p *parser) toDatabase(u *user.User) *User {
 	}
 }
 
-func (p *parser) toDomainExternalUser(u *ExternalUser) *user.ExternalUser {
+func (p *parser) toDomainExternalUser(u ExternalUser) *user.ExternalUser {
 	return &user.ExternalUser{
 		ID:             u.ID,
 		UserID:         u.UserID,

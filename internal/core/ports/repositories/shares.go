@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+
 	"go.openfort.xyz/shield/internal/core/domain/share"
 )
 

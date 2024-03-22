@@ -28,7 +28,7 @@ func (p *parser) toDatabaseProvider(prov *provider.Provider) *Provider {
 	}
 }
 
-func (p *parser) toDomainProvider(prov *Provider) *provider.Provider {
+func (p *parser) toDomainProvider(prov Provider) *provider.Provider {
 	domainProv := &provider.Provider{
 		ID:        prov.ID,
 		ProjectID: prov.ProjectID,

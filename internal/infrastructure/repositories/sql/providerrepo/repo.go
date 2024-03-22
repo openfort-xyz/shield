@@ -3,6 +3,9 @@ package providerrepo
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
@@ -10,8 +13,6 @@ import (
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
 	"go.openfort.xyz/shield/pkg/oflog"
 	"gorm.io/gorm"
-	"log/slog"
-	"os"
 )
 
 type repository struct {
@@ -50,8 +51,8 @@ func (r *repository) Create(ctx context.Context, prov *provider.Provider) error 
 func (r *repository) GetByProjectAndType(ctx context.Context, projectID string, providerType provider.Type) (*provider.Provider, error) {
 	r.logger.InfoContext(ctx, "getting provider", slog.String("project_id", projectID), slog.String("provider_type", providerType.String()))
 
-	dbProv := &Provider{}
-	err := r.db.Preload("Custom").Preload("Openfort").Where("project_id = ? AND type = ?", projectID, r.parser.mapProviderTypeToDatabase[providerType]).First(dbProv).Error
+	dbProv := Provider{}
+	err := r.db.Preload("Custom").Preload("Openfort").Where("project_id = ? AND type = ?", projectID, r.parser.mapProviderTypeToDatabase[providerType]).First(&dbProv).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProviderNotFound
@@ -66,8 +67,8 @@ func (r *repository) GetByProjectAndType(ctx context.Context, projectID string, 
 func (r *repository) Get(ctx context.Context, id string) (*provider.Provider, error) {
 	r.logger.InfoContext(ctx, "getting provider", slog.String("provider_id", id))
 
-	dbProv := &Provider{}
-	err := r.db.Preload("Custom").Preload("Openfort").Where("id = ?", id).First(dbProv).Error
+	dbProv := Provider{}
+	err := r.db.Preload("Custom").Preload("Openfort").Where("id = ?", id).First(&dbProv).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProviderNotFound
@@ -91,7 +92,7 @@ func (r *repository) List(ctx context.Context, projectID string) ([]*provider.Pr
 
 	var provs []*provider.Provider
 	for _, dbProv := range dbProvs {
-		provs = append(provs, r.parser.toDomainProvider(&dbProv))
+		provs = append(provs, r.parser.toDomainProvider(dbProv))
 	}
 
 	return provs, nil

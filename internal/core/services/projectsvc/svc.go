@@ -2,14 +2,15 @@ package projectsvc
 
 import (
 	"context"
+	"log/slog"
+	"os"
+
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/oflog"
 	"golang.org/x/crypto/bcrypt"
-	"log/slog"
-	"os"
 )
 
 type service struct {

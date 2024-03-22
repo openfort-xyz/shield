@@ -1,8 +1,9 @@
 package providerrepo
 
 import (
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Provider struct {

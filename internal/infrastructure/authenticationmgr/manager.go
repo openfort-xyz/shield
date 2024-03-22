@@ -1,13 +1,14 @@
 package authenticationmgr
 
 import (
+	"strings"
+
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/authentication"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/internal/infrastructure/providersmgr"
-	"strings"
 )
 
 type Manager struct {

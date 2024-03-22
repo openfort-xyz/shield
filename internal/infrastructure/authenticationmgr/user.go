@@ -3,6 +3,9 @@ package authenticationmgr
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/authentication"
@@ -11,8 +14,6 @@ import (
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/internal/infrastructure/providersmgr"
 	"go.openfort.xyz/shield/pkg/oflog"
-	"log/slog"
-	"os"
 )
 
 type user struct {

@@ -3,13 +3,14 @@ package usersvc
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/user"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/oflog"
-	"log/slog"
-	"os"
 )
 
 type service struct {
@@ -53,7 +54,7 @@ func (s *service) Get(ctx context.Context, userID string) (*user.User, error) {
 }
 
 func (s *service) GetByExternal(ctx context.Context, externalUserID, providerID string) (*user.User, error) {
-	s.logger.InfoContext(ctx, "getting user by external user", slog.String("external_user_id", externalUserID), slog.String("provider_id", string(providerID)))
+	s.logger.InfoContext(ctx, "getting user by external user", slog.String("external_user_id", externalUserID), slog.String("provider_id", providerID))
 
 	extUsrs, err := s.repo.FindExternalBy(ctx, s.repo.WithExternalUserID(externalUserID), s.repo.WithProviderID(providerID))
 	if err != nil {
@@ -62,7 +63,7 @@ func (s *service) GetByExternal(ctx context.Context, externalUserID, providerID 
 	}
 
 	if len(extUsrs) == 0 {
-		s.logger.ErrorContext(ctx, "external user not found", slog.String("external_user_id", externalUserID), slog.String("provider_id", string(providerID)))
+		s.logger.ErrorContext(ctx, "external user not found", slog.String("external_user_id", externalUserID), slog.String("provider_id", providerID))
 		return nil, domain.ErrExternalUserNotFound
 	}
 
@@ -102,7 +103,7 @@ func (s *service) CreateExternal(ctx context.Context, projectID, userID, externa
 	}
 
 	if len(extUsrs) != 0 {
-		s.logger.ErrorContext(ctx, "external user already exists for this user and provider", slog.String("user_id", userID), slog.String("provider_type", string(providerID)))
+		s.logger.ErrorContext(ctx, "external user already exists for this user and provider", slog.String("user_id", userID), slog.String("provider_type", providerID))
 		return nil, domain.ErrExternalUserAlreadyExists
 	}
 

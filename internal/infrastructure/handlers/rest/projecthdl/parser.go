@@ -40,7 +40,6 @@ func (p *parser) fromAddProvidersRequest(req *AddProvidersRequest) []projectapp.
 	}
 
 	return opts
-
 }
 
 func (p *parser) toAddProvidersResponse(providers []*provider.Provider) *AddProvidersResponse {
@@ -71,7 +70,6 @@ func (p *parser) toGetProvidersResponse(providers []*provider.Provider) *GetProv
 	}
 
 	return resp
-
 }
 
 func (p *parser) toGetProviderResponse(prov *provider.Provider) *GetProviderResponse {

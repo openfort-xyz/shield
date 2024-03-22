@@ -6,14 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.openfort.xyz/shield/internal/core/domain/provider"
-	"go.openfort.xyz/shield/internal/core/ports/providers"
-	"go.openfort.xyz/shield/pkg/oflog"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
+
+	"go.openfort.xyz/shield/internal/core/domain/provider"
+	"go.openfort.xyz/shield/internal/core/ports/providers"
+	"go.openfort.xyz/shield/pkg/oflog"
 )
 
 type openfort struct {
@@ -41,7 +42,7 @@ func (o *openfort) GetProviderID() string {
 func (o *openfort) Identify(ctx context.Context, token string, opts ...providers.CustomOption) (string, error) {
 	o.logger.InfoContext(ctx, "identifying user")
 
-	userID, err := validateJWKs(ctx, token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey))
+	userID, err := validateJWKs(token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey))
 	if err != nil {
 		if !errors.Is(err, ErrInvalidToken) {
 			o.logger.ErrorContext(ctx, "failed to validate jwks", slog.String("error", err.Error()))
@@ -87,7 +88,7 @@ func (o *openfort) identifyOAuth(ctx context.Context, token string, opts ...prov
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", o.publishableKey))
-	client := http.Client{Timeout: 60 * time.Second}
+	client := http.Client{Timeout: time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err

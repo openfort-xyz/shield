@@ -3,6 +3,9 @@ package userrepo
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/user"
@@ -10,8 +13,6 @@ import (
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
 	"go.openfort.xyz/shield/pkg/oflog"
 	"gorm.io/gorm"
-	"log/slog"
-	"os"
 )
 
 type repository struct {
@@ -99,7 +100,7 @@ func (r *repository) FindExternalBy(ctx context.Context, opts ...repositories.Op
 
 	extUsrs := make([]*user.ExternalUser, len(dbExtUsrs))
 	for i, dbExtUsr := range dbExtUsrs {
-		extUsrs[i] = r.parser.toDomainExternalUser(&dbExtUsr)
+		extUsrs[i] = r.parser.toDomainExternalUser(dbExtUsr)
 	}
 
 	return extUsrs, nil

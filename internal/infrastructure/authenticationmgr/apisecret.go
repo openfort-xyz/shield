@@ -2,12 +2,13 @@ package authenticationmgr
 
 import (
 	"context"
+	"log/slog"
+	"os"
+
 	"go.openfort.xyz/shield/internal/core/ports/authentication"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/pkg/oflog"
 	"golang.org/x/crypto/bcrypt"
-	"log/slog"
-	"os"
 )
 
 type apiSecret struct {

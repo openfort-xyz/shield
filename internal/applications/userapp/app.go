@@ -2,12 +2,13 @@ package userapp
 
 import (
 	"context"
+	"log/slog"
+	"os"
+
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/internal/infrastructure/providersmgr"
 	"go.openfort.xyz/shield/pkg/ofcontext"
 	"go.openfort.xyz/shield/pkg/oflog"
-	"log/slog"
-	"os"
 )
 
 type UserApplication struct {
@@ -37,7 +38,7 @@ func (a *UserApplication) RegisterShare(ctx context.Context, share string) error
 	err := a.shareSvc.Create(ctx, usrID, share)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create share", slog.String("error", err.Error()))
-		return err
+		return fromDomainError(err)
 	}
 
 	return nil
@@ -50,7 +51,7 @@ func (a *UserApplication) GetShare(ctx context.Context) (string, error) {
 	shr, err := a.shareSvc.GetByUserID(ctx, usrID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get share by user ID", slog.String("error", err.Error()))
-		return "", err
+		return "", fromDomainError(err)
 	}
 
 	return shr.Data, nil

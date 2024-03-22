@@ -2,12 +2,14 @@ package userhdl
 
 import (
 	"encoding/json"
-	"go.openfort.xyz/shield/internal/applications/userapp"
-	"go.openfort.xyz/shield/pkg/oflog"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+
+	"go.openfort.xyz/shield/internal/applications/userapp"
+	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/api"
+	"go.openfort.xyz/shield/pkg/oflog"
 )
 
 type Handler struct {
@@ -28,20 +30,20 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
 		return
 	}
 
 	var req RegisterShareRequest
 	err = json.Unmarshal(body, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
 	}
 
 	err = h.app.RegisterShare(ctx, req.Share)
-	if err != nil { // TODO parse error
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
 		return
 	}
 
@@ -54,7 +56,7 @@ func (h *Handler) GetShare(w http.ResponseWriter, r *http.Request) {
 
 	shr, err := h.app.GetShare(ctx)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		api.RespondWithError(w, fromApplicationError(err))
 		return
 	}
 
@@ -62,10 +64,10 @@ func (h *Handler) GetShare(w http.ResponseWriter, r *http.Request) {
 		Share: shr,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		api.RespondWithError(w, api.ErrInternal)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	_, _ = w.Write(resp)
 }

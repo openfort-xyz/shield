@@ -2,8 +2,9 @@ package oflog
 
 import (
 	"context"
-	"go.openfort.xyz/shield/pkg/ofcontext"
 	"log/slog"
+
+	"go.openfort.xyz/shield/pkg/ofcontext"
 )
 
 type ContextHandler struct {
