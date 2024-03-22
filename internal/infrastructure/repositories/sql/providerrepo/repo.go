@@ -101,10 +101,14 @@ func (r *repository) List(ctx context.Context, projectID string) ([]*provider.Pr
 func (r *repository) Delete(ctx context.Context, providerID string) error {
 	r.logger.InfoContext(ctx, "deleting provider", slog.String("provider_id", providerID))
 
-	err := r.db.Delete(&Provider{ID: providerID}).Error
-	if err != nil {
-		r.logger.ErrorContext(ctx, "error deleting provider", slog.String("error", err.Error()))
-		return err
+	cmd := r.db.Delete(&Provider{ID: providerID})
+	if cmd.Error != nil {
+		r.logger.ErrorContext(ctx, "error deleting provider", slog.String("error", cmd.Error.Error()))
+		return cmd.Error
+	}
+
+	if cmd.RowsAffected == 0 {
+		return domain.ErrProviderNotFound
 	}
 
 	return nil

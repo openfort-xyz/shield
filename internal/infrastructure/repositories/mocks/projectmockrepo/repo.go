@@ -1,4 +1,4 @@
-package projectrepomock
+package projectmockrepo
 
 import (
 	"context"

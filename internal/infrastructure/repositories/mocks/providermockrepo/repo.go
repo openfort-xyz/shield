@@ -1,4 +1,4 @@
-package providerrepomock
+package providermockrepo
 
 import (
 	"context"
