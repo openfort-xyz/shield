@@ -15,9 +15,9 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
-	"go.openfort.xyz/shield/internal/infrastructure/authentication"
+	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest"
-	"go.openfort.xyz/shield/internal/infrastructure/providers"
+	"go.openfort.xyz/shield/internal/infrastructure/providersmgr"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql/providerrepo"
@@ -111,8 +111,8 @@ func ProvideShareService() (services.ShareService, error) {
 	return shareService, nil
 }
 
-func ProvideProviderManager() (*providers.Manager, error) {
-	config, err := providers.GetConfigFromEnv()
+func ProvideProviderManager() (*providersmgr.Manager, error) {
+	config, err := providersmgr.GetConfigFromEnv()
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func ProvideProviderManager() (*providers.Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	manager := providers.NewManager(config, providerRepository)
+	manager := providersmgr.NewManager(config, providerRepository)
 	return manager, nil
 }
 
@@ -162,7 +162,7 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	return projectApplication, nil
 }
 
-func ProvideAuthenticationManager() (*authentication.Manager, error) {
+func ProvideAuthenticationManager() (*authenticationmgr.Manager, error) {
 	projectRepository, err := ProvideSQLProjectRepository()
 	if err != nil {
 		return nil, err
@@ -175,7 +175,7 @@ func ProvideAuthenticationManager() (*authentication.Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	authenticationManager := authentication.NewManager(projectRepository, manager, userService)
+	authenticationManager := authenticationmgr.NewManager(projectRepository, manager, userService)
 	return authenticationManager, nil
 }
 

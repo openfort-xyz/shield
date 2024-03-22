@@ -1,4 +1,4 @@
-package providers
+package providersmgr
 
 import (
 	"context"
@@ -14,7 +14,7 @@ func validateJWKs(ctx context.Context, token, jwkUrl string) (string, error) {
 
 	parsed, err := jwt.Parse(token, k.Keyfunc)
 	if err != nil {
-		return "", err
+		return "", ErrInvalidToken
 	}
 
 	claims := parsed.Claims.(jwt.MapClaims)

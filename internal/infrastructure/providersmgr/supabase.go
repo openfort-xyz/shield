@@ -1,4 +1,4 @@
-package providers
+package providersmgr
 
 import (
 	"context"
@@ -34,7 +34,7 @@ func (s *supabase) GetProviderID() string {
 	return s.providerID
 }
 
-func (s *supabase) Identify(ctx context.Context, token string) (string, error) {
+func (s *supabase) Identify(ctx context.Context, token string, opts ...providers.CustomOption) (string, error) {
 	s.logger.InfoContext(ctx, "identifying user")
 
 	authedClient := s.client.WithToken(token)

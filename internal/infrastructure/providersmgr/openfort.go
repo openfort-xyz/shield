@@ -1,0 +1,140 @@
+package providersmgr
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"go.openfort.xyz/shield/internal/core/domain/provider"
+	"go.openfort.xyz/shield/internal/core/ports/providers"
+	"go.openfort.xyz/shield/pkg/oflog"
+	"io"
+	"log/slog"
+	"net/http"
+	"os"
+)
+
+type openfort struct {
+	publishableKey string
+	baseURL        string
+	providerID     string
+	logger         *slog.Logger
+}
+
+var _ providers.IdentityProvider = (*openfort)(nil)
+
+func newOpenfortProvider(config openfortConfig, providerConfig *provider.OpenfortConfig) providers.IdentityProvider {
+	return &openfort{
+		publishableKey: providerConfig.PublishableKey,
+		providerID:     providerConfig.ProviderID,
+		baseURL:        config.OpenfortBaseURL,
+		logger:         slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("openfort_provider"),
+	}
+}
+
+func (o *openfort) GetProviderID() string {
+	return o.providerID
+}
+
+func (o *openfort) Identify(ctx context.Context, token string, opts ...providers.CustomOption) (string, error) {
+	o.logger.InfoContext(ctx, "identifying user")
+
+	fmt.Println("o.baseURL", o.baseURL)
+	userID, err := validateJWKs(ctx, token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey))
+	if err != nil {
+		if !errors.Is(err, ErrInvalidToken) {
+			o.logger.ErrorContext(ctx, "failed to validate jwks", slog.String("error", err.Error()))
+			return "", err
+		}
+
+		return o.identifyOAuth(ctx, token, opts)
+	}
+
+	return userID, nil
+}
+
+func (o *openfort) identifyOAuth(ctx context.Context, token string, opts []providers.CustomOption) (string, error) {
+	var opt providers.CustomOptions
+	for _, o := range opts {
+		o(&opt)
+	}
+
+	ofProvider, ok := opt[providers.CustomOptionOpenfortProvider]
+	if !ok {
+		return "", ErrMissingOpenfortProvider
+	}
+
+	ofTokenType, ok := opt[providers.CustomOptionOpenfortTokenType]
+	if !ok {
+		return "", ErrMissingOpenfortTokenType
+	}
+
+	url := fmt.Sprintf("%s/iam/v1/oauth/authenticate")
+
+	reqBody := authenticateOauthRequest{
+		Provider:  ofProvider.(string),
+		Token:     token,
+		TokenType: ofTokenType.(string),
+	}
+
+	rawReqBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(rawReqBody))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", o.publishableKey))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode/100 != 2 {
+		return "", ErrUnexpectedStatusCode
+	}
+
+	rawResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var response authenticateOauthResponse
+	if err := json.Unmarshal(rawResponse, &response); err != nil {
+		return "", err
+	}
+
+	return response.Player.ID, nil
+}
+
+type authenticateOauthRequest struct {
+	Provider  string `json:"provider"`
+	Token     string `json:"token"`
+	TokenType string `json:"tokenType"`
+}
+
+type authenticateOauthResponse struct {
+	Token        string `json:"token"`
+	RefreshToken string `json:"refreshToken"`
+	Player       player `json:"player"`
+}
+
+type player struct {
+	ID             string          `json:"id"`
+	Object         string          `json:"object"`
+	CreatedAt      int64           `json:"created_at"`
+	LinkedAccounts []linkedAccount `json:"linked_accounts"`
+}
+
+type linkedAccount struct {
+	Provider       string `json:"provider"`
+	Email          string `json:"email,omitempty"`
+	ExternalUserID string `json:"external_user_id,omitempty"`
+	Disabled       bool   `json:"disabled"`
+	UpdatedAt      int64  `json:"updated_at,omitempty"`
+	Address        string `json:"address,omitempty"`
+	Metadata       string `json:"metadata,omitempty"`
+}

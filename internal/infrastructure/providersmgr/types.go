@@ -1,4 +1,4 @@
-package providers
+package providersmgr
 
 type jwks struct {
 	Keys []key `json:"keys"`

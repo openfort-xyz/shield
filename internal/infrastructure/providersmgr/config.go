@@ -1,4 +1,4 @@
-package providers
+package providersmgr
 
 import "github.com/caarlos0/env/v10"
 

@@ -13,9 +13,9 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
-	"go.openfort.xyz/shield/internal/infrastructure/authentication"
+	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest"
-	"go.openfort.xyz/shield/internal/infrastructure/providers"
+	"go.openfort.xyz/shield/internal/infrastructure/providersmgr"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql/providerrepo"
@@ -104,10 +104,10 @@ func ProvideShareService() (s services.ShareService, err error) {
 	return
 }
 
-func ProvideProviderManager() (pm *providers.Manager, err error) {
+func ProvideProviderManager() (pm *providersmgr.Manager, err error) {
 	wire.Build(
-		providers.NewManager,
-		providers.GetConfigFromEnv,
+		providersmgr.NewManager,
+		providersmgr.GetConfigFromEnv,
 		ProvideSQLProviderRepository,
 	)
 
@@ -137,9 +137,9 @@ func ProvideProjectApplication() (a *projectapp.ProjectApplication, err error) {
 	return
 }
 
-func ProvideAuthenticationManager() (am *authentication.Manager, err error) {
+func ProvideAuthenticationManager() (am *authenticationmgr.Manager, err error) {
 	wire.Build(
-		authentication.NewManager,
+		authenticationmgr.NewManager,
 		ProvideSQLProjectRepository,
 		ProvideProviderManager,
 		ProvideUserService,

@@ -1,7 +1,8 @@
 package authmdw
 
 import (
-	"go.openfort.xyz/shield/internal/infrastructure/authentication"
+	authenticate "go.openfort.xyz/shield/internal/core/ports/authentication"
+	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
 	"go.openfort.xyz/shield/pkg/ofcontext"
 	"net/http"
 	"strings"
@@ -11,12 +12,14 @@ const TokenHeader = "Authorization"
 const AuthProviderHeader = "X-Auth-Provider"
 const APIKeyHeader = "X-API-Key"
 const APISecretHeader = "X-API-Secret"
+const OpenfortProviderHeader = "X-Openfort-Provider"
+const OpenfortTokenTypeHeader = "X-Openfort-Token-Type"
 
 type Middleware struct {
-	manager *authentication.Manager
+	manager *authenticationmgr.Manager
 }
 
-func New(manager *authentication.Manager) *Middleware {
+func New(manager *authenticationmgr.Manager) *Middleware {
 	return &Middleware{manager: manager}
 }
 
@@ -92,13 +95,22 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 			return
 		}
 
+		openfortProvider := r.Header.Get(OpenfortProviderHeader)
+		openfortTokenType := r.Header.Get(OpenfortTokenTypeHeader)
+
+		var customOptions []authenticate.CustomOption
+		if openfortProvider != "" && openfortTokenType != "" {
+			customOptions = append(customOptions, authenticate.WithCustomOption(authenticate.CustomOptionOpenfortProvider, openfortProvider))
+			customOptions = append(customOptions, authenticate.WithCustomOption(authenticate.CustomOptionOpenfortTokenType, openfortTokenType))
+		}
+
 		provider, err := m.manager.GetAuthProvider(providerStr)
 		if err != nil {
 			http.Error(w, "invalid auth provider", http.StatusUnauthorized)
 			return
 		}
 
-		userID, err := m.manager.GetUserAuthenticator().Authenticate(r.Context(), apiKey, token, provider)
+		userID, err := m.manager.GetUserAuthenticator().Authenticate(r.Context(), apiKey, token, provider, customOptions...)
 		if err != nil {
 			http.Error(w, "invalid token", http.StatusUnauthorized)
 			return

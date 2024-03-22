@@ -6,7 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/userapp"
-	"go.openfort.xyz/shield/internal/infrastructure/authentication"
+	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/authmdw"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/projecthdl"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/requestmdw"
@@ -21,13 +21,13 @@ import (
 type Server struct {
 	projectApp  *projectapp.ProjectApplication
 	userApp     *userapp.UserApplication
-	authManager *authentication.Manager
+	authManager *authenticationmgr.Manager
 	server      *http.Server
 	logger      *slog.Logger
 	config      *Config
 }
 
-func New(cfg *Config, projectApp *projectapp.ProjectApplication, userApp *userapp.UserApplication, authManager *authentication.Manager) *Server {
+func New(cfg *Config, projectApp *projectapp.ProjectApplication, userApp *userapp.UserApplication, authManager *authenticationmgr.Manager) *Server {
 	return &Server{
 		projectApp:  projectApp,
 		userApp:     userApp,

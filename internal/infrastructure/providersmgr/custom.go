@@ -1,4 +1,4 @@
-package providers
+package providersmgr
 
 import (
 	"context"
@@ -29,7 +29,7 @@ func (c *custom) GetProviderID() string {
 	return c.providerID
 }
 
-func (c *custom) Identify(ctx context.Context, token string) (string, error) {
+func (c *custom) Identify(ctx context.Context, token string, opts ...providers.CustomOption) (string, error) {
 	c.logger.InfoContext(ctx, "identifying user")
 
 	externalUserID, err := validateJWKs(ctx, token, c.jwkUrl)

@@ -3,7 +3,7 @@ package userapp
 import (
 	"context"
 	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/internal/infrastructure/providers"
+	"go.openfort.xyz/shield/internal/infrastructure/providersmgr"
 	"go.openfort.xyz/shield/pkg/ofcontext"
 	"go.openfort.xyz/shield/pkg/oflog"
 	"log/slog"
@@ -15,11 +15,11 @@ type UserApplication struct {
 	shareSvc        services.ShareService
 	projectSvc      services.ProjectService
 	providerSvc     services.ProviderService
-	providerManager *providers.Manager
+	providerManager *providersmgr.Manager
 	logger          *slog.Logger
 }
 
-func New(userSvc services.UserService, shareSvc services.ShareService, projectSvc services.ProjectService, providerSvc services.ProviderService, providerManager *providers.Manager) *UserApplication {
+func New(userSvc services.UserService, shareSvc services.ShareService, projectSvc services.ProjectService, providerSvc services.ProviderService, providerManager *providersmgr.Manager) *UserApplication {
 	return &UserApplication{
 		userSvc:         userSvc,
 		shareSvc:        shareSvc,

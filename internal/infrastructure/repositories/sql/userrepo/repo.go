@@ -66,6 +66,10 @@ func (r *repository) Get(ctx context.Context, userID string) (*user.User, error)
 func (r *repository) CreateExternal(ctx context.Context, extUsr *user.ExternalUser) error {
 	r.logger.InfoContext(ctx, "creating external user")
 
+	if extUsr.ID == "" {
+		extUsr.ID = uuid.NewString()
+	}
+
 	dbExtUsr := r.parser.toDatabaseExternalUser(extUsr)
 	err := r.db.Create(dbExtUsr).Error
 	if err != nil {

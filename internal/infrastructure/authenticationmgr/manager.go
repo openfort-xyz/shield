@@ -1,4 +1,4 @@
-package authentication
+package authenticationmgr
 
 import (
 	"go.openfort.xyz/shield/internal/core/domain"
@@ -6,7 +6,7 @@ import (
 	"go.openfort.xyz/shield/internal/core/ports/authentication"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/internal/infrastructure/providers"
+	"go.openfort.xyz/shield/internal/infrastructure/providersmgr"
 	"strings"
 )
 
@@ -16,7 +16,7 @@ type Manager struct {
 	UserAuthenticator      authentication.UserAuthenticator
 }
 
-func NewManager(repo repositories.ProjectRepository, providerManager *providers.Manager, userService services.UserService) *Manager {
+func NewManager(repo repositories.ProjectRepository, providerManager *providersmgr.Manager, userService services.UserService) *Manager {
 	return &Manager{
 		APIKeyAuthenticator:    newAPIKeyAuthenticator(repo),
 		APISecretAuthenticator: newAPISecretAuthenticator(repo),

@@ -3,6 +3,7 @@ package sharerepo
 import (
 	"context"
 	"errors"
+	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -32,6 +33,10 @@ func New(db *sql.Client) repositories.ShareRepository {
 
 func (r *repository) Create(ctx context.Context, shr *share.Share) error {
 	r.logger.InfoContext(ctx, "creating share")
+
+	if shr.ID == "" {
+		shr.ID = uuid.NewString()
+	}
 
 	dbShr := r.parser.toDatabase(shr)
 	err := r.db.Create(dbShr).Error
