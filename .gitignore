@@ -14,6 +14,8 @@
 !*.sql
 !go.sum
 !go.mod
+!.golangci.yml
+!Dockerfile
 
 !README.md
 !LICENSE

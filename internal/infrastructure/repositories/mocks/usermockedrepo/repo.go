@@ -11,6 +11,8 @@ type MockUserRepository struct {
 	mock.Mock
 }
 
+var _ repositories.Options = (*MockUserRepository)(nil)
+
 func (m *MockUserRepository) WithUserID(userID string) repositories.Option {
 	return func(opts repositories.Options) {}
 }
