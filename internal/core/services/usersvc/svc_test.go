@@ -274,19 +274,3 @@ func TestCreateExternalUser(t *testing.T) {
 		})
 	}
 }
-
-//     Create User Test:
-//        Test creating a user successfully.
-//        Test failure in creating a user (e.g., repository returns an error).
-//
-//    Get User Test:
-//        Test getting a user successfully.
-//        Test failure in getting a user (user not found, other errors).
-//
-//    Get User by External Test:
-//        Test getting a user by external ID and provider ID successfully.
-//        Test failure cases like no user found, repository errors.
-//
-//    Create External User Test:
-//        Test creating an external user successfully.
-//        Test failure in creating an external user (e.g., user not found, external user already exists, repository errors).
