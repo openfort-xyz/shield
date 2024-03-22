@@ -32,15 +32,11 @@ func (p *parser) fromAddProvidersRequest(req *AddProvidersRequest) []projectapp.
 	opts := make([]projectapp.ProviderOption, 0)
 
 	if req.Providers.Openfort != nil && req.Providers.Openfort.PublishableKey != "" {
-		opts = append(opts, projectapp.WithOpenfortProvider(req.Providers.Openfort.PublishableKey))
+		opts = append(opts, projectapp.WithOpenfort(req.Providers.Openfort.PublishableKey))
 	}
 
 	if req.Providers.Custom != nil && req.Providers.Custom.JWK != "" {
-		opts = append(opts, projectapp.WithCustomProvider(req.Providers.Custom.JWK))
-	}
-
-	if req.Providers.Supabase != nil && req.Providers.Supabase.ProjectReference != "" {
-		opts = append(opts, projectapp.WithSupabaseProvider(req.Providers.Supabase.ProjectReference))
+		opts = append(opts, projectapp.WithCustom(req.Providers.Custom.JWK))
 	}
 
 	return opts
@@ -89,10 +85,8 @@ func (p *parser) toGetProviderResponse(prov *provider.Provider) *GetProviderResp
 		resp.PublishableKey = prov.Config.(*provider.OpenfortConfig).PublishableKey
 	case provider.TypeCustom:
 		resp.JWK = prov.Config.(*provider.CustomConfig).JWK
-	case provider.TypeSupabase:
-		resp.ProjectReference = prov.Config.(*provider.SupabaseConfig).SupabaseProjectReference
+	case provider.TypeUnknown:
 	}
 
 	return resp
-
 }

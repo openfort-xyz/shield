@@ -24,7 +24,7 @@ type openfort struct {
 
 var _ providers.IdentityProvider = (*openfort)(nil)
 
-func newOpenfortProvider(config openfortConfig, providerConfig *provider.OpenfortConfig) providers.IdentityProvider {
+func newOpenfortProvider(config *Config, providerConfig *provider.OpenfortConfig) providers.IdentityProvider {
 	return &openfort{
 		publishableKey: providerConfig.PublishableKey,
 		providerID:     providerConfig.ProviderID,
@@ -70,7 +70,7 @@ func (o *openfort) identifyOAuth(ctx context.Context, token string, opts []provi
 		return "", ErrMissingOpenfortTokenType
 	}
 
-	url := fmt.Sprintf("%s/iam/v1/oauth/authenticate")
+	url := fmt.Sprintf("%s/iam/v1/oauth/authenticate", o.baseURL)
 
 	reqBody := authenticateOauthRequest{
 		Provider:  ofProvider.(string),

@@ -23,7 +23,6 @@ type AddProvidersRequest struct {
 type ProvidersRequest struct {
 	Openfort *OpenfortProvider `json:"openfort,omitempty"`
 	Custom   *CustomProvider   `json:"custom,omitempty"`
-	Supabase *SupabaseProvider `json:"supabase,omitempty"`
 }
 
 type OpenfortProvider struct {
@@ -34,11 +33,6 @@ type OpenfortProvider struct {
 type CustomProvider struct {
 	ProviderID string `json:"provider_id,omitempty"`
 	JWK        string `json:"jwk,omitempty"`
-}
-
-type SupabaseProvider struct {
-	ProviderID       string `json:"provider_id,omitempty"`
-	ProjectReference string `json:"project_reference,omitempty"`
 }
 
 type AddProvidersResponse struct {
@@ -55,9 +49,13 @@ type GetProvidersResponse struct {
 }
 
 type GetProviderResponse struct {
-	ProviderID       string `json:"provider_id"`
-	Type             string `json:"type"`
-	ProjectReference string `json:"project_reference,omitempty"`
-	PublishableKey   string `json:"publishable_key,omitempty"`
-	JWK              string `json:"jwk,omitempty"`
+	ProviderID     string `json:"provider_id"`
+	Type           string `json:"type"`
+	PublishableKey string `json:"publishable_key,omitempty"`
+	JWK            string `json:"jwk,omitempty"`
+}
+
+type UpdateProviderRequest struct {
+	PublishableKey string `json:"publishable_key,omitempty"`
+	JWK            string `json:"jwk,omitempty"`
 }

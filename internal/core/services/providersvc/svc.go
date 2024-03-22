@@ -46,13 +46,6 @@ func (s *service) Configure(ctx context.Context, projectID string, config servic
 		}
 
 		return s.configureOpenfortProvider(ctx, projectID, openfortConfig.OpenfortProject)
-	case provider.TypeSupabase:
-		supabaseConfig, ok := config.GetConfig().(*services.SupabaseProviderConfig)
-		if !ok {
-			return nil, domain.ErrInvalidProviderConfig
-		}
-
-		return s.configureSupabaseAuthentication(ctx, projectID, supabaseConfig.SupabaseProject)
 	default:
 		return nil, domain.ErrUnknownProviderType
 	}
@@ -80,6 +73,34 @@ func (s *service) List(ctx context.Context, projectID string) ([]*provider.Provi
 	}
 
 	return provs, nil
+}
+
+func (s *service) UpdateConfig(ctx context.Context, config interface{}) error {
+	s.logger.InfoContext(ctx, "updating provider config")
+
+	if cfg, ok := config.(*provider.CustomConfig); ok {
+		s.logger.InfoContext(ctx, "updating custom provider config", slog.String("provider_id", cfg.ProviderID))
+		err := s.repo.UpdateCustom(ctx, cfg)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to update provider config", slog.String("error", err.Error()))
+			return err
+		}
+
+		return nil
+	}
+
+	if cfg, ok := config.(*provider.OpenfortConfig); ok {
+		s.logger.InfoContext(ctx, "updating openfort provider config", slog.String("provider_id", cfg.ProviderID))
+		err := s.repo.UpdateOpenfort(ctx, cfg)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to update provider config", slog.String("error", err.Error()))
+			return err
+		}
+
+		return nil
+	}
+
+	return domain.ErrInvalidProviderConfig
 }
 
 func (s *service) Remove(ctx context.Context, projectID string, providerID string) error {
@@ -177,48 +198,5 @@ func (s *service) configureOpenfortProvider(ctx context.Context, projectID, open
 	}
 
 	prov.Config = openfortAuth
-	return prov, nil
-}
-
-func (s *service) configureSupabaseAuthentication(ctx context.Context, projectID, supabaseProject string) (*provider.Provider, error) {
-	s.logger.InfoContext(ctx, "configuring supabase authentication", slog.String("project_id", projectID))
-
-	prov, err := s.repo.GetByProjectAndType(ctx, projectID, provider.TypeSupabase)
-	if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
-		s.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	if prov != nil {
-		s.logger.ErrorContext(ctx, "provider already exists")
-		return nil, domain.ErrProviderAlreadyExists
-	}
-
-	prov = &provider.Provider{
-		ProjectID: projectID,
-		Type:      provider.TypeSupabase,
-	}
-	err = s.repo.Create(ctx, prov)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create provider", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	supabaseAuth := &provider.SupabaseConfig{
-		ProviderID:               prov.ID,
-		SupabaseProjectReference: supabaseProject,
-	}
-	err = s.repo.CreateSupabase(ctx, supabaseAuth)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create supabase provider", slog.String("error", err.Error()))
-		errD := s.repo.Delete(ctx, prov.ID)
-		if errD != nil {
-			s.logger.ErrorContext(ctx, "failed to delete provider", slog.String("provider", prov.ID), slog.String("error", errD.Error()))
-			errors.Join(err, errD)
-		}
-		return nil, err
-	}
-
-	prov.Config = supabaseAuth
 	return prov, nil
 }

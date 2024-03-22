@@ -22,7 +22,6 @@ require (
 	github.com/pressly/goose v2.7.0+incompatible // indirect
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/supabase-community/gotrue-go v1.2.0 // indirect
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
 	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

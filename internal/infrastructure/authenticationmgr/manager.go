@@ -40,8 +40,6 @@ func (m *Manager) GetAuthProvider(providerStr string) (provider.Type, error) {
 	switch strings.ToLower(providerStr) {
 	case "openfort":
 		return provider.TypeOpenfort, nil
-	case "supabase":
-		return provider.TypeSupabase, nil
 	case "custom":
 		return provider.TypeCustom, nil
 	default:

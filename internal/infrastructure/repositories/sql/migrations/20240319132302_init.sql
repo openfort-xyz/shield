@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS shld_projects (
 CREATE TABLE IF NOT EXISTS shld_providers (
     id VARCHAR(36) PRIMARY KEY,
     project_id VARCHAR(36) NOT NULL,
-    type ENUM('OPENFORT', 'SUPABASE', 'CUSTOM') NOT NULL,
+    type ENUM('OPENFORT', 'CUSTOM') NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP DEFAULT NULL
@@ -24,12 +24,6 @@ CREATE TABLE IF NOT EXISTS shld_openfort_providers (
     publishable_key VARCHAR(255) NOT NULL
 );
 ALTER TABLE shld_openfort_providers ADD CONSTRAINT fk_openfort_provider FOREIGN KEY (provider_id) REFERENCES shld_providers(id) ON DELETE CASCADE;
-
-CREATE TABLE IF NOT EXISTS shld_supabase_providers (
-    provider_id VARCHAR(36) PRIMARY KEY,
-    supabase_project VARCHAR(255) NOT NULL
-);
-ALTER TABLE shld_supabase_providers ADD CONSTRAINT fk_supabase_provider FOREIGN KEY (provider_id) REFERENCES shld_providers(id) ON DELETE CASCADE;
 
 CREATE TABLE IF NOT EXISTS shld_custom_providers (
     provider_id VARCHAR(36) PRIMARY KEY,
@@ -76,7 +70,6 @@ DROP TABLE IF EXISTS shld_shares;
 DROP TABLE IF EXISTS shld_external_users;
 DROP TABLE IF EXISTS shld_users;
 DROP TABLE IF EXISTS shld_custom_providers;
-DROP TABLE IF EXISTS shld_supabase_providers;
 DROP TABLE IF EXISTS shld_openfort_providers;
 DROP TABLE IF EXISTS shld_providers;
 DROP TABLE IF EXISTS shld_projects;

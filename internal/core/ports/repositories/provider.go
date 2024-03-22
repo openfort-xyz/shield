@@ -14,10 +14,9 @@ type ProviderRepository interface {
 
 	CreateCustom(ctx context.Context, provider *provider.CustomConfig) error
 	GetCustom(ctx context.Context, providerID string) (*provider.CustomConfig, error)
+	UpdateCustom(ctx context.Context, provider *provider.CustomConfig) error
 
 	CreateOpenfort(ctx context.Context, provider *provider.OpenfortConfig) error
 	GetOpenfort(ctx context.Context, providerID string) (*provider.OpenfortConfig, error)
-
-	CreateSupabase(ctx context.Context, provider *provider.SupabaseConfig) error
-	GetSupabase(ctx context.Context, providerID string) (*provider.SupabaseConfig, error)
+	UpdateOpenfort(ctx context.Context, provider *provider.OpenfortConfig) error
 }

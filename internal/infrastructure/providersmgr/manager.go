@@ -50,13 +50,7 @@ func (p *Manager) GetProvider(ctx context.Context, projectID string, providerTyp
 		if !ok {
 			return nil, ErrProviderConfigMismatch
 		}
-		return newOpenfortProvider(p.config.openfortConfig, config), nil
-	case provider.TypeSupabase:
-		config, ok := prov.Config.(*provider.SupabaseConfig)
-		if !ok {
-			return nil, ErrProviderConfigMismatch
-		}
-		return newSupabaseProvider(p.config.supabaseConfig, config), nil
+		return newOpenfortProvider(p.config, config), nil
 	default:
 		return nil, ErrProviderNotSupported
 	}

@@ -14,7 +14,6 @@ type Provider struct {
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`
 
 	Openfort *ProviderOpenfort
-	Supabase *ProviderSupabase
 	Custom   *ProviderCustom
 }
 
@@ -26,7 +25,6 @@ type Type string
 
 const (
 	TypeOpenfort Type = "OPENFORT"
-	TypeSupabase Type = "SUPABASE"
 	TypeCustom   Type = "CUSTOM"
 )
 
@@ -37,15 +35,6 @@ type ProviderOpenfort struct {
 
 func (ProviderOpenfort) TableName() string {
 	return "shld_openfort_providers"
-}
-
-type ProviderSupabase struct {
-	ProviderID      string `gorm:"column:provider_id;primary_key"`
-	SupabaseProject string `gorm:"column:supabase_project"`
-}
-
-func (ProviderSupabase) TableName() string {
-	return "shld_supabase_providers"
 }
 
 type ProviderCustom struct {

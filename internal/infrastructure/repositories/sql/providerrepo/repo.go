@@ -51,7 +51,7 @@ func (r *repository) GetByProjectAndType(ctx context.Context, projectID string, 
 	r.logger.InfoContext(ctx, "getting provider", slog.String("project_id", projectID), slog.String("provider_type", providerType.String()))
 
 	dbProv := &Provider{}
-	err := r.db.Preload("Custom").Preload("Openfort").Preload("Supabase").Where("project_id = ? AND type = ?", projectID, r.parser.mapProviderTypeToDatabase[providerType]).First(dbProv).Error
+	err := r.db.Preload("Custom").Preload("Openfort").Where("project_id = ? AND type = ?", projectID, r.parser.mapProviderTypeToDatabase[providerType]).First(dbProv).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProviderNotFound
@@ -67,7 +67,7 @@ func (r *repository) Get(ctx context.Context, id string) (*provider.Provider, er
 	r.logger.InfoContext(ctx, "getting provider", slog.String("provider_id", id))
 
 	dbProv := &Provider{}
-	err := r.db.Preload("Custom").Preload("Openfort").Preload("Supabase").Where("id = ?", id).First(dbProv).Error
+	err := r.db.Preload("Custom").Preload("Openfort").Where("id = ?", id).First(dbProv).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProviderNotFound
@@ -138,6 +138,19 @@ func (r *repository) GetCustom(ctx context.Context, providerID string) (*provide
 	return r.parser.toDomainCustomProvider(dbProv), nil
 }
 
+func (r *repository) UpdateCustom(ctx context.Context, prov *provider.CustomConfig) error {
+	r.logger.InfoContext(ctx, "updating custom provider", slog.String("provider_id", prov.ProviderID))
+
+	dbProv := r.parser.toDatabaseCustomProvider(prov)
+	err := r.db.Save(dbProv).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error updating custom provider", slog.String("error", err.Error()))
+		return err
+	}
+
+	return nil
+}
+
 func (r *repository) CreateOpenfort(ctx context.Context, prov *provider.OpenfortConfig) error {
 	r.logger.InfoContext(ctx, "creating openfort provider", slog.String("provider_id", prov.ProviderID))
 
@@ -167,31 +180,15 @@ func (r *repository) GetOpenfort(ctx context.Context, providerID string) (*provi
 	return r.parser.toDomainOpenfortProvider(dbProv), nil
 }
 
-func (r *repository) CreateSupabase(ctx context.Context, prov *provider.SupabaseConfig) error {
-	r.logger.InfoContext(ctx, "creating supabase provider", slog.String("provider_id", prov.ProviderID))
+func (r *repository) UpdateOpenfort(ctx context.Context, prov *provider.OpenfortConfig) error {
+	r.logger.InfoContext(ctx, "updating openfort provider", slog.String("provider_id", prov.ProviderID))
 
-	dbProv := r.parser.toDatabaseSupabaseProvider(prov)
-	err := r.db.Create(dbProv).Error
+	dbProv := r.parser.toDatabaseOpenfortProvider(prov)
+	err := r.db.Save(dbProv).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating supabase provider", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error updating openfort provider", slog.String("error", err.Error()))
 		return err
 	}
 
 	return nil
-}
-
-func (r *repository) GetSupabase(ctx context.Context, providerID string) (*provider.SupabaseConfig, error) {
-	r.logger.InfoContext(ctx, "getting supabase provider", slog.String("provider_id", providerID))
-
-	dbProv := &ProviderSupabase{}
-	err := r.db.Where("provider_id = ?", providerID).First(dbProv).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domain.ErrProviderNotFound
-		}
-		r.logger.ErrorContext(ctx, "error getting supabase provider", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	return r.parser.toDomainSupabaseProvider(dbProv), nil
 }

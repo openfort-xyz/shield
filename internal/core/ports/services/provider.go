@@ -9,6 +9,7 @@ type ProviderService interface {
 	Configure(ctx context.Context, projectID string, config ProviderConfig) (*provider.Provider, error)
 	Get(ctx context.Context, providerID string) (*provider.Provider, error)
 	List(ctx context.Context, projectID string) ([]*provider.Provider, error)
+	UpdateConfig(ctx context.Context, config interface{}) error
 	Remove(ctx context.Context, projectID string, providerID string) error
 }
 
@@ -39,16 +40,4 @@ func (o *OpenfortProviderConfig) GetType() provider.Type {
 
 func (o *OpenfortProviderConfig) GetConfig() interface{} {
 	return o
-}
-
-type SupabaseProviderConfig struct {
-	SupabaseProject string
-}
-
-func (s *SupabaseProviderConfig) GetType() provider.Type {
-	return provider.TypeSupabase
-}
-
-func (s *SupabaseProviderConfig) GetConfig() interface{} {
-	return s
 }

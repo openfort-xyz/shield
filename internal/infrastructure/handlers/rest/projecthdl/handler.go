@@ -160,6 +160,42 @@ func (h *Handler) GetProvider(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateProvider(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "updating provider")
+
+	providerID := mux.Vars(r)["provider"]
+	if providerID == "" {
+		http.Error(w, "provider id is required", http.StatusBadRequest)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var req UpdateProviderRequest
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var opts []projectapp.ProviderOption
+	if req.JWK != "" {
+		opts = append(opts, projectapp.WithCustom(req.JWK))
+	}
+
+	if req.PublishableKey != "" {
+		opts = append(opts, projectapp.WithOpenfort(req.PublishableKey))
+	}
+
+	err = h.app.UpdateProvider(ctx, providerID, opts...)
+	if err != nil { // TODO parse error
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) DeleteProvider(w http.ResponseWriter, r *http.Request) {

@@ -12,12 +12,10 @@ func newParser() *parser {
 		mapProviderTypeToDatabase: map[provider.Type]Type{
 			provider.TypeCustom:   TypeCustom,
 			provider.TypeOpenfort: TypeOpenfort,
-			provider.TypeSupabase: TypeSupabase,
 		},
 		mapProviderTypeToDomain: map[Type]provider.Type{
 			TypeCustom:   provider.TypeCustom,
 			TypeOpenfort: provider.TypeOpenfort,
-			TypeSupabase: provider.TypeSupabase,
 		},
 	}
 }
@@ -45,10 +43,6 @@ func (p *parser) toDomainProvider(prov *Provider) *provider.Provider {
 		domainProv.Config = p.toDomainOpenfortProvider(prov.Openfort)
 	}
 
-	if prov.Supabase != nil {
-		domainProv.Config = p.toDomainSupabaseProvider(prov.Supabase)
-	}
-
 	return domainProv
 }
 
@@ -63,20 +57,6 @@ func (p *parser) toDomainOpenfortProvider(prov *ProviderOpenfort) *provider.Open
 	return &provider.OpenfortConfig{
 		ProviderID:     prov.ProviderID,
 		PublishableKey: prov.PublishableKey,
-	}
-}
-
-func (p *parser) toDatabaseSupabaseProvider(prov *provider.SupabaseConfig) *ProviderSupabase {
-	return &ProviderSupabase{
-		ProviderID:      prov.ProviderID,
-		SupabaseProject: prov.SupabaseProjectReference,
-	}
-}
-
-func (p *parser) toDomainSupabaseProvider(prov *ProviderSupabase) *provider.SupabaseConfig {
-	return &provider.SupabaseConfig{
-		ProviderID:               prov.ProviderID,
-		SupabaseProjectReference: prov.SupabaseProject,
 	}
 }
 
