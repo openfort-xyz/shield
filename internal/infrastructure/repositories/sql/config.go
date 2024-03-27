@@ -24,7 +24,7 @@ type Config struct {
 	TimeZone string `env:"DB_POSTGRES_TIME_ZONE" envDefault:"Europe/Madrid"`
 
 	// CloudSQL
-	UnixSocketPAth string `env:"INSTANCE_UNIX_SOCKET"`
+	InstanceHost string `env:"INSTANCE_HOST"`
 }
 
 const migrationDirectory = "internal/infrastructure/repositories/sql/migrations"
@@ -43,8 +43,8 @@ func (c *Config) MySQLDSN() string {
 }
 
 func (c *Config) CloudSQLDSN() string {
-	return fmt.Sprintf("%s:%s@unix(%s)/%s?parseTime=true",
-		c.User, c.Pass, c.UnixSocketPAth, c.DBName)
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+		c.User, c.Pass, c.InstanceHost, c.Port, c.DBName)
 }
 
 func (c *Config) PostgresDSN() string {
