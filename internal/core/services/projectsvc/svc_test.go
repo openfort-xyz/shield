@@ -3,10 +3,10 @@ package projectsvc
 import (
 	"context"
 	"errors"
-	"go.openfort.xyz/shield/internal/core/domain/project"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
+	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/projectmockrepo"
 )
 

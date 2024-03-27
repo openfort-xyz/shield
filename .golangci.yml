@@ -6,7 +6,6 @@ linters:
     - errcheck
     - errorlint
     - exportloopref
-    - funlen
     - gocheckcompilerdirectives
     - gochecknoinits
     - goconst

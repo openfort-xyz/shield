@@ -3,11 +3,12 @@ package usersvc
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/stretchr/testify/mock"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/user"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/usermockedrepo"
-	"testing"
 )
 
 func TestCreateUser(t *testing.T) {
@@ -47,7 +48,6 @@ func TestCreateUser(t *testing.T) {
 				return
 			}
 		})
-
 	}
 }
 
@@ -102,7 +102,6 @@ func TestGetUser(t *testing.T) {
 				return
 			}
 		})
-
 	}
 }
 

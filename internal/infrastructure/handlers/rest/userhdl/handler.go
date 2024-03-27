@@ -71,7 +71,6 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 			Length:     req.Length,
 			Digest:     req.Digest,
 		}
-
 	}
 
 	err = h.app.RegisterShare(ctx, req.Secret, req.UserEntropy, parameters)

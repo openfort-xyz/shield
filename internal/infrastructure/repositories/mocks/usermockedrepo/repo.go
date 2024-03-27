@@ -2,6 +2,7 @@ package usermockedrepo
 
 import (
 	"context"
+
 	"github.com/stretchr/testify/mock"
 	"go.openfort.xyz/shield/internal/core/domain/user"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -13,16 +14,16 @@ type MockUserRepository struct {
 
 var _ repositories.Options = (*MockUserRepository)(nil)
 
-func (m *MockUserRepository) WithUserID(userID string) repositories.Option {
-	return func(opts repositories.Options) {}
+func (m *MockUserRepository) WithUserID(_ string) repositories.Option {
+	return func(_ repositories.Options) {}
 }
 
-func (m *MockUserRepository) WithExternalUserID(externalUserID string) repositories.Option {
-	return func(opts repositories.Options) {}
+func (m *MockUserRepository) WithExternalUserID(_ string) repositories.Option {
+	return func(_ repositories.Options) {}
 }
 
-func (m *MockUserRepository) WithProviderID(providerID string) repositories.Option {
-	return func(opts repositories.Options) {}
+func (m *MockUserRepository) WithProviderID(_ string) repositories.Option {
+	return func(_ repositories.Options) {}
 }
 
 var _ repositories.UserRepository = (*MockUserRepository)(nil)

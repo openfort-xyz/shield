@@ -3,11 +3,12 @@ package sharesvc
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/stretchr/testify/mock"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/sharemockrepo"
-	"testing"
 )
 
 func TestCreateShare(t *testing.T) {

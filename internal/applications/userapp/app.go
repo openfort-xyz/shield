@@ -2,10 +2,10 @@ package userapp
 
 import (
 	"context"
-	"go.openfort.xyz/shield/internal/core/domain/share"
 	"log/slog"
 	"os"
 
+	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/internal/infrastructure/providersmgr"
 	"go.openfort.xyz/shield/pkg/ofcontext"

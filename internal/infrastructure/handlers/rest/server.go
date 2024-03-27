@@ -3,12 +3,12 @@ package rest
 import (
 	"context"
 	"fmt"
-	"github.com/rs/cors"
 	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/userapp"
 	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
