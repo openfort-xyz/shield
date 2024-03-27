@@ -18,6 +18,16 @@ func NewCmdServer() *cobra.Command {
 		Example: "shield server",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			database, err := di.ProvideSQL()
+			if err != nil {
+				return err
+			}
+
+			err = database.Migrate()
+			if err != nil {
+				return err
+			}
+
 			server, err := di.ProvideRESTServer()
 			if err != nil {
 				return err
