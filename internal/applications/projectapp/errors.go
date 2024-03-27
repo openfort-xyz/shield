@@ -18,6 +18,9 @@ var (
 )
 
 func fromDomainError(err error) error {
+	if err == nil {
+		return nil
+	}
 	if errors.Is(err, domain.ErrProjectNotFound) {
 		return ErrProjectNotFound
 	}

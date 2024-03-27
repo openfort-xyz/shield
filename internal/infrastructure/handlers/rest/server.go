@@ -3,6 +3,7 @@ package rest
 import (
 	"context"
 	"fmt"
+	"github.com/rs/cors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -39,6 +40,14 @@ func New(cfg *Config, projectApp *projectapp.ProjectApplication, userApp *userap
 	}
 }
 
+type CORSLogger struct {
+	logger *slog.Logger
+}
+
+func (l *CORSLogger) Printf(s string, i ...interface{}) {
+	l.logger.Info(fmt.Sprintf(s, i...))
+}
+
 func (s *Server) Start(ctx context.Context) error {
 	projectHdl := projecthdl.New(s.projectApp)
 	userHdl := userhdl.New(s.userApp)
@@ -62,8 +71,17 @@ func (s *Server) Start(ctx context.Context) error {
 	u.HandleFunc("", userHdl.GetShare).Methods(http.MethodGet)
 	u.HandleFunc("", userHdl.RegisterShare).Methods(http.MethodPost)
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3002", "https://shield.openfort.xyz"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Access-Control-Allow-Origin", authmdw.TokenHeader, responsemdw.ContentTypeHeader, authmdw.APIKeyHeader, authmdw.APISecretHeader, authmdw.AuthProviderHeader, authmdw.OpenfortProviderHeader, authmdw.OpenfortTokenTypeHeader},
+		MaxAge:           86400,
+		AllowCredentials: false,
+		Logger:           &CORSLogger{s.logger},
+		Debug:            true,
+	}).Handler(r)
 	s.server.Addr = fmt.Sprintf(":%d", s.config.Port)
-	s.server.Handler = r
+	s.server.Handler = c
 
 	s.logger.InfoContext(ctx, "starting server", slog.String("address", s.server.Addr))
 	return s.server.ListenAndServe()

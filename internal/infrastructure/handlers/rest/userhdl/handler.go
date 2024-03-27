@@ -58,7 +58,23 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.app.RegisterShare(ctx, req.Share)
+	if req.Secret == "" {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("secret is required"))
+		return
+	}
+
+	var parameters *userapp.EncryptionParameters
+	if req.Salt != "" || req.Iterations != 0 || req.Length != 0 || req.Digest != "" {
+		parameters = &userapp.EncryptionParameters{
+			Salt:       req.Salt,
+			Iterations: req.Iterations,
+			Length:     req.Length,
+			Digest:     req.Digest,
+		}
+
+	}
+
+	err = h.app.RegisterShare(ctx, req.Secret, req.UserEntropy, parameters)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return
@@ -93,7 +109,12 @@ func (h *Handler) GetShare(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err := json.Marshal(GetShareResponse{
-		Share: shr,
+		Secret:      shr.Data,
+		UserEntropy: shr.UserEntropy,
+		Salt:        shr.Salt,
+		Iterations:  shr.Iterations,
+		Length:      shr.Length,
+		Digest:      shr.Digest,
 	})
 	if err != nil {
 		api.RespondWithError(w, api.ErrInternal)

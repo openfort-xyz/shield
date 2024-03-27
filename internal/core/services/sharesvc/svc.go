@@ -27,23 +27,18 @@ func New(repo repositories.ShareRepository) services.ShareService {
 	}
 }
 
-func (s *service) Create(ctx context.Context, userID, data string) error {
-	s.logger.InfoContext(ctx, "creating share", slog.String("user_id", userID))
+func (s *service) Create(ctx context.Context, shr *share.Share) error {
+	s.logger.InfoContext(ctx, "creating share", slog.String("user_id", shr.UserID))
 
-	shr, err := s.repo.GetByUserID(ctx, userID)
+	shrRepo, err := s.repo.GetByUserID(ctx, shr.UserID)
 	if err != nil && !errors.Is(err, domain.ErrShareNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get share", slog.String("error", err.Error()))
 		return err
 	}
 
-	if shr != nil {
-		s.logger.ErrorContext(ctx, "share already exists", slog.String("user_id", userID))
+	if shrRepo != nil {
+		s.logger.ErrorContext(ctx, "share already exists", slog.String("user_id", shr.UserID))
 		return domain.ErrShareAlreadyExists
-	}
-
-	shr = &share.Share{
-		UserID: userID,
-		Data:   data,
 	}
 
 	err = s.repo.Create(ctx, shr)

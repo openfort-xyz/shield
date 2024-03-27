@@ -16,6 +16,10 @@ func TestCreateShare(t *testing.T) {
 	ctx := context.Background()
 	testUserID := "test-user"
 	testData := "test-data"
+	testShare := &share.Share{
+		UserID: testUserID,
+		Data:   testData,
+	}
 
 	tc := []struct {
 		name    string
@@ -63,7 +67,7 @@ func TestCreateShare(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			err := svc.Create(ctx, testUserID, testData)
+			err := svc.Create(ctx, testShare)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
 			}

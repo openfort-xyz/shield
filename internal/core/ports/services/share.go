@@ -7,6 +7,6 @@ import (
 )
 
 type ShareService interface {
-	Create(ctx context.Context, userID, data string) error
+	Create(ctx context.Context, share *share.Share) error
 	GetByUserID(ctx context.Context, userID string) (*share.Share, error)
 }

@@ -8,6 +8,9 @@ import (
 )
 
 func fromApplicationError(err error) *api.Error {
+	if err == nil {
+		return nil
+	}
 	switch {
 	case errors.Is(err, userapp.ErrShareNotFound):
 		return api.ErrShareNotFound

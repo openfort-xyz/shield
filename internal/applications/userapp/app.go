@@ -2,6 +2,7 @@ package userapp
 
 import (
 	"context"
+	"go.openfort.xyz/shield/internal/core/domain/share"
 	"log/slog"
 	"os"
 
@@ -31,11 +32,22 @@ func New(userSvc services.UserService, shareSvc services.ShareService, projectSv
 	}
 }
 
-func (a *UserApplication) RegisterShare(ctx context.Context, share string) error {
+func (a *UserApplication) RegisterShare(ctx context.Context, secret string, userEntropy bool, parameters *EncryptionParameters) error {
 	a.logger.InfoContext(ctx, "registering share")
-
 	usrID := ofcontext.GetUserID(ctx)
-	err := a.shareSvc.Create(ctx, usrID, share)
+
+	shre := &share.Share{
+		Data:        secret,
+		UserID:      usrID,
+		UserEntropy: userEntropy,
+	}
+	if parameters != nil {
+		shre.Salt = parameters.Salt
+		shre.Iterations = parameters.Iterations
+		shre.Length = parameters.Length
+		shre.Digest = parameters.Digest
+	}
+	err := a.shareSvc.Create(ctx, shre)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create share", slog.String("error", err.Error()))
 		return fromDomainError(err)
@@ -44,15 +56,15 @@ func (a *UserApplication) RegisterShare(ctx context.Context, share string) error
 	return nil
 }
 
-func (a *UserApplication) GetShare(ctx context.Context) (string, error) {
+func (a *UserApplication) GetShare(ctx context.Context) (*share.Share, error) {
 	a.logger.InfoContext(ctx, "getting share")
 
 	usrID := ofcontext.GetUserID(ctx)
 	shr, err := a.shareSvc.GetByUserID(ctx, usrID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get share by user ID", slog.String("error", err.Error()))
-		return "", fromDomainError(err)
+		return nil, fromDomainError(err)
 	}
 
-	return shr.Data, nil
+	return shr, nil
 }
