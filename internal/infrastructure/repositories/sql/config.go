@@ -1,12 +1,7 @@
 package sql
 
 import (
-	"context"
 	"fmt"
-	"net"
-
-	"cloud.google.com/go/cloudsqlconn"
-	"github.com/go-sql-driver/mysql"
 
 	"github.com/caarlos0/env/v10"
 )
@@ -29,7 +24,7 @@ type Config struct {
 	TimeZone string `env:"DB_POSTGRES_TIME_ZONE" envDefault:"Europe/Madrid"`
 
 	// CloudSQL
-	InstanceConnectionName string `env:"INSTANCE_CONNECTION_NAME"`
+	UnixSocketPath string `env:"INSTANCE_UNIX_SOCKET"`
 }
 
 const migrationDirectory = "internal/infrastructure/repositories/sql/migrations"
@@ -47,19 +42,9 @@ func (c *Config) MySQLDSN() string {
 		c.User, c.Pass, c.Host, c.Port, c.DBName, c.Charset, c.ParseTime, c.Location)
 }
 
-func (c *Config) CloudSQLDSN() (string, error) {
-	d, err := cloudsqlconn.NewDialer(context.Background())
-	if err != nil {
-		return "", fmt.Errorf("cloudsqlconn.NewDialer: %w", err)
-	}
-	var opts []cloudsqlconn.DialOption
-	mysql.RegisterDialContext("cloudsqlconn",
-		func(ctx context.Context, addr string) (net.Conn, error) { // nolint
-			return d.Dial(ctx, c.InstanceConnectionName, opts...)
-		})
-
-	return fmt.Sprintf("%s:%s@cloudsqlconn(localhost:3306)/%s?parseTime=true",
-		c.User, c.Pass, c.DBName), nil
+func (c *Config) CloudSQLDSN() string {
+	return fmt.Sprintf("%s:%s@unix(%s)/%s?parseTime=true",
+		c.User, c.Pass, c.UnixSocketPath, c.DBName)
 }
 
 func (c *Config) PostgresDSN() string {
