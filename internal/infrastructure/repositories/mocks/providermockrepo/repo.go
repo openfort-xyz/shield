@@ -15,12 +15,12 @@ type MockProviderRepository struct {
 var _ repositories.ProviderRepository = (*MockProviderRepository)(nil)
 
 func (m *MockProviderRepository) Create(ctx context.Context, prov *provider.Provider) error {
-	args := m.Called(ctx, prov)
+	args := m.Mock.Called(ctx, prov)
 	return args.Error(0)
 }
 
 func (m *MockProviderRepository) GetByProjectAndType(ctx context.Context, projectID string, providerType provider.Type) (*provider.Provider, error) {
-	args := m.Called(ctx, projectID, providerType)
+	args := m.Mock.Called(ctx, projectID, providerType)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -28,7 +28,7 @@ func (m *MockProviderRepository) GetByProjectAndType(ctx context.Context, projec
 }
 
 func (m *MockProviderRepository) Get(ctx context.Context, id string) (*provider.Provider, error) {
-	args := m.Called(ctx, id)
+	args := m.Mock.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -36,7 +36,7 @@ func (m *MockProviderRepository) Get(ctx context.Context, id string) (*provider.
 }
 
 func (m *MockProviderRepository) List(ctx context.Context, projectID string) ([]*provider.Provider, error) {
-	args := m.Called(ctx, projectID)
+	args := m.Mock.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -44,17 +44,17 @@ func (m *MockProviderRepository) List(ctx context.Context, projectID string) ([]
 }
 
 func (m *MockProviderRepository) Delete(ctx context.Context, providerID string) error {
-	args := m.Called(ctx, providerID)
+	args := m.Mock.Called(ctx, providerID)
 	return args.Error(0)
 }
 
 func (m *MockProviderRepository) CreateCustom(ctx context.Context, prov *provider.CustomConfig) error {
-	args := m.Called(ctx, prov)
+	args := m.Mock.Called(ctx, prov)
 	return args.Error(0)
 }
 
 func (m *MockProviderRepository) GetCustom(ctx context.Context, providerID string) (*provider.CustomConfig, error) {
-	args := m.Called(ctx, providerID)
+	args := m.Mock.Called(ctx, providerID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -62,17 +62,17 @@ func (m *MockProviderRepository) GetCustom(ctx context.Context, providerID strin
 }
 
 func (m *MockProviderRepository) UpdateCustom(ctx context.Context, prov *provider.CustomConfig) error {
-	args := m.Called(ctx, prov)
+	args := m.Mock.Called(ctx, prov)
 	return args.Error(0)
 }
 
 func (m *MockProviderRepository) CreateOpenfort(ctx context.Context, prov *provider.OpenfortConfig) error {
-	args := m.Called(ctx, prov)
+	args := m.Mock.Called(ctx, prov)
 	return args.Error(0)
 }
 
 func (m *MockProviderRepository) GetOpenfort(ctx context.Context, providerID string) (*provider.OpenfortConfig, error) {
-	args := m.Called(ctx, providerID)
+	args := m.Mock.Called(ctx, providerID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -80,6 +80,6 @@ func (m *MockProviderRepository) GetOpenfort(ctx context.Context, providerID str
 }
 
 func (m *MockProviderRepository) UpdateOpenfort(ctx context.Context, prov *provider.OpenfortConfig) error {
-	args := m.Called(ctx, prov)
+	args := m.Mock.Called(ctx, prov)
 	return args.Error(0)
 }

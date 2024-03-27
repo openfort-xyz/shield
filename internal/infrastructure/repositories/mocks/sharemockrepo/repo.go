@@ -15,12 +15,12 @@ type MockShareRepository struct {
 var _ repositories.ShareRepository = (*MockShareRepository)(nil)
 
 func (m *MockShareRepository) Create(ctx context.Context, shr *share.Share) error {
-	args := m.Called(ctx, shr)
+	args := m.Mock.Called(ctx, shr)
 	return args.Error(0)
 }
 
 func (m *MockShareRepository) GetByUserID(ctx context.Context, userID string) (*share.Share, error) {
-	args := m.Called(ctx, userID)
+	args := m.Mock.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
