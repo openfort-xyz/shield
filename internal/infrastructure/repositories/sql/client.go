@@ -53,7 +53,10 @@ func newMySQL(cfg *Config) (*Client, error) {
 }
 
 func newCloudSQL(cfg *Config) (*Client, error) {
-	dsn := cfg.CloudSQLDSN()
+	dsn, err := cfg.CloudSQLDSN()
+	if err != nil {
+		return nil, err
+	}
 	fmt.Println("DSN: " + dsn)
 	sqlDB, err := sql.Open("mysql", dsn)
 	if err != nil {
