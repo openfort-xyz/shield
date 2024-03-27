@@ -2,6 +2,7 @@ package sql
 
 import (
 	"database/sql"
+	"fmt"
 	"path/filepath"
 
 	"github.com/pressly/goose"
@@ -52,7 +53,9 @@ func newMySQL(cfg *Config) (*Client, error) {
 }
 
 func newCloudSQL(cfg *Config) (*Client, error) {
-	sqlDB, err := sql.Open("mysql", cfg.CloudSQLDSN())
+	dsn := cfg.CloudSQLDSN()
+	fmt.Println("DSN: " + dsn)
+	sqlDB, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
 	}
