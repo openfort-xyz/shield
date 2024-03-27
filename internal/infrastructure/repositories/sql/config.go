@@ -22,6 +22,9 @@ type Config struct {
 	// Postgres
 	SSLMode  string `env:"DB_POSTGRES_SSL_MODE" envDefault:"disable"`
 	TimeZone string `env:"DB_POSTGRES_TIME_ZONE" envDefault:"Europe/Madrid"`
+
+	// CloudSQL
+	UnixSocketPAth string `env:"INSTANCE_UNIX_SOCKET"`
 }
 
 const migrationDirectory = "internal/infrastructure/repositories/sql/migrations"
@@ -39,6 +42,11 @@ func (c *Config) MySQLDSN() string {
 		c.User, c.Pass, c.Host, c.Port, c.DBName, c.Charset, c.ParseTime, c.Location)
 }
 
+func (c *Config) CloudSQLDSN() string {
+	return fmt.Sprintf("%s:%s@unix(%s)/%s?parseTime=true",
+		c.User, c.Pass, c.UnixSocketPAth, c.DBName)
+}
+
 func (c *Config) PostgresDSN() string {
 	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=%s",
 		c.Host, c.User, c.Pass, c.DBName, c.Port, c.SSLMode, c.TimeZone)
@@ -48,5 +56,6 @@ type Driver string
 
 const (
 	DriverMySQL    Driver = "mysql"
+	DriverCloudSQL Driver = "cloudsql"
 	DriverPostgres Driver = "postgres"
 )

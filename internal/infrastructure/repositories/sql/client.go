@@ -26,6 +26,8 @@ func New(cfg *Config) (*Client, error) {
 	switch cfg.Driver {
 	case DriverMySQL:
 		return newMySQL(cfg)
+	case DriverCloudSQL:
+		return newCloudSQL(cfg)
 	case DriverPostgres:
 		return newPostgres(cfg)
 	default:
@@ -35,6 +37,22 @@ func New(cfg *Config) (*Client, error) {
 
 func newMySQL(cfg *Config) (*Client, error) {
 	sqlDB, err := sql.Open("mysql", cfg.MySQLDSN())
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := gorm.Open(mysql.New(mysql.Config{
+		Conn: sqlDB,
+	}), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{db}, nil
+}
+
+func newCloudSQL(cfg *Config) (*Client, error) {
+	sqlDB, err := sql.Open("mysql", cfg.CloudSQLDSN())
 	if err != nil {
 		return nil, err
 	}
