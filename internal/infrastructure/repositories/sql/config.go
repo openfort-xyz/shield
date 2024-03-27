@@ -29,7 +29,7 @@ type Config struct {
 	TimeZone string `env:"DB_POSTGRES_TIME_ZONE" envDefault:"Europe/Madrid"`
 
 	// CloudSQL
-	InstanceConnectionName string `env:"INSTANCE_HOST"`
+	InstanceConnectionName string `env:"INSTANCE_CONNECTION_NAME"`
 }
 
 const migrationDirectory = "internal/infrastructure/repositories/sql/migrations"
