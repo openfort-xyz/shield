@@ -43,7 +43,7 @@ func (c *Config) MySQLDSN() string {
 }
 
 func (c *Config) CloudSQLDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
 		c.User, c.Pass, c.InstanceHost, c.Port, c.DBName)
 }
 
