@@ -16,7 +16,7 @@
 !go.mod
 !.golangci.yml
 !Dockerfile
-!.github
+!.github/workflows/run-rests.yml
 
 !README.md
 !LICENSE
