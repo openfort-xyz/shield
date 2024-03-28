@@ -175,8 +175,8 @@ func ProvideAuthenticationManager() (*authenticationmgr.Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	authenticationManager := authenticationmgr.NewManager(projectRepository, manager, userService)
-	return authenticationManager, nil
+	authenticationmgrManager := authenticationmgr.NewManager(projectRepository, manager, userService)
+	return authenticationmgrManager, nil
 }
 
 func ProvideRESTServer() (*rest.Server, error) {

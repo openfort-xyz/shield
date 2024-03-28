@@ -65,6 +65,9 @@ func (s *Server) Start(ctx context.Context) error {
 	p.HandleFunc("/providers/{provider}", projectHdl.GetProvider).Methods(http.MethodGet)
 	p.HandleFunc("/providers/{provider}", projectHdl.UpdateProvider).Methods(http.MethodPut)
 	p.HandleFunc("/providers/{provider}", projectHdl.DeleteProvider).Methods(http.MethodDelete)
+	p.HandleFunc("/allowed-origins", projectHdl.GetAllowedOrigins).Methods(http.MethodGet)
+	p.HandleFunc("/allowed-origins", projectHdl.AddAllowedOrigin).Methods(http.MethodPost)
+	p.HandleFunc("/allowed-origins/{origin}", projectHdl.RemoveAllowedOrigin).Methods(http.MethodDelete)
 
 	u := r.PathPrefix("/shares").Subrouter()
 	u.Use(authMdw.AuthenticateUser)
@@ -72,13 +75,13 @@ func (s *Server) Start(ctx context.Context) error {
 	u.HandleFunc("", userHdl.RegisterShare).Methods(http.MethodPost)
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3002", "https://shield.openfort.xyz"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Access-Control-Allow-Origin", authmdw.TokenHeader, responsemdw.ContentTypeHeader, authmdw.APIKeyHeader, authmdw.APISecretHeader, authmdw.AuthProviderHeader, authmdw.OpenfortProviderHeader, authmdw.OpenfortTokenTypeHeader},
-		MaxAge:           86400,
-		AllowCredentials: false,
-		Logger:           &CORSLogger{s.logger},
-		Debug:            true,
+		AllowOriginRequestFunc: authMdw.AllowedOrigin,
+		AllowedMethods:         []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:         []string{"Access-Control-Allow-Origin", authmdw.TokenHeader, responsemdw.ContentTypeHeader, authmdw.APIKeyHeader, authmdw.APISecretHeader, authmdw.AuthProviderHeader, authmdw.OpenfortProviderHeader, authmdw.OpenfortTokenTypeHeader},
+		MaxAge:                 86400,
+		AllowCredentials:       false,
+		Logger:                 &CORSLogger{s.logger},
+		Debug:                  true,
 	}).Handler(r)
 	s.server.Addr = fmt.Sprintf(":%d", s.config.Port)
 	s.server.Handler = c

@@ -88,3 +88,9 @@ func (p *parser) toGetProviderResponse(prov *provider.Provider) *GetProviderResp
 
 	return resp
 }
+
+func (p *parser) toGetAllowedOriginsResponse(origins []string) *GetAllowedOriginsResponse {
+	return &GetAllowedOriginsResponse{
+		Origins: origins,
+	}
+}

@@ -59,3 +59,11 @@ type UpdateProviderRequest struct {
 	PublishableKey string `json:"publishable_key,omitempty"`
 	JWK            string `json:"jwk,omitempty"`
 }
+
+type AddAllowedOriginRequest struct {
+	Origin string `json:"origin"`
+}
+
+type GetAllowedOriginsResponse struct {
+	Origins []string `json:"origins"`
+}

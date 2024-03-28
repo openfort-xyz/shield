@@ -75,3 +75,36 @@ func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Proj
 
 	return proj, nil
 }
+
+func (s *service) AddAllowedOrigin(ctx context.Context, projectID, origin string) error {
+	s.logger.InfoContext(ctx, "adding allowed origin", slog.String("project_id", projectID), slog.String("origin", origin))
+	err := s.repo.AddAllowedOrigin(ctx, projectID, origin)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to add allowed origin", slog.String("error", err.Error()))
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) RemoveAllowedOrigin(ctx context.Context, projectID, origin string) error {
+	s.logger.InfoContext(ctx, "removing allowed origin", slog.String("project_id", projectID), slog.String("origin", origin))
+	err := s.repo.RemoveAllowedOrigin(ctx, projectID, origin)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to remove allowed origin", slog.String("error", err.Error()))
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) GetAllowedOrigins(ctx context.Context, projectID string) ([]string, error) {
+	s.logger.InfoContext(ctx, "getting allowed origins", slog.String("project_id", projectID))
+	origins, err := s.repo.GetAllowedOrigins(ctx, projectID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to get allowed origins", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	return origins, nil
+}
