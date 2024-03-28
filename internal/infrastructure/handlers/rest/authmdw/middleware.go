@@ -22,7 +22,9 @@ type Middleware struct {
 }
 
 func New(manager *authenticationmgr.Manager) *Middleware {
-	return &Middleware{manager: manager}
+	return &Middleware{
+		manager: manager,
+	}
 }
 
 func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
@@ -102,4 +104,26 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 		ctx := ofcontext.WithUserID(r.Context(), userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func (m *Middleware) AllowedOrigin(r *http.Request, origin string) bool {
+	if origin == "" {
+		return false
+	}
+
+	if origin == "https://dashboard.openfort.xyz" || origin == "https://iframe.openfort.xyz" || origin == "https://api.openfort.xyz" {
+		return true
+	}
+
+	apiKey := r.Header.Get(APIKeyHeader)
+	if apiKey == "" {
+		return false
+	}
+
+	allowed, err := m.manager.IsAllowedOrigin(r.Context(), apiKey, origin)
+	if err != nil {
+		return false
+	}
+
+	return allowed
 }

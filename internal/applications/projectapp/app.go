@@ -185,3 +185,45 @@ func (a *ProjectApplication) RemoveProvider(ctx context.Context, providerID stri
 
 	return nil
 }
+
+func (a *ProjectApplication) AddAllowedOrigin(ctx context.Context, origin string) error {
+	a.logger.InfoContext(ctx, "adding allowed origin")
+
+	projectID := ofcontext.GetProjectID(ctx)
+
+	err := a.projectSvc.AddAllowedOrigin(ctx, projectID, origin)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to add allowed origin", slog.String("error", err.Error()))
+		return fromDomainError(err)
+	}
+
+	return nil
+}
+
+func (a *ProjectApplication) RemoveAllowedOrigin(ctx context.Context, origin string) error {
+	a.logger.InfoContext(ctx, "removing allowed origin")
+
+	projectID := ofcontext.GetProjectID(ctx)
+
+	err := a.projectSvc.RemoveAllowedOrigin(ctx, projectID, origin)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to remove allowed origin", slog.String("error", err.Error()))
+		return fromDomainError(err)
+	}
+
+	return nil
+}
+
+func (a *ProjectApplication) GetAllowedOrigins(ctx context.Context) ([]string, error) {
+	a.logger.InfoContext(ctx, "getting allowed origins")
+
+	projectID := ofcontext.GetProjectID(ctx)
+
+	origins, err := a.projectSvc.GetAllowedOrigins(ctx, projectID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get allowed origins", slog.String("error", err.Error()))
+		return nil, fromDomainError(err)
+	}
+
+	return origins, nil
+}

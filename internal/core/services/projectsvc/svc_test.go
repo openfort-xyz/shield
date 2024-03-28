@@ -65,7 +65,7 @@ func TestGetProject(t *testing.T) {
 	mockRepo := new(projectmockrepo.MockProjectRepository)
 	svc := New(mockRepo)
 	ctx := context.Background()
-	testProjectID := "test-project-id"
+	testProjectID := "get-test-project-id"
 
 	tc := []struct {
 		name    string
@@ -152,6 +152,128 @@ func TestGetProjectByAPIKey(t *testing.T) {
 			_, err := svc.GetByAPIKey(ctx, testAPIKey)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByAPIKey() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAddAllowedOrigin(t *testing.T) {
+	mockRepo := new(projectmockrepo.MockProjectRepository)
+	svc := New(mockRepo)
+	ctx := context.Background()
+	testProjectID := "add-origin-test-project-id"
+	testOrigin := "test-origin"
+
+	tc := []struct {
+		name    string
+		wantErr bool
+		mock    func()
+	}{
+		{
+			name:    "success",
+			wantErr: false,
+			mock: func() {
+				mockRepo.ExpectedCalls = nil
+				mockRepo.On("AddAllowedOrigin", mock.Anything, testProjectID, testOrigin).Return(nil)
+			},
+		},
+		{
+			name:    "repository error",
+			wantErr: true,
+			mock: func() {
+				mockRepo.ExpectedCalls = nil
+				mockRepo.On("AddAllowedOrigin", mock.Anything, testProjectID, testOrigin).Return(errors.New("repository error"))
+			},
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mock()
+			err := svc.AddAllowedOrigin(ctx, testProjectID, testOrigin)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AddAllowedOrigin() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRemoveAllowedOrigin(t *testing.T) {
+	mockRepo := new(projectmockrepo.MockProjectRepository)
+	svc := New(mockRepo)
+	ctx := context.Background()
+	testProjectID := "test-project-id"
+	testOrigin := "test-origin"
+
+	tc := []struct {
+		name    string
+		wantErr bool
+		mock    func()
+	}{
+		{
+			name:    "success",
+			wantErr: false,
+			mock: func() {
+				mockRepo.ExpectedCalls = nil
+				mockRepo.On("RemoveAllowedOrigin", mock.Anything, testProjectID, testOrigin).Return(nil)
+			},
+		},
+		{
+			name:    "repository error",
+			wantErr: true,
+			mock: func() {
+				mockRepo.ExpectedCalls = nil
+				mockRepo.On("RemoveAllowedOrigin", mock.Anything, testProjectID, testOrigin).Return(errors.New("repository error"))
+			},
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mock()
+			err := svc.RemoveAllowedOrigin(ctx, testProjectID, testOrigin)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RemoveAllowedOrigin() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGetAllowedOrigins(t *testing.T) {
+	mockRepo := new(projectmockrepo.MockProjectRepository)
+	svc := New(mockRepo)
+	ctx := context.Background()
+	testProjectID := "test-project-id"
+
+	tc := []struct {
+		name    string
+		wantErr bool
+		mock    func()
+	}{
+		{
+			name:    "success",
+			wantErr: false,
+			mock: func() {
+				mockRepo.ExpectedCalls = nil
+				mockRepo.On("GetAllowedOrigins", mock.Anything, testProjectID).Return([]string{}, nil)
+			},
+		},
+		{
+			name:    "repository error",
+			wantErr: true,
+			mock: func() {
+				mockRepo.ExpectedCalls = nil
+				mockRepo.On("GetAllowedOrigins", mock.Anything, testProjectID).Return(nil, errors.New("repository error"))
+			},
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mock()
+			_, err := svc.GetAllowedOrigins(ctx, testProjectID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetAllowedOrigins() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
