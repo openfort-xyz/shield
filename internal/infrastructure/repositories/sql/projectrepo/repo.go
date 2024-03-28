@@ -113,25 +113,25 @@ func (r *repository) RemoveAllowedOrigin(ctx context.Context, projectID, origin 
 func (r *repository) GetAllowedOrigins(ctx context.Context, projectID string) ([]string, error) {
 	r.logger.InfoContext(ctx, "getting allowed origins")
 
-	var origins []string
-	err := r.db.Model(&AllowedOrigin{}).Where("project_id = ?", projectID).Pluck("origin", &origins).Error
+	var origins []AllowedOrigin
+	err := r.db.Model(&AllowedOrigin{}).Where("project_id = ?", projectID).Find(&origins).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error getting allowed origins", slog.String("error", err.Error()))
 		return nil, err
 	}
 
-	return origins, nil
+	return r.parser.toDomainAllowedOrigins(origins), nil
 }
 
 func (r *repository) GetAllowedOriginsByAPIKey(ctx context.Context, apiKey string) ([]string, error) {
 	r.logger.InfoContext(ctx, "getting allowed origins by API key")
 
-	var origins []string
-	err := r.db.Model(&AllowedOrigin{}).Joins("JOIN shld_projects ON shld_projects.id = shld_allowed_origins.project_id").Where("shld_projects.api_key = ?", apiKey).Pluck("shld_allowed_origins.origin", &origins).Error
+	var origins []AllowedOrigin
+	err := r.db.Model(&AllowedOrigin{}).Joins("JOIN shld_projects ON shld_projects.id = shld_allowed_origins.project_id").Where("shld_projects.api_key = ?", apiKey).Find(&origins).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error getting allowed origins by API key", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting allowed origins", slog.String("error", err.Error()))
 		return nil, err
 	}
 
-	return origins, nil
+	return r.parser.toDomainAllowedOrigins(origins), nil
 }
