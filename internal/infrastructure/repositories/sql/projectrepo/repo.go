@@ -127,7 +127,7 @@ func (r *repository) GetAllowedOriginsByAPIKey(ctx context.Context, apiKey strin
 	r.logger.InfoContext(ctx, "getting allowed origins by API key")
 
 	var origins []string
-	err := r.db.Model(&AllowedOrigin{}).Joins("JOIN projects ON projects.id = allowed_origins.project_id").Where("projects.api_key = ?", apiKey).Pluck("allowed_origins.origin", &origins).Error
+	err := r.db.Model(&AllowedOrigin{}).Joins("JOIN shld_projects ON shld_projects.id = shld_allowed_origins.project_id").Where("shld_projects.api_key = ?", apiKey).Pluck("shld_allowed_origins.origin", &origins).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error getting allowed origins by API key", slog.String("error", err.Error()))
 		return nil, err
