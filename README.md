@@ -57,8 +57,6 @@ The Project API is a secure interface for managing projects in Shield. Each proj
   }
   ```
 
-Certainly, here's the detailed documentation for point 4 of the Project API in Shield by Openfort:
-
 ### 4. Delete Provider
 - **Endpoint**: Deletes a provider associated with a project.
 - **Method**: DELETE
@@ -67,10 +65,10 @@ Certainly, here's the detailed documentation for point 4 of the Project API in S
 #### Request Details
 
 - **Request Headers**:
-    - `x-api-secret`: The API secret key. (e.g., •••••••)
-    - `x-api-key`: The API key. (e.g., d2d617ff-dbb6-480d-993f-dc8ac8307617)
+    - `x-api-secret`: •••••••
+    - `x-api-key`: d2d617ff-dbb6-480d-993f-dc8ac8307617
 - **Path Variables**:
-    - `provider_id`: Unique identifier for the provider to be deleted. (e.g., 74b16efa-a187-491d-906e-55a15f38e28a)
+    - `provider_id`: 74b16efa-a187-491d-906e-55a15f38e28a
 
 - **Example Request**:
 ```shell
@@ -186,8 +184,19 @@ The Shares API is part of Shield, dedicated to securely storing and retrieving u
   ```json
   {
     "secret": "hjkasdhjkladshjkladhjskladhjskl",
-    "user_entropy": true,
+    "user_entropy": false,
     ...
+  }
+  
+  OR
+  
+  {
+    "secret": "hjkasdhjkladshjkladhjskladhjskl",
+    "user_entropy": true,
+    "salt": "somesalt",
+    "iterations": 1000,
+    "length": 8,
+    "digest": "SHA-256"
   }
   ```
 #### 2. Get Share
