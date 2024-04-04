@@ -32,12 +32,13 @@ var (
 	ErrShareNotFound      = &Error{"Share not found", http.StatusNotFound}
 	ErrShareAlreadyExists = &Error{"Share already exists", http.StatusConflict}
 
-	ErrUserNotFound              = &Error{"User not found", http.StatusNotFound}
-	ErrExternalUserNotFound      = &Error{"External user not found", http.StatusNotFound}
-	ErrExternalUserAlreadyExists = &Error{"External user already exists", http.StatusConflict}
-	ErrEncryptionPartRequired    = &Error{"The requested share have project entropy and encryption part is required", http.StatusConflict}
-	ErrEncryptionNotConfigured   = &Error{"Encryption not configured", http.StatusConflict}
-	ErrInvalidEncryptionPart     = &Error{"Invalid encryption part", http.StatusBadRequest}
+	ErrUserNotFound                = &Error{"User not found", http.StatusNotFound}
+	ErrExternalUserNotFound        = &Error{"External user not found", http.StatusNotFound}
+	ErrExternalUserAlreadyExists   = &Error{"External user already exists", http.StatusConflict}
+	ErrEncryptionPartRequired      = &Error{"The requested share have project entropy and encryption part is required", http.StatusConflict}
+	ErrEncryptionNotConfigured     = &Error{"Encryption not configured", http.StatusConflict}
+	ErrInvalidEncryptionPart       = &Error{"Invalid encryption part", http.StatusBadRequest}
+	ErrEncryptionPartAlreadyExists = &Error{"Encryption part already exists", http.StatusConflict}
 
 	ErrMissingAPIKey       = &Error{"Missing API key", http.StatusUnauthorized}
 	ErrMissingAPISecret    = &Error{"Missing API secret", http.StatusUnauthorized}

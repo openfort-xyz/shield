@@ -433,3 +433,35 @@ func (h *Handler) EncryptProjectShares(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
+// RegisterEncryptionKey registers an encryption key for a project
+// @Summary Register encryption key
+// @Description Register an encryption key for a project
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 200 {object} RegisterEncryptionKeyResponse "Encryption key registered successfully"
+// @Failure 400 "Bad Request"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/encryption-key [post]
+func (h *Handler) RegisterEncryptionKey(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "registering encryption key")
+
+	part, err := h.app.RegisterEncryptionKey(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	resp, err := json.Marshal(RegisterEncryptionKeyResponse{EncryptionPart: part})
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}

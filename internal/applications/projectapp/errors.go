@@ -7,15 +7,16 @@ import (
 )
 
 var (
-	ErrProjectNotFound       = errors.New("project not found")
-	ErrNoProviderSpecified   = errors.New("no provider specified")
-	ErrProviderMismatch      = errors.New("provider mismatch")
-	ErrInvalidProviderConfig = errors.New("invalid provider config")
-	ErrUnknownProviderType   = errors.New("unknown provider type")
-	ErrProviderAlreadyExists = errors.New("custom authentication already registered for this project")
-	ErrProviderNotFound      = errors.New("custom authentication not found")
-	ErrInvalidEncryptionPart = errors.New("invalid encryption part")
-	ErrInternal              = errors.New("internal error")
+	ErrProjectNotFound             = errors.New("project not found")
+	ErrNoProviderSpecified         = errors.New("no provider specified")
+	ErrProviderMismatch            = errors.New("provider mismatch")
+	ErrInvalidProviderConfig       = errors.New("invalid provider config")
+	ErrUnknownProviderType         = errors.New("unknown provider type")
+	ErrProviderAlreadyExists       = errors.New("custom authentication already registered for this project")
+	ErrProviderNotFound            = errors.New("custom authentication not found")
+	ErrInvalidEncryptionPart       = errors.New("invalid encryption part")
+	ErrEncryptionPartAlreadyExists = errors.New("encryption part already exists")
+	ErrInternal                    = errors.New("internal error")
 )
 
 func fromDomainError(err error) error {

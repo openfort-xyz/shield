@@ -53,6 +53,11 @@ func (a *ProjectApplication) CreateProject(ctx context.Context, name string, opt
 	if o.generateEncryptionKey {
 		part, err := a.registerEncryptionKey(ctx, proj.ID)
 		if err != nil {
+			errD := a.projectRepo.Delete(ctx, proj.ID)
+			if errD != nil {
+				a.logger.Error("failed to delete project", logger.Error(errD))
+				err = errors.Join(err, errD)
+			}
 			a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
@@ -317,17 +322,31 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 	return nil
 }
 
+func (a *ProjectApplication) RegisterEncryptionKey(ctx context.Context) (string, error) {
+	a.logger.InfoContext(ctx, "registering encryption key")
+	projectID := contexter.GetProjectID(ctx)
+
+	ep, err := a.projectRepo.GetEncryptionPart(ctx, projectID)
+	if err != nil && !errors.Is(err, domain.ErrEncryptionPartNotFound) {
+		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+
+	if ep != "" {
+		a.logger.Warn("encryption part already exists", slog.String("project_id", projectID))
+		return "", ErrEncryptionPartAlreadyExists
+	}
+
+	externalPart, err := a.registerEncryptionKey(ctx, projectID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+
+	return externalPart, nil
+}
+
 func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectID string) (externalPart string, err error) {
-	defer func() {
-		if err != nil {
-			a.logger.Info("deleting project")
-			errD := a.projectRepo.Delete(ctx, projectID)
-			if errD != nil {
-				a.logger.Error("failed to delete project", logger.Error(errD))
-				err = errors.Join(err, errD)
-			}
-		}
-	}()
 	var shieldPart string
 	shieldPart, externalPart, err = cypher.GenerateEncryptionKey()
 	if err != nil {

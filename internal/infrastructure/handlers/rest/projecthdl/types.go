@@ -71,3 +71,7 @@ type GetAllowedOriginsResponse struct {
 type EncryptBodyRequest struct {
 	EncryptionPart string `json:"encryption_part"`
 }
+
+type RegisterEncryptionKeyResponse struct {
+	EncryptionPart string `json:"encryption_part"`
+}
