@@ -10,7 +10,6 @@ var (
 	ErrEncryptionPartRequired      = errors.New("encryption part is required")
 
 	// Provider errors
-	ErrNoProviderConfig      = errors.New("no provider config found")
 	ErrInvalidProviderConfig = errors.New("invalid provider config")
 	ErrUnknownProviderType   = errors.New("unknown provider type")
 	ErrProviderAlreadyExists = errors.New("custom authentication already registered for this project")

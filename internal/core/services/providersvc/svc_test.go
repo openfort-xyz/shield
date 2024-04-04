@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
-	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/providermockrepo"
 )
 
@@ -18,18 +17,52 @@ func TestConfigureProvider(t *testing.T) {
 	ctx := context.Background()
 	projectID := "test-project"
 	jwkURL := "http://jwk.url"
-	openfortProject := "openfort-project"
+	openfortPublishableKey := "openfort-project"
+	customProvider := &provider.Provider{
+		ProjectID: projectID,
+		Type:      provider.TypeCustom,
+		Config: &provider.CustomConfig{
+			ProviderID: "custom-provider",
+			JWK:        jwkURL,
+		},
+	}
+
+	openfortProvider := &provider.Provider{
+		ProjectID: projectID,
+		Type:      provider.TypeOpenfort,
+		Config: &provider.OpenfortConfig{
+			ProviderID:     "openfort-provider",
+			PublishableKey: openfortPublishableKey,
+		},
+	}
+
+	unknownProvider := &provider.Provider{
+		ProjectID: projectID,
+		Type:      provider.TypeUnknown,
+	}
+
+	fakeCustomProvider := &provider.Provider{
+		ProjectID: projectID,
+		Type:      provider.TypeCustom,
+		Config:    &struct{}{},
+	}
+
+	fakeOpenfortProvider := &provider.Provider{
+		ProjectID: projectID,
+		Type:      provider.TypeOpenfort,
+		Config:    &struct{}{},
+	}
 
 	tc := []struct {
-		name    string
-		config  services.ProviderConfig
-		wantErr bool
-		err     error
-		mock    func()
+		name     string
+		provider *provider.Provider
+		wantErr  bool
+		err      error
+		mock     func()
 	}{
 		{
-			name:   "configure custom provider success",
-			config: &services.CustomProviderConfig{JWKUrl: jwkURL},
+			name:     "configure custom provider success",
+			provider: customProvider,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
 				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeCustom).Return(nil, domain.ErrProviderNotFound)
@@ -38,8 +71,8 @@ func TestConfigureProvider(t *testing.T) {
 			},
 		},
 		{
-			name:   "configure Openfort provider success",
-			config: &services.OpenfortProviderConfig{OpenfortProject: openfortProject},
+			name:     "configure Openfort provider success",
+			provider: openfortProvider,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
 				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeOpenfort).Return(nil, domain.ErrProviderNotFound)
@@ -48,61 +81,30 @@ func TestConfigureProvider(t *testing.T) {
 			},
 		},
 		{
-			name:    "invalid provider config",
-			config:  nil,
-			wantErr: true,
-			mock:    func() {},
-			err:     domain.ErrNoProviderConfig,
+			name:     "invalid provider type",
+			provider: unknownProvider,
+			wantErr:  true,
+			mock:     func() {},
+			err:      domain.ErrUnknownProviderType,
 		},
 		{
-			name:    "invalid provider type",
-			config:  &unknownProviderConfig{},
-			wantErr: true,
-			mock:    func() {},
-			err:     domain.ErrUnknownProviderType,
+			name:     "invalid custom provider config",
+			provider: fakeCustomProvider,
+			wantErr:  true,
+			mock:     func() {},
+			err:      domain.ErrInvalidProviderConfig,
 		},
 		{
-			name:    "invalid custom provider config",
-			config:  &fakeCustomProviderConfig{},
-			wantErr: true,
-			mock:    func() {},
-			err:     domain.ErrInvalidProviderConfig,
+			name:     "invalid openfort provider config",
+			provider: fakeOpenfortProvider,
+			wantErr:  true,
+			mock:     func() {},
+			err:      domain.ErrInvalidProviderConfig,
 		},
 		{
-			name:    "invalid openfort provider config",
-			config:  &fakeOpenfortProviderConfig{},
-			wantErr: true,
-			mock:    func() {},
-			err:     domain.ErrInvalidProviderConfig,
-		},
-		{
-			name: "failed to get custom provider",
-			config: &services.CustomProviderConfig{
-				JWKUrl: jwkURL,
-			},
-			wantErr: true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeCustom).Return(nil, errors.New("repository error"))
-			},
-		},
-		{
-			name: "custom provider already exists",
-			config: &services.CustomProviderConfig{
-				JWKUrl: jwkURL,
-			},
-			wantErr: true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeCustom).Return(&provider.Provider{}, nil)
-			},
-		},
-		{
-			name: "failed to create custom provider",
-			config: &services.CustomProviderConfig{
-				JWKUrl: jwkURL,
-			},
-			wantErr: true,
+			name:     "failed to create custom provider",
+			provider: customProvider,
+			wantErr:  true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
 				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeCustom).Return(nil, domain.ErrProviderNotFound)
@@ -110,11 +112,9 @@ func TestConfigureProvider(t *testing.T) {
 			},
 		},
 		{
-			name: "failed to create custom provider config and provider is deleted successfully",
-			config: &services.CustomProviderConfig{
-				JWKUrl: jwkURL,
-			},
-			wantErr: true,
+			name:     "failed to create custom provider config and provider is deleted successfully",
+			provider: customProvider,
+			wantErr:  true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
 				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeCustom).Return(nil, domain.ErrProviderNotFound)
@@ -124,11 +124,9 @@ func TestConfigureProvider(t *testing.T) {
 			},
 		},
 		{
-			name: "failed to create custom provider config and provider is not deleted",
-			config: &services.CustomProviderConfig{
-				JWKUrl: jwkURL,
-			},
-			wantErr: true,
+			name:     "failed to create custom provider config and provider is not deleted",
+			provider: customProvider,
+			wantErr:  true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
 				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeCustom).Return(nil, domain.ErrProviderNotFound)
@@ -138,27 +136,9 @@ func TestConfigureProvider(t *testing.T) {
 			},
 		},
 		{
-			name:    "failed to get openfort provider",
-			config:  &services.OpenfortProviderConfig{OpenfortProject: openfortProject},
-			wantErr: true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeOpenfort).Return(nil, errors.New("repository error"))
-			},
-		},
-		{
-			name:    "openfort provider already exists",
-			config:  &services.OpenfortProviderConfig{OpenfortProject: openfortProject},
-			wantErr: true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeOpenfort).Return(&provider.Provider{}, nil)
-			},
-		},
-		{
-			name:    "failed to create openfort provider",
-			config:  &services.OpenfortProviderConfig{OpenfortProject: openfortProject},
-			wantErr: true,
+			name:     "failed to create openfort provider",
+			provider: openfortProvider,
+			wantErr:  true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
 				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeOpenfort).Return(nil, domain.ErrProviderNotFound)
@@ -166,9 +146,9 @@ func TestConfigureProvider(t *testing.T) {
 			},
 		},
 		{
-			name:    "failed to create openfort provider config and provider is deleted successfully",
-			config:  &services.OpenfortProviderConfig{OpenfortProject: openfortProject},
-			wantErr: true,
+			name:     "failed to create openfort provider config and provider is deleted successfully",
+			provider: openfortProvider,
+			wantErr:  true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
 				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeOpenfort).Return(nil, domain.ErrProviderNotFound)
@@ -178,9 +158,9 @@ func TestConfigureProvider(t *testing.T) {
 			},
 		},
 		{
-			name:    "failed to create openfort provider config and provider is not deleted",
-			config:  &services.OpenfortProviderConfig{OpenfortProject: openfortProject},
-			wantErr: true,
+			name:     "failed to create openfort provider config and provider is not deleted",
+			provider: openfortProvider,
+			wantErr:  true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
 				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeOpenfort).Return(nil, domain.ErrProviderNotFound)
@@ -194,7 +174,7 @@ func TestConfigureProvider(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			err := svc.Configure(ctx, nil)
+			err := svc.Configure(ctx, tt.provider)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Configure() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -203,28 +183,4 @@ func TestConfigureProvider(t *testing.T) {
 			}
 		})
 	}
-}
-
-type unknownProviderConfig struct{}
-
-func (f *unknownProviderConfig) GetConfig() interface{} { return nil }
-
-func (f *unknownProviderConfig) GetType() provider.Type {
-	return provider.TypeUnknown
-}
-
-type fakeCustomProviderConfig struct{}
-
-func (f *fakeCustomProviderConfig) GetConfig() interface{} { return nil }
-
-func (f *fakeCustomProviderConfig) GetType() provider.Type {
-	return provider.TypeCustom
-}
-
-type fakeOpenfortProviderConfig struct{}
-
-func (f *fakeOpenfortProviderConfig) GetConfig() interface{} { return nil }
-
-func (f *fakeOpenfortProviderConfig) GetType() provider.Type {
-	return provider.TypeOpenfort
 }
