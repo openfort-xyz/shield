@@ -26,3 +26,16 @@ func (m *MockShareRepository) GetByUserID(ctx context.Context, userID string) (*
 	}
 	return args.Get(0).(*share.Share), args.Error(1)
 }
+
+func (m *MockShareRepository) ListDecryptedByProjectID(ctx context.Context, projectID string) ([]*share.Share, error) {
+	args := m.Mock.Called(ctx, projectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*share.Share), args.Error(1)
+}
+
+func (m *MockShareRepository) Update(ctx context.Context, shr *share.Share) error {
+	args := m.Mock.Called(ctx, shr)
+	return args.Error(0)
+}

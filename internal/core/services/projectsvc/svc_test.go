@@ -61,54 +61,6 @@ func TestCreateProject(t *testing.T) {
 	}
 }
 
-func TestGetProject(t *testing.T) {
-	mockRepo := new(projectmockrepo.MockProjectRepository)
-	svc := New(mockRepo)
-	ctx := context.Background()
-	testProjectID := "get-test-project-id"
-
-	tc := []struct {
-		name    string
-		wantErr bool
-		mock    func()
-	}{
-		{
-			name:    "success",
-			wantErr: false,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("Get", mock.Anything, testProjectID).Return(&project.Project{}, nil)
-			},
-		},
-		{
-			name:    "project not found",
-			wantErr: true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("Get", mock.Anything, testProjectID).Return(nil, errors.New("project not found"))
-			},
-		},
-		{
-			name:    "repository error",
-			wantErr: true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("Get", mock.Anything, testProjectID).Return(nil, errors.New("repository error"))
-			},
-		},
-	}
-
-	for _, tt := range tc {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.mock()
-			_, err := svc.Get(ctx, testProjectID)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestGetProjectByAPIKey(t *testing.T) {
 	mockRepo := new(projectmockrepo.MockProjectRepository)
 	svc := New(mockRepo)

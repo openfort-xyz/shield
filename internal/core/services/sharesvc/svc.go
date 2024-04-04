@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
 
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/cypher"
+	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type service struct {
@@ -23,16 +23,16 @@ var _ services.ShareService = (*service)(nil)
 func New(repo repositories.ShareRepository) services.ShareService {
 	return &service{
 		repo:   repo,
-		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("share_service"),
+		logger: logger.New("share_service"),
 	}
 }
 
-func (s *service) Create(ctx context.Context, shr *share.Share) error {
+func (s *service) Create(ctx context.Context, shr *share.Share, opts ...services.ShareOption) error {
 	s.logger.InfoContext(ctx, "creating share", slog.String("user_id", shr.UserID))
 
 	shrRepo, err := s.repo.GetByUserID(ctx, shr.UserID)
 	if err != nil && !errors.Is(err, domain.ErrShareNotFound) {
-		s.logger.ErrorContext(ctx, "failed to get share", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to get share", logger.Error(err))
 		return err
 	}
 
@@ -41,22 +41,28 @@ func (s *service) Create(ctx context.Context, shr *share.Share) error {
 		return domain.ErrShareAlreadyExists
 	}
 
+	var o services.ShareOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+
+	if shr.RequiresEncryption() {
+		if o.EncryptionKey == nil {
+			return domain.ErrEncryptionPartRequired
+		}
+
+		shr.Secret, err = cypher.Encrypt(shr.Secret, *o.EncryptionKey)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to encrypt secret", logger.Error(err))
+			return err
+		}
+	}
+
 	err = s.repo.Create(ctx, shr)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create share", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to create share", logger.Error(err))
 		return err
 	}
 
 	return nil
-}
-
-func (s *service) GetByUserID(ctx context.Context, userID string) (*share.Share, error) {
-	s.logger.InfoContext(ctx, "getting share by user", slog.String("user_id", userID))
-	shr, err := s.repo.GetByUserID(ctx, userID)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get share", slog.String("error", err.Error()))
-		return nil, err
-	}
-
-	return shr, nil
 }

@@ -35,6 +35,9 @@ var (
 	ErrUserNotFound              = &Error{"User not found", http.StatusNotFound}
 	ErrExternalUserNotFound      = &Error{"External user not found", http.StatusNotFound}
 	ErrExternalUserAlreadyExists = &Error{"External user already exists", http.StatusConflict}
+	ErrEncryptionPartRequired    = &Error{"The requested share have project entropy and encryption part is required", http.StatusConflict}
+	ErrEncryptionNotConfigured   = &Error{"Encryption not configured", http.StatusConflict}
+	ErrInvalidEncryptionPart     = &Error{"Invalid encryption part", http.StatusBadRequest}
 
 	ErrMissingAPIKey       = &Error{"Missing API key", http.StatusUnauthorized}
 	ErrMissingAPISecret    = &Error{"Missing API secret", http.StatusUnauthorized}

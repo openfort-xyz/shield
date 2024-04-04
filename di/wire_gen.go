@@ -8,7 +8,7 @@ package di
 
 import (
 	"go.openfort.xyz/shield/internal/applications/projectapp"
-	"go.openfort.xyz/shield/internal/applications/userapp"
+	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/internal/core/services/projectsvc"
@@ -124,29 +124,21 @@ func ProvideProviderManager() (*providersmgr.Manager, error) {
 	return manager, nil
 }
 
-func ProvideUserApplication() (*userapp.UserApplication, error) {
-	userService, err := ProvideUserService()
-	if err != nil {
-		return nil, err
-	}
+func ProvideShareApplication() (*shareapp.ShareApplication, error) {
 	shareService, err := ProvideShareService()
 	if err != nil {
 		return nil, err
 	}
-	projectService, err := ProvideProjectService()
+	shareRepository, err := ProvideSQLShareRepository()
 	if err != nil {
 		return nil, err
 	}
-	providerService, err := ProvideProviderService()
+	projectRepository, err := ProvideSQLProjectRepository()
 	if err != nil {
 		return nil, err
 	}
-	manager, err := ProvideProviderManager()
-	if err != nil {
-		return nil, err
-	}
-	userApplication := userapp.New(userService, shareService, projectService, providerService, manager)
-	return userApplication, nil
+	shareApplication := shareapp.New(shareService, shareRepository, projectRepository)
+	return shareApplication, nil
 }
 
 func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
@@ -154,11 +146,23 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
+	projectRepository, err := ProvideSQLProjectRepository()
+	if err != nil {
+		return nil, err
+	}
 	providerService, err := ProvideProviderService()
 	if err != nil {
 		return nil, err
 	}
-	projectApplication := projectapp.New(projectService, providerService)
+	providerRepository, err := ProvideSQLProviderRepository()
+	if err != nil {
+		return nil, err
+	}
+	shareRepository, err := ProvideSQLShareRepository()
+	if err != nil {
+		return nil, err
+	}
+	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository)
 	return projectApplication, nil
 }
 
@@ -188,7 +192,7 @@ func ProvideRESTServer() (*rest.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	userApplication, err := ProvideUserApplication()
+	shareApplication, err := ProvideShareApplication()
 	if err != nil {
 		return nil, err
 	}
@@ -196,6 +200,6 @@ func ProvideRESTServer() (*rest.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	server := rest.New(config, projectApplication, userApplication, manager)
+	server := rest.New(config, projectApplication, shareApplication, manager)
 	return server, nil
 }

@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
 
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +25,7 @@ var _ repositories.ProviderRepository = (*repository)(nil)
 func New(db *sql.Client) repositories.ProviderRepository {
 	return &repository{
 		db:     db,
-		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("provider_repository"),
+		logger: logger.New("provider_repository"),
 		parser: newParser(),
 	}
 }
@@ -41,7 +40,7 @@ func (r *repository) Create(ctx context.Context, prov *provider.Provider) error 
 	dbProv := r.parser.toDatabaseProvider(prov)
 	err := r.db.Create(dbProv).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating provider", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error creating provider", logger.Error(err))
 		return err
 	}
 
@@ -57,7 +56,7 @@ func (r *repository) GetByProjectAndType(ctx context.Context, projectID string, 
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProviderNotFound
 		}
-		r.logger.ErrorContext(ctx, "error getting provider", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting provider", logger.Error(err))
 		return nil, err
 	}
 
@@ -73,7 +72,7 @@ func (r *repository) Get(ctx context.Context, id string) (*provider.Provider, er
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProviderNotFound
 		}
-		r.logger.ErrorContext(ctx, "error getting provider", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting provider", logger.Error(err))
 		return nil, err
 	}
 
@@ -86,7 +85,7 @@ func (r *repository) List(ctx context.Context, projectID string) ([]*provider.Pr
 	var dbProvs []Provider
 	err := r.db.Where("project_id = ?", projectID).Find(&dbProvs).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error listing providers", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error listing providers", logger.Error(err))
 		return nil, err
 	}
 
@@ -103,7 +102,7 @@ func (r *repository) Delete(ctx context.Context, providerID string) error {
 
 	cmd := r.db.Delete(&Provider{ID: providerID})
 	if cmd.Error != nil {
-		r.logger.ErrorContext(ctx, "error deleting provider", slog.String("error", cmd.Error.Error()))
+		r.logger.ErrorContext(ctx, "error deleting provider", logger.Error(cmd.Error))
 		return cmd.Error
 	}
 
@@ -120,7 +119,7 @@ func (r *repository) CreateCustom(ctx context.Context, prov *provider.CustomConf
 	dbProv := r.parser.toDatabaseCustomProvider(prov)
 	err := r.db.Create(dbProv).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating custom provider", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error creating custom provider", logger.Error(err))
 		return err
 	}
 
@@ -136,7 +135,7 @@ func (r *repository) GetCustom(ctx context.Context, providerID string) (*provide
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProviderNotFound
 		}
-		r.logger.ErrorContext(ctx, "error getting custom provider", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting custom provider", logger.Error(err))
 		return nil, err
 	}
 
@@ -149,7 +148,7 @@ func (r *repository) UpdateCustom(ctx context.Context, prov *provider.CustomConf
 	dbProv := r.parser.toDatabaseCustomProvider(prov)
 	err := r.db.Save(dbProv).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error updating custom provider", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error updating custom provider", logger.Error(err))
 		return err
 	}
 
@@ -162,7 +161,7 @@ func (r *repository) CreateOpenfort(ctx context.Context, prov *provider.Openfort
 	dbProv := r.parser.toDatabaseOpenfortProvider(prov)
 	err := r.db.Create(dbProv).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating openfort provider", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error creating openfort provider", logger.Error(err))
 		return err
 	}
 
@@ -178,7 +177,7 @@ func (r *repository) GetOpenfort(ctx context.Context, providerID string) (*provi
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProviderNotFound
 		}
-		r.logger.ErrorContext(ctx, "error getting openfort provider", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting openfort provider", logger.Error(err))
 		return nil, err
 	}
 
@@ -191,7 +190,7 @@ func (r *repository) UpdateOpenfort(ctx context.Context, prov *provider.Openfort
 	dbProv := r.parser.toDatabaseOpenfortProvider(prov)
 	err := r.db.Save(dbProv).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error updating openfort provider", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error updating openfort provider", logger.Error(err))
 		return err
 	}
 

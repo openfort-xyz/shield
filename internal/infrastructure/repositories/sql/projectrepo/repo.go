@@ -5,14 +5,13 @@ import (
 	"errors"
 
 	"log/slog"
-	"os"
 
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 	"gorm.io/gorm"
 )
 
@@ -27,7 +26,7 @@ var _ repositories.ProjectRepository = &repository{}
 func New(db *sql.Client) repositories.ProjectRepository {
 	return &repository{
 		db:     db,
-		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("project_repository"),
+		logger: logger.New("project_repository"),
 		parser: newParser(),
 	}
 }
@@ -41,7 +40,7 @@ func (r *repository) Create(ctx context.Context, proj *project.Project) error {
 	dbProj := r.parser.toDatabase(proj)
 	err := r.db.Create(dbProj).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating project", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error creating project", logger.Error(err))
 		return err
 	}
 
@@ -57,7 +56,7 @@ func (r *repository) Get(ctx context.Context, projectID string) (*project.Projec
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProjectNotFound
 		}
-		r.logger.ErrorContext(ctx, "error getting project", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting project", logger.Error(err))
 		return nil, err
 	}
 
@@ -73,11 +72,23 @@ func (r *repository) GetByAPIKey(ctx context.Context, apiKey string) (*project.P
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProjectNotFound
 		}
-		r.logger.ErrorContext(ctx, "error getting project", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting project", logger.Error(err))
 		return nil, err
 	}
 
 	return r.parser.toDomain(dbProj), nil
+}
+
+func (r *repository) Delete(ctx context.Context, projectID string) error {
+	r.logger.InfoContext(ctx, "deleting project")
+
+	err := r.db.Delete(&Project{}, "id = ?", projectID).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error deleting project", logger.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 func (r *repository) AddAllowedOrigin(ctx context.Context, projectID, origin string) error {
@@ -91,7 +102,7 @@ func (r *repository) AddAllowedOrigin(ctx context.Context, projectID, origin str
 
 	err := r.db.Create(allowedOrigin).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error adding allowed origin", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error adding allowed origin", logger.Error(err))
 		return err
 	}
 
@@ -103,7 +114,7 @@ func (r *repository) RemoveAllowedOrigin(ctx context.Context, projectID, origin 
 
 	err := r.db.Delete(&AllowedOrigin{}, "project_id = ? AND origin = ?", projectID, origin).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error removing allowed origin", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error removing allowed origin", logger.Error(err))
 		return err
 	}
 
@@ -116,7 +127,7 @@ func (r *repository) GetAllowedOrigins(ctx context.Context, projectID string) ([
 	var origins []AllowedOrigin
 	err := r.db.Model(&AllowedOrigin{}).Where("project_id = ?", projectID).Find(&origins).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error getting allowed origins", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting allowed origins", logger.Error(err))
 		return nil, err
 	}
 
@@ -129,9 +140,43 @@ func (r *repository) GetAllowedOriginsByAPIKey(ctx context.Context, apiKey strin
 	var origins []AllowedOrigin
 	err := r.db.Model(&AllowedOrigin{}).Joins("JOIN shld_projects ON shld_projects.id = shld_allowed_origins.project_id").Where("shld_projects.api_key = ?", apiKey).Find(&origins).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error getting allowed origins", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting allowed origins", logger.Error(err))
 		return nil, err
 	}
 
 	return r.parser.toDomainAllowedOrigins(origins), nil
+}
+
+func (r *repository) GetEncryptionPart(ctx context.Context, projectID string) (string, error) {
+	r.logger.InfoContext(ctx, "getting encryption part")
+
+	encryptionPart := &EncryptionPart{}
+	err := r.db.Where("project_id = ?", projectID).First(encryptionPart).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", domain.ErrEncryptionPartNotFound
+		}
+		r.logger.ErrorContext(ctx, "error getting encryption part", logger.Error(err))
+		return "", err
+	}
+
+	return encryptionPart.Part, nil
+}
+
+func (r *repository) SetEncryptionPart(ctx context.Context, projectID, part string) error {
+	r.logger.InfoContext(ctx, "setting encryption part")
+
+	encryptionPart := &EncryptionPart{
+		ID:        uuid.NewString(),
+		ProjectID: projectID,
+		Part:      part,
+	}
+
+	err := r.db.Create(encryptionPart).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error setting encryption part", logger.Error(err))
+		return err
+	}
+
+	return nil
 }

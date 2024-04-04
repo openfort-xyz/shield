@@ -5,12 +5,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/mux"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/api"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type Handler struct {
@@ -22,7 +21,7 @@ type Handler struct {
 func New(app *projectapp.ProjectApplication) *Handler {
 	return &Handler{
 		app:    app,
-		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("project_handler"),
+		logger: logger.New("project_handler"),
 		parser: newParser(),
 	}
 }

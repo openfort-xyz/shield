@@ -6,7 +6,7 @@ package di
 import (
 	"github.com/google/wire"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
-	"go.openfort.xyz/shield/internal/applications/userapp"
+	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/internal/core/services/projectsvc"
@@ -114,14 +114,12 @@ func ProvideProviderManager() (pm *providersmgr.Manager, err error) {
 	return
 }
 
-func ProvideUserApplication() (a *userapp.UserApplication, err error) {
+func ProvideShareApplication() (a *shareapp.ShareApplication, err error) {
 	wire.Build(
-		userapp.New,
-		ProvideUserService,
+		shareapp.New,
 		ProvideShareService,
-		ProvideProjectService,
-		ProvideProviderService,
-		ProvideProviderManager,
+		ProvideSQLShareRepository,
+		ProvideSQLProjectRepository,
 	)
 
 	return
@@ -131,7 +129,10 @@ func ProvideProjectApplication() (a *projectapp.ProjectApplication, err error) {
 	wire.Build(
 		projectapp.New,
 		ProvideProjectService,
+		ProvideSQLProjectRepository,
 		ProvideProviderService,
+		ProvideSQLProviderRepository,
+		ProvideSQLShareRepository,
 	)
 
 	return
@@ -152,7 +153,7 @@ func ProvideRESTServer() (s *rest.Server, err error) {
 	wire.Build(
 		rest.New,
 		rest.GetConfigFromEnv,
-		ProvideUserApplication,
+		ProvideShareApplication,
 		ProvideProjectApplication,
 		ProvideAuthenticationManager,
 	)

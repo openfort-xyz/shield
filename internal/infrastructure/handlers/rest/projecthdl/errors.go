@@ -26,6 +26,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrProviderAlreadyExists
 	case errors.Is(err, projectapp.ErrProviderNotFound):
 		return api.ErrProviderNotFound
+	case errors.Is(err, projectapp.ErrInvalidEncryptionPart):
+		return api.ErrInvalidEncryptionPart
 	default:
 		return api.ErrInternal
 	}

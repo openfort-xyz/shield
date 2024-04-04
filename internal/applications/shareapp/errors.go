@@ -1,4 +1,4 @@
-package userapp
+package shareapp
 
 import (
 	"errors"
@@ -12,6 +12,9 @@ var (
 	ErrUserNotFound              = errors.New("user not found")
 	ErrExternalUserNotFound      = errors.New("external user not found")
 	ErrExternalUserAlreadyExists = errors.New("external user already exists")
+	ErrEncryptionPartRequired    = errors.New("encryption part is required")
+	ErrEncryptionNotConfigured   = errors.New("encryption not configured")
+	ErrInvalidEncryptionPart     = errors.New("invalid encryption part")
 	ErrInternal                  = errors.New("internal error")
 )
 
@@ -37,6 +40,14 @@ func fromDomainError(err error) error {
 
 	if errors.Is(err, domain.ErrExternalUserAlreadyExists) {
 		return ErrExternalUserAlreadyExists
+	}
+
+	if errors.Is(err, domain.ErrEncryptionPartRequired) {
+		return ErrEncryptionPartRequired
+	}
+
+	if errors.Is(err, domain.ErrEncryptionPartNotFound) {
+		return ErrEncryptionNotConfigured
 	}
 
 	return ErrInternal

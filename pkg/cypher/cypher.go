@@ -6,8 +6,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"github.com/codahale/sss"
 	"io"
+
+	"github.com/codahale/sss"
 )
 
 func generateRandomBytes(n int) ([]byte, error) {
@@ -27,12 +28,7 @@ func generateRandomString(n int) (string, error) {
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-func Encrypt(plaintext, share1, share2 string) (string, error) {
-	key, err := combineShares(share1, share2)
-	if err != nil {
-		return "", err
-	}
-
+func Encrypt(plaintext, key string) (string, error) {
 	keyBytes, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
 		return "", err
@@ -57,12 +53,7 @@ func Encrypt(plaintext, share1, share2 string) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-func Decrypt(encrypted, share1, share2 string) (string, error) {
-	key, err := combineShares(share1, share2)
-	if err != nil {
-		return "", err
-	}
-
+func Decrypt(encrypted, key string) (string, error) {
 	encryptedBytes, err := base64.StdEncoding.DecodeString(encrypted)
 	if err != nil {
 		return "", err
@@ -128,19 +119,19 @@ func splitKey(key string) (string, string, error) {
 	return base64.StdEncoding.EncodeToString(subset[0]), base64.StdEncoding.EncodeToString(subset[1]), nil
 }
 
-func combineShares(share1, share2 string) (string, error) {
-	rawShare1, err := base64.StdEncoding.DecodeString(share1)
+func ReconstructEncryptionKey(part1, part2 string) (string, error) {
+	rawPart1, err := base64.StdEncoding.DecodeString(part1)
 	if err != nil {
 		return "", err
 	}
-	rawShare2, err := base64.StdEncoding.DecodeString(share2)
+	rawPart2, err := base64.StdEncoding.DecodeString(part2)
 	if err != nil {
 		return "", err
 	}
 
 	subset := make(map[byte][]byte, 2)
-	subset[0] = rawShare1
-	subset[1] = rawShare2
+	subset[0] = rawPart1
+	subset[1] = rawPart2
 
 	key := sss.Combine(subset)
 

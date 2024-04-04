@@ -7,6 +7,17 @@ import (
 )
 
 type ShareService interface {
-	Create(ctx context.Context, share *share.Share) error
-	GetByUserID(ctx context.Context, userID string) (*share.Share, error)
+	Create(ctx context.Context, share *share.Share, opts ...ShareOption) error
+}
+
+type ShareOption func(*ShareOptions)
+
+type ShareOptions struct {
+	EncryptionKey *string
+}
+
+func WithEncryptionKey(key string) ShareOption {
+	return func(o *ShareOptions) {
+		o.EncryptionKey = &key
+	}
 }

@@ -24,27 +24,23 @@ func New(cfg *Config) (*Client, error) {
 		return nil, ErrMissingDriver
 	}
 
+	var dialector gorm.Dialector
+	var err error
 	switch cfg.Driver {
 	case DriverMySQL:
-		return newMySQL(cfg)
+		dialector, err = newMySQL(cfg)
 	case DriverCloudSQL:
-		return newCloudSQL(cfg)
+		dialector, err = newCloudSQL(cfg)
 	case DriverPostgres:
-		return newPostgres(cfg)
+		dialector = newPostgres(cfg)
 	default:
 		return nil, ErrDriverNotSupported
 	}
-}
-
-func newMySQL(cfg *Config) (*Client, error) {
-	sqlDB, err := sql.Open("mysql", cfg.MySQLDSN())
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn: sqlDB,
-	}), &gorm.Config{})
+	db, err := gorm.Open(dialector, &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +48,18 @@ func newMySQL(cfg *Config) (*Client, error) {
 	return &Client{db}, nil
 }
 
-func newCloudSQL(cfg *Config) (*Client, error) {
+func newMySQL(cfg *Config) (gorm.Dialector, error) {
+	sqlDB, err := sql.Open("mysql", cfg.MySQLDSN())
+	if err != nil {
+		return nil, err
+	}
+
+	return mysql.New(mysql.Config{
+		Conn: sqlDB,
+	}), nil
+}
+
+func newCloudSQL(cfg *Config) (gorm.Dialector, error) {
 	dsn := cfg.CloudSQLDSN()
 	fmt.Println("DSN: " + dsn)
 	sqlDB, err := sql.Open("mysql", dsn)
@@ -60,23 +67,13 @@ func newCloudSQL(cfg *Config) (*Client, error) {
 		return nil, err
 	}
 
-	db, err := gorm.Open(mysql.New(mysql.Config{
+	return mysql.New(mysql.Config{
 		Conn: sqlDB,
-	}), &gorm.Config{})
-	if err != nil {
-		return nil, err
-	}
-
-	return &Client{db}, nil
+	}), nil
 }
 
-func newPostgres(cfg *Config) (*Client, error) {
-	db, err := gorm.Open(postgres.Open(cfg.PostgresDSN()), &gorm.Config{})
-	if err != nil {
-		return nil, err
-	}
-
-	return &Client{db}, nil
+func newPostgres(cfg *Config) gorm.Dialector {
+	return postgres.Open(cfg.PostgresDSN())
 }
 
 func (c *Client) Migrate() error {

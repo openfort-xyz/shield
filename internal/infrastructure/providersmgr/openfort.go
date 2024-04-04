@@ -9,12 +9,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/providers"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type openfort struct {
@@ -31,7 +30,7 @@ func newOpenfortProvider(config *Config, providerConfig *provider.OpenfortConfig
 		publishableKey: providerConfig.PublishableKey,
 		providerID:     providerConfig.ProviderID,
 		baseURL:        config.OpenfortBaseURL,
-		logger:         slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("openfort_provider"),
+		logger:         logger.New("openfort_provider"),
 	}
 }
 
@@ -45,7 +44,7 @@ func (o *openfort) Identify(ctx context.Context, token string, opts ...providers
 	userID, err := validateJWKs(token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey))
 	if err != nil {
 		if !errors.Is(err, ErrInvalidToken) {
-			o.logger.ErrorContext(ctx, "failed to validate jwks", slog.String("error", err.Error()))
+			o.logger.ErrorContext(ctx, "failed to validate jwks", logger.Error(err))
 			return "", err
 		}
 

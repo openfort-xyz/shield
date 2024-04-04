@@ -32,3 +32,13 @@ type AllowedOrigin struct {
 func (AllowedOrigin) TableName() string {
 	return "shld_allowed_origins"
 }
+
+type EncryptionPart struct {
+	ID        string `gorm:"column:id;primaryKey"`
+	ProjectID string `gorm:"column:project_id"`
+	Part      string `gorm:"column:part"`
+}
+
+func (EncryptionPart) TableName() string {
+	return "shld_encryption_parts"
+}

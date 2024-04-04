@@ -3,11 +3,10 @@ package providersmgr
 import (
 	"context"
 	"log/slog"
-	"os"
 
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/providers"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type custom struct {
@@ -22,7 +21,7 @@ func newCustomProvider(providerConfig *provider.CustomConfig) providers.Identity
 	return &custom{
 		jwkURL:     providerConfig.JWK,
 		providerID: providerConfig.ProviderID,
-		logger:     slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("custom_provider"),
+		logger:     logger.New("custom_provider"),
 	}
 }
 
@@ -35,7 +34,7 @@ func (c *custom) Identify(ctx context.Context, token string, _ ...providers.Cust
 
 	externalUserID, err := validateJWKs(token, c.jwkURL)
 	if err != nil {
-		c.logger.ErrorContext(ctx, "failed to validate jwks", slog.String("error", err.Error()))
+		c.logger.ErrorContext(ctx, "failed to validate jwks", logger.Error(err))
 		return "", err
 	}
 

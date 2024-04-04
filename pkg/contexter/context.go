@@ -1,4 +1,4 @@
-package ofcontext
+package contexter
 
 import "context"
 

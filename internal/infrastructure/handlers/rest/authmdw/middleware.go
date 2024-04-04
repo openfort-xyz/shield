@@ -7,15 +7,16 @@ import (
 	authenticate "go.openfort.xyz/shield/internal/core/ports/authentication"
 	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/api"
-	"go.openfort.xyz/shield/pkg/ofcontext"
+	"go.openfort.xyz/shield/pkg/contexter"
 )
 
-const TokenHeader = "Authorization"                     //nolint:gosec
-const AuthProviderHeader = "X-Auth-Provider"            //nolint:gosec
-const APIKeyHeader = "X-API-Key"                        //nolint:gosec
-const APISecretHeader = "X-API-Secret"                  //nolint:gosec
-const OpenfortProviderHeader = "X-Openfort-Provider"    //nolint:gosec
-const OpenfortTokenTypeHeader = "X-Openfort-Token-Type" //nolint:gosec
+const TokenHeader = "Authorization"                                  //nolint:gosec
+const AuthProviderHeader = "X-Auth-Provider"                         //nolint:gosec
+const APIKeyHeader = "X-API-Key"                                     //nolint:gosec
+const APISecretHeader = "X-API-Secret"                               //nolint:gosec
+const OpenfortProviderHeader = "X-Openfort-Provider"                 //nolint:gosec
+const OpenfortTokenTypeHeader = "X-Openfort-Token-Type"              //nolint:gosec
+const AccessControlAllowOriginHeader = "Access-Control-Allow-Origin" //nolint:gosec
 
 type Middleware struct {
 	manager *authenticationmgr.Manager
@@ -47,7 +48,7 @@ func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := ofcontext.WithProjectID(r.Context(), projectID)
+		ctx := contexter.WithProjectID(r.Context(), projectID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -101,7 +102,7 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := ofcontext.WithUserID(r.Context(), userID)
+		ctx := contexter.WithUserID(r.Context(), userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -121,9 +122,5 @@ func (m *Middleware) AllowedOrigin(r *http.Request, origin string) bool {
 	}
 
 	allowed, err := m.manager.IsAllowedOrigin(r.Context(), apiKey, origin)
-	if err != nil {
-		return false
-	}
-
-	return allowed
+	return err == nil && allowed
 }

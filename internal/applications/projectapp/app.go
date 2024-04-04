@@ -2,37 +2,62 @@ package projectapp
 
 import (
 	"context"
+	"errors"
 	"log/slog"
-	"os"
 
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
+	"go.openfort.xyz/shield/internal/core/domain/share"
+	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/pkg/ofcontext"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/contexter"
+	"go.openfort.xyz/shield/pkg/cypher"
+	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type ProjectApplication struct {
-	projectSvc  services.ProjectService
-	providerSvc services.ProviderService
-	logger      *slog.Logger
+	projectSvc   services.ProjectService
+	projectRepo  repositories.ProjectRepository
+	providerSvc  services.ProviderService
+	providerRepo repositories.ProviderRepository
+	sharesRepo   repositories.ShareRepository
+	logger       *slog.Logger
 }
 
-func New(projectSvc services.ProjectService, providerSvc services.ProviderService) *ProjectApplication {
+func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRepository, providerSvc services.ProviderService, providerRepo repositories.ProviderRepository, sharesRepo repositories.ShareRepository) *ProjectApplication {
 	return &ProjectApplication{
-		projectSvc:  projectSvc,
-		providerSvc: providerSvc,
-		logger:      slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("project_application"),
+		projectSvc:   projectSvc,
+		projectRepo:  projectRepo,
+		providerSvc:  providerSvc,
+		providerRepo: providerRepo,
+		sharesRepo:   sharesRepo,
+		logger:       logger.New("project_application"),
 	}
 }
 
-func (a *ProjectApplication) CreateProject(ctx context.Context, name string) (*project.Project, error) {
+func (a *ProjectApplication) CreateProject(ctx context.Context, name string, opts ...ProjectOption) (*project.Project, error) {
 	a.logger.InfoContext(ctx, "creating project")
 
 	proj, err := a.projectSvc.Create(ctx, name)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to create project", slog.String("error", err.Error()))
+		a.logger.ErrorContext(ctx, "failed to create project", logger.Error(err))
 		return nil, fromDomainError(err)
+	}
+
+	var o projectOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
+
+	if o.generateEncryptionKey {
+		part, err := a.registerEncryptionKey(ctx, proj.ID)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
+			return nil, fromDomainError(err)
+		}
+
+		proj.EncryptionPart = part
 	}
 
 	return proj, nil
@@ -40,12 +65,11 @@ func (a *ProjectApplication) CreateProject(ctx context.Context, name string) (*p
 
 func (a *ProjectApplication) GetProject(ctx context.Context) (*project.Project, error) {
 	a.logger.InfoContext(ctx, "getting project")
+	projectID := contexter.GetProjectID(ctx)
 
-	projectID := ofcontext.GetProjectID(ctx)
-
-	proj, err := a.projectSvc.Get(ctx, projectID)
+	proj, err := a.projectRepo.Get(ctx, projectID)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get project", slog.String("error", err.Error()))
+		a.logger.ErrorContext(ctx, "failed to get project", logger.Error(err))
 		return nil, fromDomainError(err)
 	}
 
@@ -54,8 +78,7 @@ func (a *ProjectApplication) GetProject(ctx context.Context) (*project.Project, 
 
 func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderOption) ([]*provider.Provider, error) {
 	a.logger.InfoContext(ctx, "adding providers")
-
-	projectID := ofcontext.GetProjectID(ctx)
+	projectID := contexter.GetProjectID(ctx)
 
 	cfg := &providerConfig{}
 	for _, opt := range opts {
@@ -63,30 +86,40 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	}
 
 	var providers []*provider.Provider
-	if cfg.jwkURL != nil {
-		a.logger.InfoContext(ctx, "configuring custom provider")
-		prov, err := a.providerSvc.Configure(ctx, projectID, &services.CustomProviderConfig{JWKUrl: *cfg.jwkURL})
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to configure custom provider", slog.String("error", err.Error()))
+	if cfg.openfortPublishableKey != nil {
+		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeOpenfort)
+		if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
+			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
-
-		providers = append(providers, prov)
+		if err == nil && prov != nil {
+			return nil, ErrProviderAlreadyExists
+		}
+		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeOpenfort, Config: provider.OpenfortConfig{PublishableKey: *cfg.openfortPublishableKey}})
 	}
 
-	if cfg.openfortPublishableKey != nil {
-		a.logger.InfoContext(ctx, "configuring openfort provider")
-		prov, err := a.providerSvc.Configure(ctx, projectID, &services.OpenfortProviderConfig{OpenfortProject: *cfg.openfortPublishableKey})
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to configure openfort provider", slog.String("error", err.Error()))
+	if cfg.jwkURL != nil {
+		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
+		if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
+			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
-
-		providers = append(providers, prov)
+		if err == nil && prov != nil {
+			return nil, ErrProviderAlreadyExists
+		}
+		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: provider.CustomConfig{JWK: *cfg.jwkURL}})
 	}
 
 	if len(providers) == 0 {
 		return nil, ErrNoProviderSpecified
+	}
+
+	for _, prov := range providers {
+		err := a.providerSvc.Configure(ctx, prov)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to create provider", logger.Error(err))
+			return nil, fromDomainError(err)
+		}
 	}
 
 	return providers, nil
@@ -94,12 +127,11 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 
 func (a *ProjectApplication) GetProviders(ctx context.Context) ([]*provider.Provider, error) {
 	a.logger.InfoContext(ctx, "listing providers")
+	projectID := contexter.GetProjectID(ctx)
 
-	projectID := ofcontext.GetProjectID(ctx)
-
-	providers, err := a.providerSvc.List(ctx, projectID)
+	providers, err := a.providerRepo.List(ctx, projectID)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to list providers", slog.String("error", err.Error()))
+		a.logger.ErrorContext(ctx, "failed to list providers", logger.Error(err))
 		return nil, fromDomainError(err)
 	}
 
@@ -108,12 +140,11 @@ func (a *ProjectApplication) GetProviders(ctx context.Context) ([]*provider.Prov
 
 func (a *ProjectApplication) GetProviderDetail(ctx context.Context, providerID string) (*provider.Provider, error) {
 	a.logger.InfoContext(ctx, "getting provider detail")
+	projectID := contexter.GetProjectID(ctx)
 
-	projectID := ofcontext.GetProjectID(ctx)
-
-	prov, err := a.providerSvc.Get(ctx, providerID)
+	prov, err := a.providerRepo.Get(ctx, providerID)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
+		a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 		return nil, fromDomainError(err)
 	}
 
@@ -127,12 +158,11 @@ func (a *ProjectApplication) GetProviderDetail(ctx context.Context, providerID s
 
 func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID string, opts ...ProviderOption) error {
 	a.logger.InfoContext(ctx, "updating provider")
+	projectID := contexter.GetProjectID(ctx)
 
-	projectID := ofcontext.GetProjectID(ctx)
-
-	prov, err := a.providerSvc.Get(ctx, providerID)
+	prov, err := a.providerRepo.Get(ctx, providerID)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
+		a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 		return fromDomainError(err)
 	}
 
@@ -151,9 +181,9 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 			return ErrProviderMismatch
 		}
 
-		err := a.providerSvc.UpdateConfig(ctx, &provider.CustomConfig{ProviderID: providerID, JWK: *cfg.jwkURL})
+		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, JWK: *cfg.jwkURL})
 		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to update custom provider", slog.String("error", err.Error()))
+			a.logger.ErrorContext(ctx, "failed to update custom provider", logger.Error(err))
 			return fromDomainError(err)
 		}
 	}
@@ -163,9 +193,9 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 			return ErrProviderMismatch
 		}
 
-		err = a.providerSvc.UpdateConfig(ctx, &provider.OpenfortConfig{ProviderID: providerID, PublishableKey: *cfg.openfortPublishableKey})
+		err = a.providerRepo.UpdateOpenfort(ctx, &provider.OpenfortConfig{ProviderID: providerID, PublishableKey: *cfg.openfortPublishableKey})
 		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to update openfort provider", slog.String("error", err.Error()))
+			a.logger.ErrorContext(ctx, "failed to update openfort provider", logger.Error(err))
 			return fromDomainError(err)
 		}
 	}
@@ -174,12 +204,22 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 
 func (a *ProjectApplication) RemoveProvider(ctx context.Context, providerID string) error {
 	a.logger.InfoContext(ctx, "removing provider")
+	projectID := contexter.GetProjectID(ctx)
 
-	projectID := ofcontext.GetProjectID(ctx)
-
-	err := a.providerSvc.Remove(ctx, projectID, providerID)
+	prov, err := a.providerRepo.Get(ctx, providerID)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to remove provider", slog.String("error", err.Error()))
+		a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
+		return fromDomainError(err)
+	}
+
+	if prov.ProjectID != projectID {
+		a.logger.ErrorContext(ctx, "unauthorized access, trying to remove provider from different project", slog.String("project_id", projectID), slog.String("provider_project_id", prov.ProjectID))
+		return ErrProviderNotFound
+	}
+
+	err = a.providerRepo.Delete(ctx, providerID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to remove provider", logger.Error(err))
 		return fromDomainError(err)
 	}
 
@@ -188,12 +228,11 @@ func (a *ProjectApplication) RemoveProvider(ctx context.Context, providerID stri
 
 func (a *ProjectApplication) AddAllowedOrigin(ctx context.Context, origin string) error {
 	a.logger.InfoContext(ctx, "adding allowed origin")
-
-	projectID := ofcontext.GetProjectID(ctx)
+	projectID := contexter.GetProjectID(ctx)
 
 	err := a.projectSvc.AddAllowedOrigin(ctx, projectID, origin)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to add allowed origin", slog.String("error", err.Error()))
+		a.logger.ErrorContext(ctx, "failed to add allowed origin", logger.Error(err))
 		return fromDomainError(err)
 	}
 
@@ -203,11 +242,11 @@ func (a *ProjectApplication) AddAllowedOrigin(ctx context.Context, origin string
 func (a *ProjectApplication) RemoveAllowedOrigin(ctx context.Context, origin string) error {
 	a.logger.InfoContext(ctx, "removing allowed origin")
 
-	projectID := ofcontext.GetProjectID(ctx)
+	projectID := contexter.GetProjectID(ctx)
 
 	err := a.projectSvc.RemoveAllowedOrigin(ctx, projectID, origin)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to remove allowed origin", slog.String("error", err.Error()))
+		a.logger.ErrorContext(ctx, "failed to remove allowed origin", logger.Error(err))
 		return fromDomainError(err)
 	}
 
@@ -217,13 +256,87 @@ func (a *ProjectApplication) RemoveAllowedOrigin(ctx context.Context, origin str
 func (a *ProjectApplication) GetAllowedOrigins(ctx context.Context) ([]string, error) {
 	a.logger.InfoContext(ctx, "getting allowed origins")
 
-	projectID := ofcontext.GetProjectID(ctx)
+	projectID := contexter.GetProjectID(ctx)
 
 	origins, err := a.projectSvc.GetAllowedOrigins(ctx, projectID)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get allowed origins", slog.String("error", err.Error()))
+		a.logger.ErrorContext(ctx, "failed to get allowed origins", logger.Error(err))
 		return nil, fromDomainError(err)
 	}
 
 	return origins, nil
+}
+
+func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, projectID, externalPart string) error {
+	a.logger.InfoContext(ctx, "encrypting project shares")
+
+	storedPart, err := a.projectRepo.GetEncryptionPart(ctx, projectID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
+		return fromDomainError(err)
+	}
+
+	encryptionKey, err := cypher.ReconstructEncryptionKey(storedPart, externalPart)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to reconstruct encryption key", logger.Error(err))
+		return ErrInvalidEncryptionPart
+	}
+
+	shares, err := a.sharesRepo.ListDecryptedByProjectID(ctx, projectID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to list shares", logger.Error(err))
+		return fromDomainError(err)
+	}
+
+	var encryptedShares []*share.Share
+	for _, shr := range shares {
+		if shr.EncryptionParameters != nil && shr.EncryptionParameters.Entropy != share.EntropyNone {
+			continue
+		}
+
+		shr.Secret, err = cypher.Encrypt(shr.Secret, encryptionKey)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to encrypt share", logger.Error(err))
+			return fromDomainError(err)
+		}
+
+		shr.EncryptionParameters = &share.EncryptionParameters{
+			Entropy: share.EntropyProject,
+		}
+	}
+
+	for _, encryptedShare := range encryptedShares {
+		err = a.sharesRepo.Update(ctx, encryptedShare)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to update share", logger.Error(err))
+			return fromDomainError(err)
+		}
+	}
+
+	return nil
+}
+
+func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectID string) (externalPart string, err error) {
+	defer func() {
+		if err != nil {
+			a.logger.Info("deleting project")
+			errD := a.projectRepo.Delete(ctx, projectID)
+			if errD != nil {
+				a.logger.Error("failed to delete project", logger.Error(errD))
+				err = errors.Join(err, errD)
+			}
+		}
+	}()
+	var shieldPart string
+	shieldPart, externalPart, err = cypher.GenerateEncryptionKey()
+	if err != nil {
+		return "", err
+	}
+
+	err = a.projectSvc.SetEncryptionPart(ctx, projectID, shieldPart)
+	if err != nil {
+		return "", err
+	}
+
+	return externalPart, nil
 }

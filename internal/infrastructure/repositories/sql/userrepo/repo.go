@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
 
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/user"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +25,7 @@ var _ repositories.UserRepository = (*repository)(nil)
 func New(db *sql.Client) repositories.UserRepository {
 	return &repository{
 		db:     db,
-		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("user_repository"),
+		logger: logger.New("user_repository"),
 		parser: newParser(),
 	}
 }
@@ -41,7 +40,7 @@ func (r *repository) Create(ctx context.Context, usr *user.User) error {
 	dbUsr := r.parser.toDatabase(usr)
 	err := r.db.Create(dbUsr).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating user", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error creating user", logger.Error(err))
 		return err
 	}
 
@@ -57,7 +56,7 @@ func (r *repository) Get(ctx context.Context, userID string) (*user.User, error)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrUserNotFound
 		}
-		r.logger.ErrorContext(ctx, "error getting user", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting user", logger.Error(err))
 		return nil, err
 	}
 
@@ -74,7 +73,7 @@ func (r *repository) CreateExternal(ctx context.Context, extUsr *user.ExternalUs
 	dbExtUsr := r.parser.toDatabaseExternalUser(extUsr)
 	err := r.db.Create(dbExtUsr).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating external user", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error creating external user", logger.Error(err))
 		return err
 	}
 
@@ -94,7 +93,7 @@ func (r *repository) FindExternalBy(ctx context.Context, opts ...repositories.Op
 	var dbExtUsrs []ExternalUser
 	err := r.db.Where(options.query).Find(&dbExtUsrs).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error finding external user", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error finding external user", logger.Error(err))
 		return nil, err
 	}
 

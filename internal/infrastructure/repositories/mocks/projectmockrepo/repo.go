@@ -35,6 +35,11 @@ func (m *MockProjectRepository) GetByAPIKey(ctx context.Context, apiKey string) 
 	return args.Get(0).(*project.Project), args.Error(1)
 }
 
+func (m *MockProjectRepository) Delete(ctx context.Context, projectID string) error {
+	args := m.Mock.Called(ctx, projectID)
+	return args.Error(0)
+}
+
 func (m *MockProjectRepository) AddAllowedOrigin(ctx context.Context, projectID, origin string) error {
 	args := m.Mock.Called(ctx, projectID, origin)
 	return args.Error(0)
@@ -59,4 +64,17 @@ func (m *MockProjectRepository) GetAllowedOriginsByAPIKey(ctx context.Context, a
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *MockProjectRepository) GetEncryptionPart(ctx context.Context, projectID string) (string, error) {
+	args := m.Mock.Called(ctx, projectID)
+	if args.Get(0) == nil {
+		return "", args.Error(1)
+	}
+	return args.Get(0).(string), args.Error(1)
+}
+
+func (m *MockProjectRepository) SetEncryptionPart(ctx context.Context, projectID, part string) error {
+	args := m.Mock.Called(ctx, projectID, part)
+	return args.Error(0)
 }

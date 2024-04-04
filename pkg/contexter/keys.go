@@ -1,4 +1,4 @@
-package ofcontext
+package contexter
 
 type ContextKey string
 

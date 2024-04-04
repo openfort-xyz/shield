@@ -18,3 +18,15 @@ type providerConfig struct {
 	jwkURL                 *string
 	openfortPublishableKey *string
 }
+
+type ProjectOption func(options *projectOptions)
+
+type projectOptions struct {
+	generateEncryptionKey bool
+}
+
+func WithEncryptionKey() ProjectOption {
+	return func(o *projectOptions) {
+		o.generateEncryptionKey = true
+	}
+}

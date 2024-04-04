@@ -1,4 +1,4 @@
-package oflog
+package logger
 
 const (
 	ProjectID = "project_id"
