@@ -230,7 +230,7 @@ func (a *ProjectApplication) AddAllowedOrigin(ctx context.Context, origin string
 	a.logger.InfoContext(ctx, "adding allowed origin")
 	projectID := contexter.GetProjectID(ctx)
 
-	err := a.projectSvc.AddAllowedOrigin(ctx, projectID, origin)
+	err := a.projectRepo.AddAllowedOrigin(ctx, projectID, origin)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to add allowed origin", logger.Error(err))
 		return fromDomainError(err)
@@ -244,7 +244,7 @@ func (a *ProjectApplication) RemoveAllowedOrigin(ctx context.Context, origin str
 
 	projectID := contexter.GetProjectID(ctx)
 
-	err := a.projectSvc.RemoveAllowedOrigin(ctx, projectID, origin)
+	err := a.projectRepo.RemoveAllowedOrigin(ctx, projectID, origin)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to remove allowed origin", logger.Error(err))
 		return fromDomainError(err)
@@ -258,7 +258,7 @@ func (a *ProjectApplication) GetAllowedOrigins(ctx context.Context) ([]string, e
 
 	projectID := contexter.GetProjectID(ctx)
 
-	origins, err := a.projectSvc.GetAllowedOrigins(ctx, projectID)
+	origins, err := a.projectRepo.GetAllowedOrigins(ctx, projectID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get allowed origins", logger.Error(err))
 		return nil, fromDomainError(err)

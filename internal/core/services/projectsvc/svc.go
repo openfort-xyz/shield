@@ -55,61 +55,6 @@ func (s *service) Create(ctx context.Context, name string) (*project.Project, er
 	return proj, nil
 }
 
-func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {
-	s.logger.InfoContext(ctx, "getting project by API key", slog.String("api_key", apiKey))
-	proj, err := s.repo.GetByAPIKey(ctx, apiKey)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get project by API key", logger.Error(err))
-		return nil, err
-	}
-
-	return proj, nil
-}
-
-func (s *service) AddAllowedOrigin(ctx context.Context, projectID, origin string) error {
-	s.logger.InfoContext(ctx, "adding allowed origin", slog.String("project_id", projectID), slog.String("origin", origin))
-	err := s.repo.AddAllowedOrigin(ctx, projectID, origin)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to add allowed origin", logger.Error(err))
-		return err
-	}
-
-	return nil
-}
-
-func (s *service) RemoveAllowedOrigin(ctx context.Context, projectID, origin string) error {
-	s.logger.InfoContext(ctx, "removing allowed origin", slog.String("project_id", projectID), slog.String("origin", origin))
-	err := s.repo.RemoveAllowedOrigin(ctx, projectID, origin)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to remove allowed origin", logger.Error(err))
-		return err
-	}
-
-	return nil
-}
-
-func (s *service) GetAllowedOrigins(ctx context.Context, projectID string) ([]string, error) {
-	s.logger.InfoContext(ctx, "getting allowed origins", slog.String("project_id", projectID))
-	origins, err := s.repo.GetAllowedOrigins(ctx, projectID)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get allowed origins", logger.Error(err))
-		return nil, err
-	}
-
-	return origins, nil
-}
-
-func (s *service) GetEncryptionPart(ctx context.Context, projectID string) (string, error) {
-	s.logger.InfoContext(ctx, "getting encryption part", slog.String("project_id", projectID))
-	part, err := s.repo.GetEncryptionPart(ctx, projectID)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
-		return "", err
-	}
-
-	return part, nil
-}
-
 func (s *service) SetEncryptionPart(ctx context.Context, projectID, part string) error {
 	s.logger.InfoContext(ctx, "setting encryption part", slog.String("project_id", projectID))
 	ep, err := s.repo.GetEncryptionPart(ctx, projectID)
