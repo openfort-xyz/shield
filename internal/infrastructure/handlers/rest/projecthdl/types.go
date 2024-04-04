@@ -67,3 +67,7 @@ type AddAllowedOriginRequest struct {
 type GetAllowedOriginsResponse struct {
 	Origins []string `json:"origins"`
 }
+
+type EncryptBodyRequest struct {
+	EncryptionPart string `json:"encryption_part"`
+}

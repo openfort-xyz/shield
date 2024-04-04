@@ -267,8 +267,9 @@ func (a *ProjectApplication) GetAllowedOrigins(ctx context.Context) ([]string, e
 	return origins, nil
 }
 
-func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, projectID, externalPart string) error {
+func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalPart string) error {
 	a.logger.InfoContext(ctx, "encrypting project shares")
+	projectID := contexter.GetProjectID(ctx)
 
 	storedPart, err := a.projectRepo.GetEncryptionPart(ctx, projectID)
 	if err != nil {

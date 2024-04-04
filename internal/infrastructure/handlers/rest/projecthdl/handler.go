@@ -397,3 +397,39 @@ func (h *Handler) GetAllowedOrigins(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(resp)
 }
+
+// EncryptProjectShares encrypts all shares of a project (if not already encrypted)
+// @Summary Encrypt project shares
+// @Description Encrypt all shares of a project
+// @Tags Project
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param encryptBodyRequest body EncryptBodyRequest true "Add Allowed Origin Request"
+// @Success 200 "Shares encrypted successfully"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/encrypt [post]
+func (h *Handler) EncryptProjectShares(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "encrypting project shares")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+		return
+	}
+
+	var req EncryptBodyRequest
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+
+	err = h.app.EncryptProjectShares(ctx, req.EncryptionPart)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
