@@ -5,14 +5,17 @@ import (
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
+	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/services/projectsvc"
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/projectmockrepo"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/providermockrepo"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/sharemockrepo"
 	"go.openfort.xyz/shield/pkg/contexter"
+	"go.openfort.xyz/shield/pkg/cypher"
 	"testing"
 )
 
@@ -41,7 +44,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 				Name: "project_name",
 			},
 			mock: func() {
-				projectRepo.Calls = nil
+				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 			},
 		},
@@ -56,9 +59,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 				EncryptionPart: "encryption_part",
 			},
 			mock: func() {
-				projectRepo.Calls = nil
-				providerRepo.Calls = nil
-				shareRepo.Calls = nil
+				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", nil)
 				projectRepo.On("SetEncryptionPart", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -69,9 +70,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 			projName: "project_name",
 			wantErr:  ErrInternal,
 			mock: func() {
-				projectRepo.Calls = nil
-				providerRepo.Calls = nil
-				shareRepo.Calls = nil
+				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(errors.New("repository error"))
 			},
 		},
@@ -83,9 +82,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 			},
 			wantErr: ErrInternal,
 			mock: func() {
-				projectRepo.Calls = nil
-				providerRepo.Calls = nil
-				shareRepo.Calls = nil
+				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", errors.New("repository error"))
 				projectRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
@@ -99,9 +96,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 			},
 			wantErr: ErrInternal,
 			mock: func() {
-				projectRepo.Calls = nil
-				providerRepo.Calls = nil
-				shareRepo.Calls = nil
+				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", errors.New("repository error"))
 				projectRepo.On("Delete", mock.Anything, mock.Anything).Return(errors.New("repository error"))
@@ -136,6 +131,13 @@ func TestProjectApplication_GetProject(t *testing.T) {
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
 	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	projOK := &project.Project{
+		ID:             "project-id",
+		Name:           "project name",
+		APIKey:         "api-key",
+		APISecret:      "XXXXX",
+		EncryptionPart: "",
+	}
 
 	tc := []struct {
 		name     string
@@ -143,7 +145,33 @@ func TestProjectApplication_GetProject(t *testing.T) {
 		wantProj *project.Project
 		mock     func()
 	}{
-		{},
+		{
+			name: "success",
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("Get", mock.Anything, mock.Anything).Return(projOK, nil)
+			},
+			wantProj: projOK,
+			wantErr:  nil,
+		},
+		{
+			name: "project not found",
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domain.ErrProjectNotFound)
+			},
+			wantProj: nil,
+			wantErr:  ErrProjectNotFound,
+		},
+		{
+			name: "internal error",
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("Get", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+			},
+			wantProj: nil,
+			wantErr:  ErrInternal,
+		},
 	}
 
 	for _, tt := range tc {
@@ -171,10 +199,98 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 		name          string
 		wantErr       error
 		options       []ProviderOption
-		wantProviders []*provider.Provider
+		wantProviders int
 		mock          func()
 	}{
-		{},
+		{
+			name: "success",
+			options: []ProviderOption{
+				WithOpenfort("publishableKey"),
+				WithCustom("ur"),
+			},
+			wantErr:       nil,
+			wantProviders: 2,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeOpenfort).Return(nil, domain.ErrProviderNotFound)
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(nil, domain.ErrProviderNotFound)
+				providerRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(nil)
+				providerRepo.On("CreateOpenfort", mock.Anything, mock.AnythingOfType("*provider.OpenfortConfig")).Return(nil)
+				providerRepo.On("CreateCustom", mock.Anything, mock.AnythingOfType("*provider.CustomConfig")).Return(nil)
+			},
+		},
+		{
+			name:    "no providers",
+			wantErr: ErrNoProviderSpecified,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+			},
+		},
+		{
+			name: "openfort provider already exists",
+			options: []ProviderOption{
+				WithOpenfort("publishableKey"),
+			},
+			wantErr: ErrProviderAlreadyExists,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeOpenfort).Return(&provider.Provider{}, nil)
+			},
+		},
+		{
+			name: "custom provider already exists",
+			options: []ProviderOption{
+				WithCustom("ur"),
+			},
+			wantErr: ErrProviderAlreadyExists,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(&provider.Provider{}, nil)
+			},
+		},
+		{
+			name: "error getting openfort provider",
+			options: []ProviderOption{
+				WithOpenfort("publishableKey"),
+			},
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeOpenfort).Return(nil, errors.New("repository error"))
+			},
+		},
+		{
+			name: "error getting custom provider",
+			options: []ProviderOption{
+				WithCustom("ur"),
+			},
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(nil, errors.New("repository error"))
+			},
+		},
+		{
+			name: "error configuring provider",
+			options: []ProviderOption{
+				WithOpenfort("publishableKey"),
+				WithCustom("ur"),
+			},
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeOpenfort).Return(nil, domain.ErrProviderNotFound)
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(nil, domain.ErrProviderNotFound)
+				providerRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(errors.New("repository error"))
+			},
+		},
 	}
 
 	for _, tt := range tc {
@@ -183,7 +299,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 			ass := assert.New(t)
 			providers, err := app.AddProviders(ctx, tt.options...)
 			ass.Equal(tt.wantErr, err)
-			ass.Equal(tt.wantProviders, providers)
+			ass.Equal(tt.wantProviders, len(providers))
 		})
 	}
 }
@@ -197,6 +313,17 @@ func TestProjectApplication_GetProviders(t *testing.T) {
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
 	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	providers := []*provider.Provider{
+		{
+			ID:        "provider-id",
+			ProjectID: "project-id",
+			Type:      provider.TypeOpenfort,
+			Config: &provider.OpenfortConfig{
+				ProviderID:     "provider-id",
+				PublishableKey: "publishable-key",
+			},
+		},
+	}
 
 	tc := []struct {
 		name          string
@@ -204,7 +331,36 @@ func TestProjectApplication_GetProviders(t *testing.T) {
 		wantProviders []*provider.Provider
 		mock          func()
 	}{
-		{},
+		{
+			name:    "success",
+			wantErr: nil,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("List", mock.Anything, mock.Anything).Return(providers, nil)
+			},
+			wantProviders: providers,
+		},
+		{
+			name:    "no providers",
+			wantErr: nil,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("List", mock.Anything, mock.Anything).Return(nil, nil)
+			},
+			wantProviders: nil,
+		},
+		{
+			name:    "error listing providers",
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("List", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+			},
+			wantProviders: nil,
+		},
 	}
 
 	for _, tt := range tc {
@@ -228,6 +384,16 @@ func TestProjectApplication_GetProviderDetail(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
 
+	prov := &provider.Provider{
+		ID:        "provider-id",
+		ProjectID: "project_id",
+		Type:      provider.TypeOpenfort,
+		Config: &provider.OpenfortConfig{
+			ProviderID:     "provider-id",
+			PublishableKey: "publishable-key",
+		},
+	}
+
 	tc := []struct {
 		name       string
 		providerID string
@@ -235,7 +401,50 @@ func TestProjectApplication_GetProviderDetail(t *testing.T) {
 		wantErr    error
 		mock       func()
 	}{
-		{},
+		{
+			name:       "success",
+			providerID: "provider-id",
+			wantProv:   prov,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(prov, nil)
+				providerRepo.On("GetOpenfort", mock.Anything, mock.Anything).Return(prov.Config, nil)
+			},
+		},
+		{
+			name:       "provider not found",
+			providerID: "provider-id",
+			wantProv:   nil,
+			wantErr:    ErrProviderNotFound,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domain.ErrProviderNotFound)
+			},
+		},
+		{
+			name:       "error getting provider",
+			providerID: "provider-id",
+			wantProv:   nil,
+			wantErr:    ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+			},
+		},
+		{
+			name:       "unauthorized provider",
+			providerID: "provider-id",
+			wantProv:   nil,
+			wantErr:    ErrProviderNotFound,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(&provider.Provider{ProjectID: "other-project"}, nil)
+			},
+		},
 	}
 
 	for _, tt := range tc {
@@ -259,6 +468,26 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
 
+	openfortProvider := &provider.Provider{
+		ID:        "provider-id",
+		ProjectID: "project_id",
+		Type:      provider.TypeOpenfort,
+		Config: &provider.OpenfortConfig{
+			ProviderID:     "provider-id",
+			PublishableKey: "publishable-key",
+		},
+	}
+
+	customProvider := &provider.Provider{
+		ID:        "provider-id",
+		ProjectID: "project_id",
+		Type:      provider.TypeCustom,
+		Config: &provider.CustomConfig{
+			ProviderID: "provider-id",
+			JWK:        "url",
+		},
+	}
+
 	tc := []struct {
 		name       string
 		providerID string
@@ -266,7 +495,106 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 		wantErr    error
 		mock       func()
 	}{
-		{},
+		{
+			name:       "success",
+			providerID: "provider-id",
+			wantErr:    nil,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(openfortProvider, nil)
+				providerRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+				providerRepo.On("UpdateOpenfort", mock.Anything, mock.Anything).Return(nil)
+			},
+			options: []ProviderOption{
+				WithOpenfort("publishable-key"),
+			},
+		},
+		{
+			name:       "provider not found",
+			providerID: "provider-id",
+			wantErr:    ErrProviderNotFound,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domain.ErrProviderNotFound)
+			},
+		},
+		{
+			name:       "error getting provider",
+			providerID: "provider-id",
+			wantErr:    ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+			},
+		},
+		{
+			name:       "unauthorized provider",
+			providerID: "provider-id",
+			wantErr:    ErrProviderNotFound,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(&provider.Provider{ProjectID: "other-project"}, nil)
+			},
+		},
+		{
+			name:       "error provider mismatch",
+			providerID: "provider-id",
+			wantErr:    ErrProviderMismatch,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(&provider.Provider{ProjectID: "project_id", Type: provider.TypeCustom}, nil)
+			},
+			options: []ProviderOption{
+				WithOpenfort("publishable-key"),
+			},
+		},
+		{
+			name:    "error provider mismatch",
+			wantErr: ErrProviderMismatch,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(&provider.Provider{ProjectID: "project_id", Type: provider.TypeOpenfort}, nil)
+			},
+			options: []ProviderOption{
+				WithCustom("ur"),
+			},
+		},
+		{
+			name:       "error updating openfort provider",
+			providerID: "provider-id",
+			wantErr:    ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(openfortProvider, nil)
+				providerRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+				providerRepo.On("UpdateOpenfort", mock.Anything, mock.Anything).Return(errors.New("repository error"))
+			},
+			options: []ProviderOption{
+				WithOpenfort("publishable-key"),
+			},
+		},
+		{
+			name:       "error updating custom provider",
+			providerID: "provider-id",
+			wantErr:    ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(customProvider, nil)
+				providerRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+				providerRepo.On("UpdateCustom", mock.Anything, mock.Anything).Return(errors.New("repository error"))
+			},
+			options: []ProviderOption{
+				WithCustom("ur"),
+			},
+		},
 	}
 
 	for _, tt := range tc {
@@ -289,13 +617,74 @@ func TestProjectApplication_RemoveProvider(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
 
+	openfortProvider := &provider.Provider{
+		ID:        "provider-id",
+		ProjectID: "project_id",
+		Type:      provider.TypeOpenfort,
+		Config: &provider.OpenfortConfig{
+			ProviderID:     "provider-id",
+			PublishableKey: "publishable-key",
+		},
+	}
+
 	tc := []struct {
 		name       string
 		providerID string
 		wantErr    error
 		mock       func()
 	}{
-		{},
+		{
+			name:       "success",
+			providerID: "provider-id",
+			wantErr:    nil,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(openfortProvider, nil)
+				providerRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
+			},
+		},
+		{
+			name:       "provider not found",
+			providerID: "provider-id",
+			wantErr:    ErrProviderNotFound,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domain.ErrProviderNotFound)
+			},
+		},
+		{
+			name:       "error getting provider",
+			providerID: "provider-id",
+			wantErr:    ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+			},
+		},
+		{
+			name:       "unauthorized provider",
+			providerID: "provider-id",
+			wantErr:    ErrProviderNotFound,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(&provider.Provider{ProjectID: "other-project"}, nil)
+			},
+		},
+		{
+			name:       "error deleting provider",
+			providerID: "provider-id",
+			wantErr:    ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(openfortProvider, nil)
+				providerRepo.On("Delete", mock.Anything, mock.Anything).Return(errors.New("repository error"))
+			},
+		},
 	}
 
 	for _, tt := range tc {
@@ -324,7 +713,24 @@ func TestProjectApplication_AddAllowedOrigin(t *testing.T) {
 		wantErr error
 		mock    func()
 	}{
-		{},
+		{
+			name:    "success",
+			origin:  "some-origin",
+			wantErr: nil,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("AddAllowedOrigin", mock.Anything, "project_id", "some-origin").Return(nil)
+			},
+		},
+		{
+			name:    "repository error",
+			origin:  "some-origin",
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("AddAllowedOrigin", mock.Anything, "project_id", "some-origin").Return(errors.New("repository error"))
+			},
+		},
 	}
 
 	for _, tt := range tc {
@@ -353,7 +759,33 @@ func TestProjectApplication_RemoveAllowedOrigin(t *testing.T) {
 		wantErr error
 		mock    func()
 	}{
-		{},
+		{
+			name:    "success",
+			origin:  "some-origin",
+			wantErr: nil,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("RemoveAllowedOrigin", mock.Anything, "project_id", "some-origin").Return(nil)
+			},
+		},
+		{
+			name:    "allowed origin not found",
+			origin:  "some-origin",
+			wantErr: ErrAllowedOriginNotFound,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("RemoveAllowedOrigin", mock.Anything, "project_id", "some-origin").Return(domain.ErrAllowedOriginNotFound)
+			},
+		},
+		{
+			name:    "repository error",
+			origin:  "some-origin",
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("RemoveAllowedOrigin", mock.Anything, "project_id", "some-origin").Return(errors.New("repository error"))
+			},
+		},
 	}
 
 	for _, tt := range tc {
@@ -382,7 +814,33 @@ func TestProjectApplication_GetAllowedOrigins(t *testing.T) {
 		wantErr     error
 		mock        func()
 	}{
-		{},
+		{
+			name:        "success",
+			wantOrigins: []string{"some-origin"},
+			wantErr:     nil,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetAllowedOrigins", mock.Anything, "project_id").Return([]string{"some-origin"}, nil)
+			},
+		},
+		{
+			name:        "success no origins",
+			wantOrigins: []string{},
+			wantErr:     nil,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetAllowedOrigins", mock.Anything, "project_id").Return([]string{}, nil)
+			},
+		},
+		{
+			name:        "error getting allowed origins",
+			wantOrigins: nil,
+			wantErr:     ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetAllowedOrigins", mock.Anything, "project_id").Return(nil, errors.New("repository error"))
+			},
+		},
 	}
 
 	for _, tt := range tc {
@@ -406,13 +864,110 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
 
+	storedPart, externalPart, err := cypher.GenerateEncryptionKey()
+	if err != nil {
+		t.Fatalf("failed to generate encryption key: %v", err)
+	}
+
+	encryptedShare := &share.Share{
+		ID:     "encrypted_share_id",
+		Secret: "djksalfjadsfds",
+		UserID: "user_id",
+		EncryptionParameters: &share.EncryptionParameters{
+			Entropy:    share.EntropyUser,
+			Salt:       "somesalt",
+			Iterations: 1000,
+			Length:     256,
+			Digest:     "SHA-256",
+		},
+	}
+
+	plainShare := &share.Share{
+		ID:     "share_id",
+		Secret: "secret",
+		UserID: "user_id",
+		EncryptionParameters: &share.EncryptionParameters{
+			Entropy: share.EntropyNone,
+		},
+	}
+
+	plainShare2 := &share.Share{
+		ID:     "share_id",
+		Secret: "secret",
+		UserID: "user_id",
+		EncryptionParameters: &share.EncryptionParameters{
+			Entropy: share.EntropyNone,
+		},
+	}
+
 	tc := []struct {
 		name         string
 		externalPart string
 		wantErr      error
 		mock         func()
 	}{
-		{},
+		{
+			name:         "success",
+			externalPart: externalPart,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("ListDecryptedByProjectID", mock.Anything, mock.Anything).Return([]*share.Share{plainShare, encryptedShare}, nil)
+				shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return(storedPart, nil)
+				shareRepo.On("UpdateProjectEncryption", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+		},
+		{
+			name:         "encryption part not found",
+			externalPart: externalPart,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", domain.ErrEncryptionPartNotFound)
+			},
+			wantErr: ErrEncryptionNotConfigured,
+		},
+		{
+			name:         "error getting encryption part",
+			externalPart: externalPart,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", errors.New("repository error"))
+			},
+			wantErr: ErrInternal,
+		},
+		{
+			name:         "error reconstructing encryption key",
+			externalPart: "invalid",
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("invalid", nil)
+			},
+			wantErr: ErrInvalidEncryptionPart,
+		},
+		{
+			name:         "error listing shares",
+			externalPart: externalPart,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				shareRepo.ExpectedCalls = nil
+				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return(storedPart, nil)
+				shareRepo.On("ListDecryptedByProjectID", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+			},
+			wantErr: ErrInternal,
+		},
+		{
+			name:         "error updating share",
+			externalPart: externalPart,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return(storedPart, nil)
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("ListDecryptedByProjectID", mock.Anything, mock.Anything).Return([]*share.Share{plainShare2}, nil)
+				shareRepo.On("UpdateProjectEncryption", mock.Anything, "share_id", mock.Anything).Return(errors.New("repository error"))
+			},
+			wantErr: ErrInternal,
+		},
 	}
 
 	for _, tt := range tc {
@@ -436,21 +991,52 @@ func TestProjectApplication_RegisterEncryptionKey(t *testing.T) {
 	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
 
 	tc := []struct {
-		name             string
-		wantExternalPart string
-		wantErr          error
-		mock             func()
+		name    string
+		wantErr error
+		mock    func()
 	}{
-		{},
+		{
+			name:    "success",
+			wantErr: nil,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domain.ErrEncryptionPartNotFound)
+				projectRepo.On("SetEncryptionPart", mock.Anything, "project_id", mock.Anything).Return(nil)
+			},
+		},
+		{
+			name: "encryption part already exists",
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("encryption_part", nil)
+			},
+			wantErr: ErrEncryptionPartAlreadyExists,
+		},
+		{
+			name:    "error getting encryption part",
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", errors.New("repository error"))
+			},
+		},
+		{
+			name:    "error setting encryption part",
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domain.ErrEncryptionPartNotFound)
+				projectRepo.On("SetEncryptionPart", mock.Anything, "project_id", mock.Anything).Return(errors.New("repository error"))
+			},
+		},
 	}
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
 			ass := assert.New(t)
-			externalPart, err := app.RegisterEncryptionKey(ctx)
+			_, err := app.RegisterEncryptionKey(ctx)
 			ass.Equal(tt.wantErr, err)
-			ass.Equal(tt.wantExternalPart, externalPart)
 		})
 	}
 }

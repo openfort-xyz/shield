@@ -39,6 +39,7 @@ var (
 	ErrEncryptionNotConfigured     = &Error{"Encryption not configured", http.StatusConflict}
 	ErrInvalidEncryptionPart       = &Error{"Invalid encryption part", http.StatusBadRequest}
 	ErrEncryptionPartAlreadyExists = &Error{"Encryption part already exists", http.StatusConflict}
+	ErrAllowedOriginNotFound       = &Error{"Allowed origin not found", http.StatusNotFound}
 
 	ErrMissingAPIKey       = &Error{"Missing API key", http.StatusUnauthorized}
 	ErrMissingAPISecret    = &Error{"Missing API secret", http.StatusUnauthorized}

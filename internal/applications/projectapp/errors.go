@@ -16,6 +16,8 @@ var (
 	ErrProviderNotFound            = errors.New("custom authentication not found")
 	ErrInvalidEncryptionPart       = errors.New("invalid encryption part")
 	ErrEncryptionPartAlreadyExists = errors.New("encryption part already exists")
+	ErrAllowedOriginNotFound       = errors.New("allowed origin not found")
+	ErrEncryptionNotConfigured     = errors.New("encryption not configured")
 	ErrInternal                    = errors.New("internal error")
 )
 
@@ -41,6 +43,14 @@ func fromDomainError(err error) error {
 
 	if errors.Is(err, domain.ErrProviderNotFound) {
 		return ErrProviderNotFound
+	}
+
+	if errors.Is(err, domain.ErrAllowedOriginNotFound) {
+		return ErrAllowedOriginNotFound
+	}
+
+	if errors.Is(err, domain.ErrEncryptionPartNotFound) {
+		return ErrEncryptionNotConfigured
 	}
 
 	return ErrInternal

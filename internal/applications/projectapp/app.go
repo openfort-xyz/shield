@@ -3,7 +3,6 @@ package projectapp
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"go.openfort.xyz/shield/internal/core/domain"
@@ -101,7 +100,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 		if err == nil && prov != nil {
 			return nil, ErrProviderAlreadyExists
 		}
-		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeOpenfort, Config: provider.OpenfortConfig{PublishableKey: *cfg.openfortPublishableKey}})
+		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeOpenfort, Config: &provider.OpenfortConfig{PublishableKey: *cfg.openfortPublishableKey}})
 	}
 
 	if cfg.jwkURL != nil {
@@ -113,7 +112,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 		if err == nil && prov != nil {
 			return nil, ErrProviderAlreadyExists
 		}
-		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: provider.CustomConfig{JWK: *cfg.jwkURL}})
+		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: &provider.CustomConfig{JWK: *cfg.jwkURL}})
 	}
 
 	if len(providers) == 0 {
@@ -297,7 +296,6 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 
 	var encryptedShares []*share.Share
 	for _, shr := range shares {
-		fmt.Println("SHARE", shr)
 		if shr.EncryptionParameters != nil && shr.EncryptionParameters.Entropy != share.EntropyNone {
 			continue
 		}
@@ -308,7 +306,6 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 			return fromDomainError(err)
 		}
 
-		fmt.Println("ENCRYPTED SHARE", shr)
 		shr.EncryptionParameters = &share.EncryptionParameters{
 			Entropy: share.EntropyProject,
 		}
@@ -317,7 +314,6 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 	}
 
 	for _, encryptedShare := range encryptedShares {
-		fmt.Println("UPDATE SHARE", encryptedShare)
 		err = a.sharesRepo.UpdateProjectEncryption(ctx, encryptedShare.ID, encryptedShare.Secret)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to update share", logger.Error(err))

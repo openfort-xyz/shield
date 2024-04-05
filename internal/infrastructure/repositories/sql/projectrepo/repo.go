@@ -112,10 +112,14 @@ func (r *repository) AddAllowedOrigin(ctx context.Context, projectID, origin str
 func (r *repository) RemoveAllowedOrigin(ctx context.Context, projectID, origin string) error {
 	r.logger.InfoContext(ctx, "removing allowed origin")
 
-	err := r.db.Delete(&AllowedOrigin{}, "project_id = ? AND origin = ?", projectID, origin).Error
-	if err != nil {
-		r.logger.ErrorContext(ctx, "error removing allowed origin", logger.Error(err))
-		return err
+	cmd := r.db.Delete(&AllowedOrigin{}, "project_id = ? AND origin = ?", projectID, origin)
+	if cmd.Error != nil {
+		r.logger.ErrorContext(ctx, "error removing allowed origin", logger.Error(cmd.Error))
+		return cmd.Error
+	}
+
+	if cmd.RowsAffected == 0 {
+		return domain.ErrAllowedOriginNotFound
 	}
 
 	return nil
