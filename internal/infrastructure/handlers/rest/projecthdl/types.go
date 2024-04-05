@@ -1,14 +1,16 @@
 package projecthdl
 
 type CreateProjectRequest struct {
-	Name string `json:"name"`
+	Name                  string `json:"name"`
+	GenerateEncryptionKey bool   `json:"generate_encryption_key,omitempty"`
 }
 
 type CreateProjectResponse struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	APIKey    string `json:"api_key"`
-	APISecret string `json:"api_secret"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	APIKey         string `json:"api_key"`
+	APISecret      string `json:"api_secret"`
+	EncryptionPart string `json:"encryption_part,omitempty"`
 }
 
 type GetProjectResponse struct {

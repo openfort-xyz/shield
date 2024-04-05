@@ -12,12 +12,14 @@ import (
 	"go.openfort.xyz/shield/pkg/logger"
 )
 
+// Handler is the REST handler for project operations
 type Handler struct {
 	app    *projectapp.ProjectApplication
 	logger *slog.Logger
 	parser *parser
 }
 
+// New creates a new project handler
 func New(app *projectapp.ProjectApplication) *Handler {
 	return &Handler{
 		app:    app,
@@ -54,7 +56,12 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proj, err := h.app.CreateProject(ctx, req.Name)
+	var opts []projectapp.ProjectOption
+	if req.GenerateEncryptionKey {
+		opts = append(opts, projectapp.WithEncryptionKey())
+	}
+
+	proj, err := h.app.CreateProject(ctx, req.Name, opts...)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return

@@ -14,10 +14,11 @@ func newParser() *parser {
 
 func (p *parser) toCreateProjectResponse(proj *project.Project) *CreateProjectResponse {
 	return &CreateProjectResponse{
-		ID:        proj.ID,
-		Name:      proj.Name,
-		APIKey:    proj.APIKey,
-		APISecret: proj.APISecret,
+		ID:             proj.ID,
+		Name:           proj.Name,
+		APIKey:         proj.APIKey,
+		APISecret:      proj.APISecret,
+		EncryptionPart: proj.EncryptionPart,
 	}
 }
 

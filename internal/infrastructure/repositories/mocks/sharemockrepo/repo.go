@@ -35,7 +35,7 @@ func (m *MockShareRepository) ListDecryptedByProjectID(ctx context.Context, proj
 	return args.Get(0).([]*share.Share), args.Error(1)
 }
 
-func (m *MockShareRepository) Update(ctx context.Context, shr *share.Share) error {
-	args := m.Mock.Called(ctx, shr)
+func (m *MockShareRepository) UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string) error {
+	args := m.Mock.Called(ctx, shareID, encrypted)
 	return args.Error(0)
 }

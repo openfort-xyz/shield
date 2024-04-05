@@ -3,6 +3,7 @@ package projectapp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"go.openfort.xyz/shield/internal/core/domain"
@@ -296,6 +297,7 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 
 	var encryptedShares []*share.Share
 	for _, shr := range shares {
+		fmt.Println("SHARE", shr)
 		if shr.EncryptionParameters != nil && shr.EncryptionParameters.Entropy != share.EntropyNone {
 			continue
 		}
@@ -306,13 +308,17 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 			return fromDomainError(err)
 		}
 
+		fmt.Println("ENCRYPTED SHARE", shr)
 		shr.EncryptionParameters = &share.EncryptionParameters{
 			Entropy: share.EntropyProject,
 		}
+
+		encryptedShares = append(encryptedShares, shr)
 	}
 
 	for _, encryptedShare := range encryptedShares {
-		err = a.sharesRepo.Update(ctx, encryptedShare)
+		fmt.Println("UPDATE SHARE", encryptedShare)
+		err = a.sharesRepo.UpdateProjectEncryption(ctx, encryptedShare.ID, encryptedShare.Secret)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to update share", logger.Error(err))
 			return fromDomainError(err)

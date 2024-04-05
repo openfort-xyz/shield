@@ -85,11 +85,10 @@ func (r *repository) ListDecryptedByProjectID(ctx context.Context, projectID str
 	return shares, nil
 }
 
-func (r *repository) Update(ctx context.Context, shr *share.Share) error {
-	r.logger.InfoContext(ctx, "updating share", slog.String("id", shr.ID))
+func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string) error {
+	r.logger.InfoContext(ctx, "updating share", slog.String("id", shareID))
 
-	dbShr := r.parser.toDatabase(shr)
-	err := r.db.Save(dbShr).Error
+	err := r.db.Model(&Share{}).Where("id = ?", shareID).Update("data", encrypted).Update("entropy", EntropyProject).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
 		return err

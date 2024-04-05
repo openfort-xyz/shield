@@ -33,19 +33,19 @@ func newUserAuthenticator(repository repositories.ProjectRepository, providerMan
 	}
 }
 
-func (a *user) Authenticate(ctx context.Context, apiKey, token string, providerType provider.Type, opts ...authentication.CustomOption) (string, error) {
+func (a *user) Authenticate(ctx context.Context, apiKey, token string, providerType provider.Type, opts ...authentication.CustomOption) (*authentication.Authentication, error) {
 	a.logger.InfoContext(ctx, "authenticating api key")
 
 	proj, err := a.projectRepo.GetByAPIKey(ctx, apiKey)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to authenticate api key", logger.Error(err))
-		return "", err
+		return nil, err
 	}
 
 	prov, err := a.providerManager.GetProvider(ctx, proj.ID, providerType)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
-		return "", err
+		return nil, err
 	}
 
 	var opt authentication.CustomOptions
@@ -64,27 +64,30 @@ func (a *user) Authenticate(ctx context.Context, apiKey, token string, providerT
 	externalUserID, err := prov.Identify(ctx, token, providerCustomOptions...)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to identify user", logger.Error(err))
-		return "", err
+		return nil, err
 	}
 
 	usr, err := a.userService.GetByExternal(ctx, externalUserID, prov.GetProviderID())
 	if err != nil {
 		if !errors.Is(err, domain.ErrUserNotFound) && !errors.Is(err, domain.ErrExternalUserNotFound) {
 			a.logger.ErrorContext(ctx, "failed to get user by external", logger.Error(err))
-			return "", err
+			return nil, err
 		}
 		usr, err = a.userService.Create(ctx, proj.ID)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to create user", logger.Error(err))
-			return "", err
+			return nil, err
 		}
 
 		_, err = a.userService.CreateExternal(ctx, proj.ID, usr.ID, externalUserID, prov.GetProviderID())
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to create external user", logger.Error(err))
-			return "", err
+			return nil, err
 		}
 	}
 
-	return usr.ID, nil
+	return &authentication.Authentication{
+		UserID:    usr.ID,
+		ProjectID: proj.ID,
+	}, nil
 }

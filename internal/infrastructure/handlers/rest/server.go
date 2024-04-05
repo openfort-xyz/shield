@@ -66,8 +66,8 @@ func (s *Server) Start(ctx context.Context) error {
 	p.HandleFunc("/allowed-origins", projectHdl.GetAllowedOrigins).Methods(http.MethodGet)
 	p.HandleFunc("/allowed-origins", projectHdl.AddAllowedOrigin).Methods(http.MethodPost)
 	p.HandleFunc("/allowed-origins/{origin}", projectHdl.RemoveAllowedOrigin).Methods(http.MethodDelete)
-	p.HandleFunc("/encrypt", projectHdl.EncryptProjectShares).Methods(http.MethodPut)
-	p.HandleFunc("/encryption-key", projectHdl.RegisterEncryptionKey).Methods(http.MethodPut)
+	p.HandleFunc("/encrypt", projectHdl.EncryptProjectShares).Methods(http.MethodPost)
+	p.HandleFunc("/encryption-key", projectHdl.RegisterEncryptionKey).Methods(http.MethodPost)
 
 	u := r.PathPrefix("/shares").Subrouter()
 	u.Use(authMdw.AuthenticateUser)

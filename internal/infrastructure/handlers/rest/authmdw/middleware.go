@@ -96,13 +96,14 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 			return
 		}
 
-		userID, err := m.manager.GetUserAuthenticator().Authenticate(r.Context(), apiKey, token, provider, customOptions...)
+		auth, err := m.manager.GetUserAuthenticator().Authenticate(r.Context(), apiKey, token, provider, customOptions...)
 		if err != nil {
 			api.RespondWithError(w, api.ErrInvalidToken)
 			return
 		}
 
-		ctx := contexter.WithUserID(r.Context(), userID)
+		ctx := contexter.WithUserID(r.Context(), auth.UserID)
+		ctx = contexter.WithProjectID(ctx, auth.ProjectID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
