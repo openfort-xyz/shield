@@ -5,6 +5,7 @@ go 1.22.0
 require (
 	github.com/MicahParks/keyfunc/v3 v3.2.9
 	github.com/caarlos0/env/v10 v10.0.0
+	github.com/codahale/sss v0.0.0-20160501174526-0cb9f6d3f7f1
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.6.0
@@ -22,6 +23,7 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/MicahParks/jwkset v0.5.15 // indirect
+	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-sql-driver/mysql v1.8.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -37,6 +39,7 @@ require (
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
+	go.uber.org/ratelimit v0.3.1 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect

@@ -7,7 +7,7 @@ import (
 )
 
 type UserAuthenticator interface {
-	Authenticate(ctx context.Context, apiKey, token string, providerType provider.Type, opts ...CustomOption) (userID string, err error)
+	Authenticate(ctx context.Context, apiKey, token string, providerType provider.Type, opts ...CustomOption) (*Authentication, error)
 }
 
 type CustomOption func(*CustomOptions)
@@ -26,4 +26,9 @@ func WithOpenfortTokenType(value string) CustomOption {
 	return func(opts *CustomOptions) {
 		opts.OpenfortTokenType = &value
 	}
+}
+
+type Authentication struct {
+	UserID    string
+	ProjectID string
 }

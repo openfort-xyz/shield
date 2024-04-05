@@ -1,11 +1,20 @@
-package oflog
+package logger
 
 import (
 	"context"
 	"log/slog"
+	"os"
 
-	"go.openfort.xyz/shield/pkg/ofcontext"
+	"go.openfort.xyz/shield/pkg/contexter"
 )
+
+func New(name string) *slog.Logger {
+	return slog.New(NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup(name)
+}
+
+func Error(err error) slog.Attr {
+	return slog.String("error", err.Error())
+}
 
 type ContextHandler struct {
 	baseHandler slog.Handler
@@ -24,11 +33,11 @@ func (c *ContextHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (c *ContextHandler) Handle(ctx context.Context, record slog.Record) error {
-	if projID := ofcontext.GetProjectID(ctx); projID != "" {
+	if projID := contexter.GetProjectID(ctx); projID != "" {
 		record.Add(slog.String(ProjectID, projID))
 	}
 
-	if reqID := ofcontext.GetRequestID(ctx); reqID != "" {
+	if reqID := contexter.GetRequestID(ctx); reqID != "" {
 		record.Add(slog.String(RequestID, reqID))
 	}
 

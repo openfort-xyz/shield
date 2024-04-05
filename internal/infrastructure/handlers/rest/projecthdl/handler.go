@@ -5,24 +5,25 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/mux"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/api"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 )
 
+// Handler is the REST handler for project operations
 type Handler struct {
 	app    *projectapp.ProjectApplication
 	logger *slog.Logger
 	parser *parser
 }
 
+// New creates a new project handler
 func New(app *projectapp.ProjectApplication) *Handler {
 	return &Handler{
 		app:    app,
-		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("project_handler"),
+		logger: logger.New("project_handler"),
 		parser: newParser(),
 	}
 }
@@ -55,7 +56,12 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proj, err := h.app.CreateProject(ctx, req.Name)
+	var opts []projectapp.ProjectOption
+	if req.GenerateEncryptionKey {
+		opts = append(opts, projectapp.WithEncryptionKey())
+	}
+
+	proj, err := h.app.CreateProject(ctx, req.Name, opts...)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return
@@ -390,6 +396,74 @@ func (h *Handler) GetAllowedOrigins(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err := json.Marshal(h.parser.toGetAllowedOriginsResponse(origins))
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}
+
+// EncryptProjectShares encrypts all shares of a project (if not already encrypted)
+// @Summary Encrypt project shares
+// @Description Encrypt all shares of a project
+// @Tags Project
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param encryptBodyRequest body EncryptBodyRequest true "Add Allowed Origin Request"
+// @Success 200 "Shares encrypted successfully"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/encrypt [post]
+func (h *Handler) EncryptProjectShares(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "encrypting project shares")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+		return
+	}
+
+	var req EncryptBodyRequest
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+
+	err = h.app.EncryptProjectShares(ctx, req.EncryptionPart)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// RegisterEncryptionKey registers an encryption key for a project
+// @Summary Register encryption key
+// @Description Register an encryption key for a project
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 200 {object} RegisterEncryptionKeyResponse "Encryption key registered successfully"
+// @Failure 400 "Bad Request"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/encryption-key [post]
+func (h *Handler) RegisterEncryptionKey(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "registering encryption key")
+
+	part, err := h.app.RegisterEncryptionKey(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	resp, err := json.Marshal(RegisterEncryptionKeyResponse{EncryptionPart: part})
 	if err != nil {
 		api.RespondWithError(w, api.ErrInternal)
 		return

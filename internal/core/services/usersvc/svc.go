@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
 
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/user"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type service struct {
@@ -23,7 +22,7 @@ var _ services.UserService = (*service)(nil)
 func New(repo repositories.UserRepository) services.UserService {
 	return &service{
 		repo:   repo,
-		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("user_service"),
+		logger: logger.New("user_service"),
 	}
 }
 
@@ -35,7 +34,7 @@ func (s *service) Create(ctx context.Context, projectID string) (*user.User, err
 
 	err := s.repo.Create(ctx, usr)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create user", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to create user", logger.Error(err))
 		return nil, err
 	}
 
@@ -46,7 +45,7 @@ func (s *service) Get(ctx context.Context, userID string) (*user.User, error) {
 	s.logger.InfoContext(ctx, "getting user", slog.String("user_id", userID))
 	usr, err := s.repo.Get(ctx, userID)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get user", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to get user", logger.Error(err))
 		return nil, err
 	}
 
@@ -58,7 +57,7 @@ func (s *service) GetByExternal(ctx context.Context, externalUserID, providerID 
 
 	extUsrs, err := s.repo.FindExternalBy(ctx, s.repo.WithExternalUserID(externalUserID), s.repo.WithProviderID(providerID))
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get external user", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to get external user", logger.Error(err))
 		return nil, err
 	}
 
@@ -70,7 +69,7 @@ func (s *service) GetByExternal(ctx context.Context, externalUserID, providerID 
 	extUsr := extUsrs[0]
 	usr, err := s.repo.Get(ctx, extUsr.UserID)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get user", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to get user", logger.Error(err))
 		return nil, err
 	}
 
@@ -82,7 +81,7 @@ func (s *service) CreateExternal(ctx context.Context, projectID, userID, externa
 
 	usr, err := s.repo.Get(ctx, userID)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get user", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to get user", logger.Error(err))
 		return nil, err
 	}
 
@@ -98,7 +97,7 @@ func (s *service) CreateExternal(ctx context.Context, projectID, userID, externa
 
 	extUsrs, err := s.repo.FindExternalBy(ctx, s.repo.WithUserID(userID), s.repo.WithProviderID(providerID))
 	if err != nil && !errors.Is(err, domain.ErrExternalUserNotFound) {
-		s.logger.ErrorContext(ctx, "failed to get external user", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to get external user", logger.Error(err))
 		return nil, err
 	}
 
@@ -115,7 +114,7 @@ func (s *service) CreateExternal(ctx context.Context, projectID, userID, externa
 
 	err = s.repo.CreateExternal(ctx, extUsr)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create external user", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "failed to create external user", logger.Error(err))
 		return nil, err
 	}
 

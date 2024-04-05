@@ -1,4 +1,4 @@
-package userapp
+package shareapp
 
 type EncryptionParameters struct {
 	Salt       string

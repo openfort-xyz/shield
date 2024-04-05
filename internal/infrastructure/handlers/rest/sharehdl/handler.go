@@ -1,26 +1,29 @@
-package userhdl
+package sharehdl
 
 import (
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 
-	"go.openfort.xyz/shield/internal/applications/userapp"
+	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/api"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type Handler struct {
-	app    *userapp.UserApplication
-	logger *slog.Logger
+	app       *shareapp.ShareApplication
+	logger    *slog.Logger
+	parser    *parser
+	validator *validator
 }
 
-func New(app *userapp.UserApplication) *Handler {
+func New(app *shareapp.ShareApplication) *Handler {
 	return &Handler{
-		app:    app,
-		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("user_handler"),
+		app:       app,
+		logger:    logger.New("share_handler"),
+		parser:    newParser(),
+		validator: newValidator(),
 	}
 }
 
@@ -58,22 +61,17 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Secret == "" {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("secret is required"))
+	if errV := h.validator.validateShare((*Share)(&req)); errV != nil {
+		api.RespondWithError(w, errV)
 		return
 	}
 
-	var parameters *userapp.EncryptionParameters
-	if req.Salt != "" || req.Iterations != 0 || req.Length != 0 || req.Digest != "" {
-		parameters = &userapp.EncryptionParameters{
-			Salt:       req.Salt,
-			Iterations: req.Iterations,
-			Length:     req.Length,
-			Digest:     req.Digest,
-		}
+	share := h.parser.toDomain((*Share)(&req))
+	var opts []shareapp.Option
+	if req.EncryptionPart != "" {
+		opts = append(opts, shareapp.WithEncryptionPart(req.EncryptionPart))
 	}
-
-	err = h.app.RegisterShare(ctx, req.Secret, req.UserEntropy, parameters)
+	err = h.app.RegisterShare(ctx, share, opts...)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return
@@ -93,6 +91,7 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 // @Param X-Auth-Provider header string true "Auth Provider"
 // @Param X-Openfort-Provider header string false "Openfort Provider"
 // @Param X-Openfort-Token-Type header string false "Openfort Token Type"
+// @Param X-Encryption-Part header string false "Encryption Part"
 // @Success 200 {object} GetShareResponse "Successful response"
 // @Failure 404 "Description: Not Found"
 // @Failure 500 "Description: Internal Server Error"
@@ -101,20 +100,19 @@ func (h *Handler) GetShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting share")
 
-	shr, err := h.app.GetShare(ctx)
+	var opts []shareapp.Option
+	encryptionPart := r.Header.Get(EncryptionPartHeader)
+	if encryptionPart != "" {
+		opts = append(opts, shareapp.WithEncryptionPart(encryptionPart))
+	}
+
+	shr, err := h.app.GetShare(ctx, opts...)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return
 	}
 
-	resp, err := json.Marshal(GetShareResponse{
-		Secret:      shr.Data,
-		UserEntropy: shr.UserEntropy,
-		Salt:        shr.Salt,
-		Iterations:  shr.Iterations,
-		Length:      shr.Length,
-		Digest:      shr.Digest,
-	})
+	resp, err := json.Marshal(GetShareResponse(*h.parser.fromDomain(shr)))
 	if err != nil {
 		api.RespondWithError(w, api.ErrInternal)
 		return

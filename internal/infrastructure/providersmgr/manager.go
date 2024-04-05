@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
 
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/providers"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type Manager struct {
@@ -23,7 +22,7 @@ func NewManager(cfg *Config, repo repositories.ProviderRepository) *Manager {
 	return &Manager{
 		config: cfg,
 		repo:   repo,
-		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("provider_manager"),
+		logger: logger.New("provider_manager"),
 	}
 }
 
@@ -35,7 +34,7 @@ func (p *Manager) GetProvider(ctx context.Context, projectID string, providerTyp
 		if errors.Is(err, domain.ErrProjectNotFound) {
 			return nil, ErrProviderNotConfigured
 		}
-		p.logger.ErrorContext(ctx, "failed to get provider", slog.String("error", err.Error()))
+		p.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 		return nil, err
 	}
 

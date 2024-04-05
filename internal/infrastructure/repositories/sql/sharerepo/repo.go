@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
 
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/pkg/logger"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +25,7 @@ var _ repositories.ShareRepository = (*repository)(nil)
 func New(db *sql.Client) repositories.ShareRepository {
 	return &repository{
 		db:     db,
-		logger: slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("share_repository"),
+		logger: logger.New("share_repository"),
 		parser: newParser(),
 	}
 }
@@ -41,7 +40,7 @@ func (r *repository) Create(ctx context.Context, shr *share.Share) error {
 	dbShr := r.parser.toDatabase(shr)
 	err := r.db.Create(dbShr).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating share", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error creating share", logger.Error(err))
 		return err
 	}
 
@@ -57,9 +56,43 @@ func (r *repository) GetByUserID(ctx context.Context, userID string) (*share.Sha
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrShareNotFound
 		}
-		r.logger.ErrorContext(ctx, "error getting share", slog.String("error", err.Error()))
+		r.logger.ErrorContext(ctx, "error getting share", logger.Error(err))
 		return nil, err
 	}
 
 	return r.parser.toDomain(dbShr), nil
+}
+
+func (r *repository) ListDecryptedByProjectID(ctx context.Context, projectID string) ([]*share.Share, error) {
+	r.logger.InfoContext(ctx, "listing shares", slog.String("project_id", projectID))
+
+	var dbShares []*Share
+	err := r.db.Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
+		Joins("JOIN shld_projects ON shld_users.project_id = shld_projects.id").
+		Where("shld_projects.id = ?", projectID).
+		Where("shld_shares.entropy = ?", EntropyNone).
+		Find(&dbShares).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error listing shares", logger.Error(err))
+		return nil, err
+	}
+
+	var shares []*share.Share
+	for _, dbShr := range dbShares {
+		shares = append(shares, r.parser.toDomain(dbShr))
+	}
+
+	return shares, nil
+}
+
+func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string) error {
+	r.logger.InfoContext(ctx, "updating share", slog.String("id", shareID))
+
+	err := r.db.Model(&Share{}).Where("id = ?", shareID).Update("data", encrypted).Update("entropy", EntropyProject).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
+		return err
+	}
+
+	return nil
 }

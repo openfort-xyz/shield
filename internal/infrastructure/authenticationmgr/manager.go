@@ -58,7 +58,6 @@ func (m *Manager) IsAllowedOrigin(ctx context.Context, apiKey string, origin str
 
 	dbOrigins, err := m.repo.GetAllowedOriginsByAPIKey(ctx, apiKey)
 	if err != nil {
-
 		return false, err
 	}
 	m.mapOrigins[apiKey] = dbOrigins

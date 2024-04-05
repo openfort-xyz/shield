@@ -4,10 +4,13 @@ import "errors"
 
 var (
 	// Project errors
-	ErrProjectNotFound = errors.New("project not found")
+	ErrProjectNotFound             = errors.New("project not found")
+	ErrEncryptionPartNotFound      = errors.New("encryption part not found")
+	ErrEncryptionPartAlreadyExists = errors.New("encryption part already exists")
+	ErrEncryptionPartRequired      = errors.New("encryption part is required")
+	ErrAllowedOriginNotFound       = errors.New("allowed origin not found")
 
 	// Provider errors
-	ErrNoProviderConfig      = errors.New("no provider config found")
 	ErrInvalidProviderConfig = errors.New("invalid provider config")
 	ErrUnknownProviderType   = errors.New("unknown provider type")
 	ErrProviderAlreadyExists = errors.New("custom authentication already registered for this project")

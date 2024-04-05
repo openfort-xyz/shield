@@ -5,55 +5,53 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
-	"go.openfort.xyz/shield/internal/applications/userapp"
+	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/authmdw"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/projecthdl"
+	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/ratelimitermdw"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/requestmdw"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/responsemdw"
-	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/userhdl"
-	"go.openfort.xyz/shield/pkg/oflog"
+	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/sharehdl"
+	"go.openfort.xyz/shield/pkg/logger"
 )
 
+// Server is the REST server for the shield API
 type Server struct {
 	projectApp  *projectapp.ProjectApplication
-	userApp     *userapp.UserApplication
+	shareApp    *shareapp.ShareApplication
 	authManager *authenticationmgr.Manager
 	server      *http.Server
 	logger      *slog.Logger
 	config      *Config
 }
 
-func New(cfg *Config, projectApp *projectapp.ProjectApplication, userApp *userapp.UserApplication, authManager *authenticationmgr.Manager) *Server {
+// New creates a new REST server
+func New(cfg *Config, projectApp *projectapp.ProjectApplication, shareApp *shareapp.ShareApplication, authManager *authenticationmgr.Manager) *Server {
 	return &Server{
 		projectApp:  projectApp,
-		userApp:     userApp,
+		shareApp:    shareApp,
 		authManager: authManager,
 		server:      new(http.Server),
-		logger:      slog.New(oflog.NewContextHandler(slog.NewTextHandler(os.Stdout, nil))).WithGroup("rest_server"),
+		logger:      logger.New("rest_server"),
 		config:      cfg,
 	}
 }
 
-type CORSLogger struct {
-	logger *slog.Logger
-}
-
-func (l *CORSLogger) Printf(s string, i ...interface{}) {
-	l.logger.Info(fmt.Sprintf(s, i...))
-}
-
+// Start starts the REST server
 func (s *Server) Start(ctx context.Context) error {
 	projectHdl := projecthdl.New(s.projectApp)
-	userHdl := userhdl.New(s.userApp)
+	shareHdl := sharehdl.New(s.shareApp)
 	authMdw := authmdw.New(s.authManager)
+	rateLimiterMdw := ratelimitermdw.New(s.config.RPS)
 
 	r := mux.NewRouter()
+	r.Use(rateLimiterMdw.RateLimitMiddleware)
 	r.Use(requestmdw.RequestIDMiddleware)
 	r.Use(responsemdw.ResponseMiddleware)
 	r.HandleFunc("/register", projectHdl.CreateProject).Methods(http.MethodPost)
@@ -68,28 +66,42 @@ func (s *Server) Start(ctx context.Context) error {
 	p.HandleFunc("/allowed-origins", projectHdl.GetAllowedOrigins).Methods(http.MethodGet)
 	p.HandleFunc("/allowed-origins", projectHdl.AddAllowedOrigin).Methods(http.MethodPost)
 	p.HandleFunc("/allowed-origins/{origin}", projectHdl.RemoveAllowedOrigin).Methods(http.MethodDelete)
+	p.HandleFunc("/encrypt", projectHdl.EncryptProjectShares).Methods(http.MethodPost)
+	p.HandleFunc("/encryption-key", projectHdl.RegisterEncryptionKey).Methods(http.MethodPost)
 
 	u := r.PathPrefix("/shares").Subrouter()
 	u.Use(authMdw.AuthenticateUser)
-	u.HandleFunc("", userHdl.GetShare).Methods(http.MethodGet)
-	u.HandleFunc("", userHdl.RegisterShare).Methods(http.MethodPost)
+	u.HandleFunc("", shareHdl.GetShare).Methods(http.MethodGet)
+	u.HandleFunc("", shareHdl.RegisterShare).Methods(http.MethodPost)
 
+	extraHeaders := strings.Split(s.config.CORSExtraAllowedHeaders, ",")
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: authMdw.AllowedOrigin,
-		AllowedMethods:         []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:         []string{"Access-Control-Allow-Origin", authmdw.TokenHeader, responsemdw.ContentTypeHeader, authmdw.APIKeyHeader, authmdw.APISecretHeader, authmdw.AuthProviderHeader, authmdw.OpenfortProviderHeader, authmdw.OpenfortTokenTypeHeader},
-		MaxAge:                 86400,
-		AllowCredentials:       false,
-		Logger:                 &CORSLogger{s.logger},
-		Debug:                  true,
+		AllowedMethods:         []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		AllowedHeaders: append([]string{
+			authmdw.AccessControlAllowOriginHeader,
+			authmdw.TokenHeader,
+			responsemdw.ContentTypeHeader,
+			authmdw.APIKeyHeader,
+			authmdw.APISecretHeader,
+			authmdw.AuthProviderHeader,
+			authmdw.OpenfortProviderHeader,
+			authmdw.OpenfortTokenTypeHeader,
+		}, extraHeaders...),
+		MaxAge: s.config.CORSMaxAge,
 	}).Handler(r)
+
 	s.server.Addr = fmt.Sprintf(":%d", s.config.Port)
 	s.server.Handler = c
+	s.server.ReadTimeout = s.config.ReadTimeout
+	s.server.WriteTimeout = s.config.WriteTimeout
+	s.server.IdleTimeout = s.config.IdleTimeout
 
 	s.logger.InfoContext(ctx, "starting server", slog.String("address", s.server.Addr))
 	return s.server.ListenAndServe()
 }
 
+// Stop stops the REST server gracefully
 func (s *Server) Stop(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
 }
