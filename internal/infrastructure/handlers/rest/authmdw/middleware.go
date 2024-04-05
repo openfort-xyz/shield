@@ -17,6 +17,7 @@ const APISecretHeader = "X-API-Secret"                               //nolint:go
 const OpenfortProviderHeader = "X-Openfort-Provider"                 //nolint:gosec
 const OpenfortTokenTypeHeader = "X-Openfort-Token-Type"              //nolint:gosec
 const AccessControlAllowOriginHeader = "Access-Control-Allow-Origin" //nolint:gosec
+const EncryptionPartHeader = "X-Encryption-Part"                     //nolint:gosec
 
 type Middleware struct {
 	manager *authenticationmgr.Manager
