@@ -19,27 +19,12 @@ var (
 )
 
 func fromDomainError(err error) error {
-	if err == nil {
-		return nil
-	}
 	if errors.Is(err, domain.ErrShareNotFound) {
 		return ErrShareNotFound
 	}
 
 	if errors.Is(err, domain.ErrShareAlreadyExists) {
 		return ErrShareAlreadyExists
-	}
-
-	if errors.Is(err, domain.ErrUserNotFound) {
-		return ErrUserNotFound
-	}
-
-	if errors.Is(err, domain.ErrExternalUserNotFound) {
-		return ErrExternalUserNotFound
-	}
-
-	if errors.Is(err, domain.ErrExternalUserAlreadyExists) {
-		return ErrExternalUserAlreadyExists
 	}
 
 	if errors.Is(err, domain.ErrEncryptionPartRequired) {
