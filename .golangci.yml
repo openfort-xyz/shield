@@ -29,6 +29,9 @@ linters:
     - unparam
     - unused
     - whitespace
+issues:
+  exclude-files:
+    - ".*_test\\.go"
 
 run:
   timeout: 3m

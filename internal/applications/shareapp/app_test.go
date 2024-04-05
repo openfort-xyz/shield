@@ -188,14 +188,65 @@ func TestShareApplication_GetShare(t *testing.T) {
 			ass.ErrorIs(tt.wantErr, err)
 			ass.Equal(tt.want, s)
 		})
-
 	}
 }
 
-func TestShareApplication_RegisterShare(t *testing.T) {
-
-}
-
-func TestShareApplication_reconstructEncryptionKey(t *testing.T) {
-
-}
+//func TestShareApplication_RegisterShare(t *testing.T) {
+//	ctx := contexter.WithProjectID(context.Background(), "project_id")
+//	ctx = contexter.WithUserID(ctx, "user_id")
+//	shareRepo := new(sharemockrepo.MockShareRepository)
+//	projectRepo := new(projectmockrepo.MockProjectRepository)
+//	shareSvc := sharesvc.New(shareRepo)
+//	app := New(shareSvc, shareRepo, projectRepo)
+//	storedPart, externalPart, err := cypher.GenerateEncryptionKey()
+//	if err != nil {
+//		t.Fatalf("failed to generate encryption key: %v", err)
+//	}
+//	encryptionKey, err := cypher.ReconstructEncryptionKey(storedPart, externalPart)
+//	if err != nil {
+//		t.Fatalf("failed to reconstruct encryption key: %v", err)
+//	}
+//
+//	encryptedSecret, err := cypher.Encrypt("secret", encryptionKey)
+//	if err != nil {
+//		t.Fatalf("failed to encrypt secret: %v", err)
+//	}
+//
+//	plainShare := &share.Share{
+//		Secret: "secret",
+//		EncryptionParameters: &share.EncryptionParameters{
+//			Entropy: share.EntropyNone,
+//		},
+//	}
+//	encryptedShare := &share.Share{
+//		Secret: encryptedSecret,
+//		EncryptionParameters: &share.EncryptionParameters{
+//			Entropy: share.EntropyProject,
+//		},
+//	}
+//	decryptedShare := &share.Share{
+//		Secret: "secret",
+//		EncryptionParameters: &share.EncryptionParameters{
+//			Entropy: share.EntropyProject,
+//		},
+//	}
+//
+//	tc := []struct {
+//		name    string
+//		opts    []Option
+//		share   *share.Share
+//		wantErr error
+//		mock    func()
+//	}{
+//		{},
+//	}
+//
+//	for _, tt := range tc {
+//		t.Run(tt.name, func(t *testing.T) {
+//			tt.mock()
+//			ass := assert.New(t)
+//			err := app.RegisterShare(ctx, tt.share, tt.opts...)
+//			ass.ErrorIs(tt.wantErr, err)
+//		})
+//	}
+//}
