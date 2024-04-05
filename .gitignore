@@ -17,6 +17,7 @@
 !.golangci.yml
 !Dockerfile
 !.github/workflows/run-rests.yml
+!.github/workflows/docker-image.yml
 
 !README.md
 !LICENSE
