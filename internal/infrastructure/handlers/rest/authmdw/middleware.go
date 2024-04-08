@@ -1,6 +1,7 @@
 package authmdw
 
 import (
+	"go.openfort.xyz/shield/pkg/logger"
 	"net/http"
 	"strings"
 
@@ -114,12 +115,13 @@ func (m *Middleware) AllowedOrigin(r *http.Request, origin string) bool {
 		return false
 	}
 
-	if origin == "https://dashboard.openfort.xyz" || origin == "https://iframe.openfort.xyz" || origin == "https://api.openfort.xyz" {
+	if origin == "https://dashboard.openfort.xyz" || origin == "https://iframe.openfort.xyz" || origin == "https://go.openfort.xyz" {
 		return true
 	}
 
 	apiKey := r.Header.Get(APIKeyHeader)
 	if apiKey == "" {
+		logger.New("auth_mdw").Warn("missing api key")
 		return false
 	}
 
