@@ -1,9 +1,10 @@
 package authmdw
 
 import (
-	"go.openfort.xyz/shield/pkg/logger"
 	"net/http"
 	"strings"
+
+	"go.openfort.xyz/shield/pkg/logger"
 
 	authenticate "go.openfort.xyz/shield/internal/core/ports/authentication"
 	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
