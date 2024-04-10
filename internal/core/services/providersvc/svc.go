@@ -52,6 +52,8 @@ func (s *service) configureCustomProvider(ctx context.Context, prov *provider.Pr
 		return domain.ErrInvalidProviderConfig
 	}
 
+	customAuth.ProviderID = prov.ID
+
 	err = s.repo.CreateCustom(ctx, customAuth)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create custom provider", logger.Error(err))
@@ -80,6 +82,8 @@ func (s *service) configureOpenfortProvider(ctx context.Context, prov *provider.
 		s.logger.ErrorContext(ctx, "invalid openfort provider config")
 		return domain.ErrInvalidProviderConfig
 	}
+
+	openfortAuth.ProviderID = prov.ID
 
 	err = s.repo.CreateOpenfort(ctx, openfortAuth)
 	if err != nil {
