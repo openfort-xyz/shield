@@ -73,6 +73,7 @@ func (s *Server) Start(ctx context.Context) error {
 	u.Use(authMdw.AuthenticateUser)
 	u.HandleFunc("", shareHdl.GetShare).Methods(http.MethodGet)
 	u.HandleFunc("", shareHdl.RegisterShare).Methods(http.MethodPost)
+	u.HandleFunc("", shareHdl.DeleteShare).Methods(http.MethodDelete)
 
 	extraHeaders := strings.Split(s.config.CORSExtraAllowedHeaders, ",")
 	c := cors.New(cors.Options{
