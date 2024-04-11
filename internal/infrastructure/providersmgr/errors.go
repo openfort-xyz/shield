@@ -10,4 +10,6 @@ var (
 	ErrMissingOpenfortProvider  = errors.New("missing openfort provider")
 	ErrMissingOpenfortTokenType = errors.New("missing openfort token type")
 	ErrUnexpectedStatusCode     = errors.New("unexpected status code")
+	ErrCertTypeNotSupported     = errors.New("certificate type not supported")
+	ErrProviderMisconfigured    = errors.New("provider misconfigured")
 )

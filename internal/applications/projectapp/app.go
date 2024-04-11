@@ -103,6 +103,10 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeOpenfort, Config: &provider.OpenfortConfig{PublishableKey: *cfg.openfortPublishableKey}})
 	}
 
+	if cfg.jwkURL != nil && cfg.pem != nil {
+		return nil, ErrJWKPemConflict
+	}
+
 	if cfg.jwkURL != nil {
 		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
 		if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
@@ -113,6 +117,19 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 			return nil, ErrProviderAlreadyExists
 		}
 		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: &provider.CustomConfig{JWK: *cfg.jwkURL}})
+	}
+
+	if cfg.pem != nil {
+		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
+		if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
+			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
+			return nil, fromDomainError(err)
+		}
+		if err == nil && prov != nil {
+			return nil, ErrProviderAlreadyExists
+		}
+		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: &provider.CustomConfig{PEM: *cfg.pem, KeyType: cfg.keyType}})
+
 	}
 
 	if len(providers) == 0 {
@@ -203,6 +220,23 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 			a.logger.ErrorContext(ctx, "failed to update openfort provider", logger.Error(err))
 			return fromDomainError(err)
 		}
+	}
+
+	if cfg.pem != nil {
+		if prov.Type != provider.TypeCustom {
+			return ErrProviderMismatch
+		}
+
+		if prov.Config.(*provider.CustomConfig).KeyType == provider.KeyTypeUnknown && cfg.keyType == provider.KeyTypeUnknown {
+			return ErrKeyTypeNotSpecified
+		}
+
+		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, PEM: *cfg.pem, KeyType: cfg.keyType})
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to update custom provider", logger.Error(err))
+			return fromDomainError(err)
+		}
+
 	}
 	return nil
 }

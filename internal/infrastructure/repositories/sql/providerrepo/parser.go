@@ -5,6 +5,8 @@ import "go.openfort.xyz/shield/internal/core/domain/provider"
 type parser struct {
 	mapProviderTypeToDatabase map[provider.Type]Type
 	mapProviderTypeToDomain   map[Type]provider.Type
+	mapKeyTypeToDomain        map[KeyType]provider.KeyType
+	mapKeyTypeToDatabase      map[provider.KeyType]KeyType
 }
 
 func newParser() *parser {
@@ -16,6 +18,16 @@ func newParser() *parser {
 		mapProviderTypeToDomain: map[Type]provider.Type{
 			TypeCustom:   provider.TypeCustom,
 			TypeOpenfort: provider.TypeOpenfort,
+		},
+		mapKeyTypeToDomain: map[KeyType]provider.KeyType{
+			KeyTypeRSA: provider.KeyTypeRSA,
+			KeyTypeEC:  provider.KeyTypeECDSA,
+			KeyTypeEd:  provider.KeyTypeEd25519,
+		},
+		mapKeyTypeToDatabase: map[provider.KeyType]KeyType{
+			provider.KeyTypeRSA:     KeyTypeRSA,
+			provider.KeyTypeECDSA:   KeyTypeEC,
+			provider.KeyTypeEd25519: KeyTypeEd,
 		},
 	}
 }
@@ -64,12 +76,32 @@ func (p *parser) toDatabaseCustomProvider(prov *provider.CustomConfig) *Provider
 	return &ProviderCustom{
 		ProviderID: prov.ProviderID,
 		JWKUrl:     prov.JWK,
+		PEM:        prov.PEM,
+		KeyType:    p.mapKeyTypeToDatabase[prov.KeyType],
 	}
+}
+
+func (p *parser) toUpdateCustomProviderMap(prov *provider.CustomConfig) map[string]interface{} {
+	updates := make(map[string]interface{})
+	if prov.JWK != "" {
+		updates["jwk_url"] = prov.JWK
+		updates["pem_cert"] = nil
+		updates["key_type"] = nil
+	} else if prov.PEM != "" {
+		updates["pem_cert"] = prov.PEM
+		updates["jwk_url"] = nil
+		if keyType := p.mapKeyTypeToDatabase[prov.KeyType]; keyType != "" {
+			updates["key_type"] = keyType
+		}
+	}
+	return updates
 }
 
 func (p *parser) toDomainCustomProvider(prov *ProviderCustom) *provider.CustomConfig {
 	return &provider.CustomConfig{
 		ProviderID: prov.ProviderID,
 		JWK:        prov.JWKUrl,
+		PEM:        prov.PEM,
+		KeyType:    p.mapKeyTypeToDomain[prov.KeyType],
 	}
 }

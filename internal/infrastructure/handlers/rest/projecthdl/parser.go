@@ -6,10 +6,24 @@ import (
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 )
 
-type parser struct{}
+type parser struct {
+	mapKeyTypeToDomain   map[KeyType]provider.KeyType
+	mapKeyTypeToResponse map[provider.KeyType]KeyType
+}
 
 func newParser() *parser {
-	return &parser{}
+	return &parser{
+		mapKeyTypeToDomain: map[KeyType]provider.KeyType{
+			KeyTypeRSA:     provider.KeyTypeRSA,
+			KeyTypeECDSA:   provider.KeyTypeECDSA,
+			KeyTypeEd25519: provider.KeyTypeEd25519,
+		},
+		mapKeyTypeToResponse: map[provider.KeyType]KeyType{
+			provider.KeyTypeRSA:     KeyTypeRSA,
+			provider.KeyTypeECDSA:   KeyTypeECDSA,
+			provider.KeyTypeEd25519: KeyTypeEd25519,
+		},
+	}
 }
 
 func (p *parser) toCreateProjectResponse(proj *project.Project) *CreateProjectResponse {
@@ -37,7 +51,11 @@ func (p *parser) fromAddProvidersRequest(req *AddProvidersRequest) []projectapp.
 	}
 
 	if req.Providers.Custom != nil && req.Providers.Custom.JWK != "" {
-		opts = append(opts, projectapp.WithCustom(req.Providers.Custom.JWK))
+		opts = append(opts, projectapp.WithCustomJWK(req.Providers.Custom.JWK))
+	}
+
+	if req.Providers.Custom != nil && req.Providers.Custom.PEM != "" {
+		opts = append(opts, projectapp.WithCustomPEM(req.Providers.Custom.PEM, p.mapKeyTypeToDomain[req.Providers.Custom.KeyType]))
 	}
 
 	return opts
@@ -84,6 +102,8 @@ func (p *parser) toGetProviderResponse(prov *provider.Provider) *GetProviderResp
 		resp.PublishableKey = prov.Config.(*provider.OpenfortConfig).PublishableKey
 	case provider.TypeCustom:
 		resp.JWK = prov.Config.(*provider.CustomConfig).JWK
+		resp.PEM = prov.Config.(*provider.CustomConfig).PEM
+		resp.KeyType = p.mapKeyTypeToResponse[prov.Config.(*provider.CustomConfig).KeyType]
 	case provider.TypeUnknown:
 	}
 

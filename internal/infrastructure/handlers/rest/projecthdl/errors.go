@@ -18,6 +18,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrMissingProvider
 	case errors.Is(err, projectapp.ErrProviderMismatch):
 		return api.ErrInvalidProviderConfig
+	case errors.Is(err, projectapp.ErrKeyTypeNotSpecified):
+		return api.ErrMissingKeyType
 	case errors.Is(err, projectapp.ErrInvalidProviderConfig):
 		return api.ErrInvalidProviderConfig
 	case errors.Is(err, projectapp.ErrUnknownProviderType):
@@ -34,6 +36,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrAllowedOriginNotFound
 	case errors.Is(err, projectapp.ErrEncryptionNotConfigured):
 		return api.ErrEncryptionNotConfigured
+	case errors.Is(err, projectapp.ErrJWKPemConflict):
+		return api.ErrJWKPemConflict
 	default:
 		return api.ErrInternal
 	}

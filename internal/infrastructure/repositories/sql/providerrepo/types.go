@@ -39,10 +39,20 @@ func (ProviderOpenfort) TableName() string {
 }
 
 type ProviderCustom struct {
-	ProviderID string `gorm:"column:provider_id;primary_key"`
-	JWKUrl     string `gorm:"column:jwk_url"`
+	ProviderID string  `gorm:"column:provider_id;primary_key"`
+	JWKUrl     string  `gorm:"column:jwk_url"`
+	PEM        string  `gorm:"column:pem_cert"`
+	KeyType    KeyType `gorm:"column:key_type"`
 }
 
 func (ProviderCustom) TableName() string {
 	return "shld_custom_providers"
 }
+
+type KeyType string
+
+const (
+	KeyTypeRSA KeyType = "RSA"
+	KeyTypeEC  KeyType = "ECDSA"
+	KeyTypeEd  KeyType = "ED25519"
+)

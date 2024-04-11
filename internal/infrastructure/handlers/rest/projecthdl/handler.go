@@ -260,11 +260,15 @@ func (h *Handler) UpdateProvider(w http.ResponseWriter, r *http.Request) {
 
 	var opts []projectapp.ProviderOption
 	if req.JWK != "" {
-		opts = append(opts, projectapp.WithCustom(req.JWK))
+		opts = append(opts, projectapp.WithCustomJWK(req.JWK))
 	}
 
 	if req.PublishableKey != "" {
 		opts = append(opts, projectapp.WithOpenfort(req.PublishableKey))
+	}
+
+	if req.PEM != "" {
+		opts = append(opts, projectapp.WithCustomPEM(req.PEM, h.parser.mapKeyTypeToDomain[req.KeyType]))
 	}
 
 	err = h.app.UpdateProvider(ctx, providerID, opts...)
