@@ -325,3 +325,62 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 		})
 	}
 }
+
+func TestShareApplication_DeleteShare(t *testing.T) {
+	ctx := contexter.WithProjectID(context.Background(), "project_id")
+	ctx = contexter.WithUserID(ctx, "user_id")
+	shareRepo := new(sharemockrepo.MockShareRepository)
+	projectRepo := new(projectmockrepo.MockProjectRepository)
+	shareSvc := sharesvc.New(shareRepo)
+	app := New(shareSvc, shareRepo, projectRepo)
+
+	tc := []struct {
+		name    string
+		wantErr error
+		mock    func()
+	}{
+		{
+			name:    "success",
+			wantErr: nil,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id"}, nil)
+				shareRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
+			},
+		},
+		{
+			name:    "share not found",
+			wantErr: ErrShareNotFound,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domain.ErrShareNotFound)
+			},
+		},
+		{
+			name:    "repository error",
+			wantErr: ErrInternal,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, errors.New("repository error"))
+			},
+		},
+		{
+			name:    "delete error",
+			wantErr: ErrInternal,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id"}, nil)
+				shareRepo.On("Delete", mock.Anything, mock.Anything).Return(errors.New("repository error"))
+			},
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mock()
+			ass := assert.New(t)
+			err := app.DeleteShare(ctx)
+			ass.ErrorIs(tt.wantErr, err)
+		})
+	}
+}
