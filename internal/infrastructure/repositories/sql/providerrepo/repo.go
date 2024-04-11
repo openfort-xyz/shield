@@ -145,8 +145,8 @@ func (r *repository) GetCustom(ctx context.Context, providerID string) (*provide
 func (r *repository) UpdateCustom(ctx context.Context, prov *provider.CustomConfig) error {
 	r.logger.InfoContext(ctx, "updating custom provider", slog.String("provider_id", prov.ProviderID))
 
-	dbProv := r.parser.toDatabaseCustomProvider(prov)
-	err := r.db.Save(dbProv).Error
+	updates := r.parser.toUpdateCustomProviderMap(prov)
+	err := r.db.Model(&ProviderCustom{}).Where("provider_id = ?", prov.ProviderID).Updates(updates).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error updating custom provider", logger.Error(err))
 		return err

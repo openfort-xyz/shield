@@ -1,10 +1,19 @@
 package projectapp
 
+import "go.openfort.xyz/shield/internal/core/domain/provider"
+
 type ProviderOption func(*providerConfig)
 
-func WithCustom(url string) ProviderOption {
+func WithCustomJWK(url string) ProviderOption {
 	return func(c *providerConfig) {
 		c.jwkURL = &url
+	}
+}
+
+func WithCustomPEM(pem string, keyType provider.KeyType) ProviderOption {
+	return func(c *providerConfig) {
+		c.pem = &pem
+		c.keyType = keyType
 	}
 }
 
@@ -16,6 +25,8 @@ func WithOpenfort(openfortProjectID string) ProviderOption {
 
 type providerConfig struct {
 	jwkURL                 *string
+	pem                    *string
+	keyType                provider.KeyType
 	openfortPublishableKey *string
 }
 

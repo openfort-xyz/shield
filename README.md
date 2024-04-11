@@ -138,6 +138,17 @@ curl --location --request DELETE 'https://shield.openfort.xyz/project/providers/
     }
   }
   ```
+- Custom provider also can work with a PEM and Key type ("rsa" or "ecdsa" or "ed25519")
+  ```json
+  {
+    "providers": {
+      "custom": {
+        "pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEVs/o5+uQbTjL3chynL4wXgUg2R9\nq9UU8I5mEovUf86QZ7kOBIjJwqnzD1omageEHWwHdBO6B+dFabmdT9POxg==\n-----END PUBLIC KEY-----",
+        "key_type": "ecdsa"
+      }
+    }
+  }
+  ```
 
 #### 8. Get Allowed Origins
 - **GET**: `https://shield.openfort.xyz/project/allowed-origins`

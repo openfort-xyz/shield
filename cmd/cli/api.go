@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"errors"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -43,7 +45,7 @@ func NewCmdServer() *cobra.Command {
 				wg.Done()
 			}()
 
-			if err = server.Start(cmd.Context()); err != nil {
+			if err = server.Start(cmd.Context()); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				return err
 			}
 

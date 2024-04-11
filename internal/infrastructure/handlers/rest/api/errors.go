@@ -27,6 +27,7 @@ var (
 	ErrMissingProvider       = &Error{"Missing provider", http.StatusBadRequest}
 	ErrProviderNotFound      = &Error{"Provider not found", http.StatusNotFound}
 	ErrInvalidProviderConfig = &Error{"Invalid provider config", http.StatusBadRequest}
+	ErrMissingKeyType        = &Error{"Missing key type", http.StatusBadRequest}
 	ErrProviderAlreadyExists = &Error{"Custom authentication already registered for this project", http.StatusConflict}
 
 	ErrShareNotFound      = &Error{"Share not found", http.StatusNotFound}
@@ -37,6 +38,7 @@ var (
 	ErrExternalUserAlreadyExists   = &Error{"External user already exists", http.StatusConflict}
 	ErrEncryptionPartRequired      = &Error{"The requested share have project entropy and encryption part is required", http.StatusConflict}
 	ErrEncryptionNotConfigured     = &Error{"Encryption not configured", http.StatusConflict}
+	ErrJWKPemConflict              = &Error{"JWK and PEM cannot be set at the same time", http.StatusConflict}
 	ErrInvalidEncryptionPart       = &Error{"Invalid encryption part", http.StatusBadRequest}
 	ErrEncryptionPartAlreadyExists = &Error{"Encryption part already exists", http.StatusConflict}
 	ErrAllowedOriginNotFound       = &Error{"Allowed origin not found", http.StatusNotFound}

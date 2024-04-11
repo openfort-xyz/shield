@@ -206,7 +206,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 			name: "success",
 			options: []ProviderOption{
 				WithOpenfort("publishableKey"),
-				WithCustom("ur"),
+				WithCustomJWK("ur"),
 			},
 			wantErr:       nil,
 			wantProviders: 2,
@@ -217,6 +217,21 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(nil, domain.ErrProviderNotFound)
 				providerRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(nil)
 				providerRepo.On("CreateOpenfort", mock.Anything, mock.AnythingOfType("*provider.OpenfortConfig")).Return(nil)
+				providerRepo.On("CreateCustom", mock.Anything, mock.AnythingOfType("*provider.CustomConfig")).Return(nil)
+			},
+		},
+		{
+			name: "success with pem",
+			options: []ProviderOption{
+				WithCustomPEM("pem", provider.KeyTypeECDSA),
+			},
+			wantErr:       nil,
+			wantProviders: 1,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(nil, domain.ErrProviderNotFound)
+				providerRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(nil)
 				providerRepo.On("CreateCustom", mock.Anything, mock.AnythingOfType("*provider.CustomConfig")).Return(nil)
 			},
 		},
@@ -243,13 +258,37 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 		{
 			name: "custom provider already exists",
 			options: []ProviderOption{
-				WithCustom("ur"),
+				WithCustomJWK("ur"),
 			},
 			wantErr: ErrProviderAlreadyExists,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				providerRepo.ExpectedCalls = nil
 				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(&provider.Provider{}, nil)
+			},
+		},
+		{
+			name: "custom provider already exists",
+			options: []ProviderOption{
+				WithCustomPEM("pem", provider.KeyTypeECDSA),
+			},
+			wantErr: ErrProviderAlreadyExists,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(&provider.Provider{}, nil)
+			},
+		},
+		{
+			name: "custom provider conflict config",
+			options: []ProviderOption{
+				WithCustomJWK("ur"),
+				WithCustomPEM("pem", provider.KeyTypeECDSA),
+			},
+			wantErr: ErrJWKPemConflict,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
 			},
 		},
 		{
@@ -267,7 +306,19 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 		{
 			name: "error getting custom provider",
 			options: []ProviderOption{
-				WithCustom("ur"),
+				WithCustomJWK("ur"),
+			},
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(nil, errors.New("repository error"))
+			},
+		},
+		{
+			name: "error getting custom provider",
+			options: []ProviderOption{
+				WithCustomPEM("pem", provider.KeyTypeECDSA),
 			},
 			wantErr: ErrInternal,
 			mock: func() {
@@ -280,7 +331,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 			name: "error configuring provider",
 			options: []ProviderOption{
 				WithOpenfort("publishableKey"),
-				WithCustom("ur"),
+				WithCustomJWK("ur"),
 			},
 			wantErr: ErrInternal,
 			mock: func() {
@@ -496,7 +547,7 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 		mock       func()
 	}{
 		{
-			name:       "success",
+			name:       "success openfort",
 			providerID: "provider-id",
 			wantErr:    nil,
 			mock: func() {
@@ -508,6 +559,29 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 			},
 			options: []ProviderOption{
 				WithOpenfort("publishable-key"),
+			},
+		},
+		{
+			name: "success custom jwk",
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(customProvider, nil)
+				providerRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+				providerRepo.On("UpdateCustom", mock.Anything, mock.Anything).Return(nil)
+			},
+			options: []ProviderOption{
+				WithCustomJWK("url"),
+			},
+		},
+		{
+			name: "success custom pem",
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(customProvider, nil)
+				providerRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+				providerRepo.On("UpdateCustom", mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -562,7 +636,32 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 				providerRepo.On("Get", mock.Anything, mock.Anything).Return(&provider.Provider{ProjectID: "project_id", Type: provider.TypeOpenfort}, nil)
 			},
 			options: []ProviderOption{
-				WithCustom("ur"),
+				WithCustomJWK("ur"),
+			},
+		},
+		{
+			name:    "error provider mismatch",
+			wantErr: ErrProviderMismatch,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(&provider.Provider{ProjectID: "project_id", Type: provider.TypeOpenfort}, nil)
+			},
+			options: []ProviderOption{
+				WithCustomPEM("pem", provider.KeyTypeECDSA),
+			},
+		},
+		{
+			name:       "error key not specified",
+			providerID: "provider-id",
+			wantErr:    ErrKeyTypeNotSpecified,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(&provider.Provider{ProjectID: "project_id", Type: provider.TypeCustom, Config: &provider.CustomConfig{}}, nil)
+			},
+			options: []ProviderOption{
+				WithCustomPEM("pem", provider.KeyTypeUnknown),
 			},
 		},
 		{
@@ -592,7 +691,22 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 				providerRepo.On("UpdateCustom", mock.Anything, mock.Anything).Return(errors.New("repository error"))
 			},
 			options: []ProviderOption{
-				WithCustom("ur"),
+				WithCustomJWK("ur"),
+			},
+		},
+		{
+			name:       "error updating custom provider",
+			providerID: "provider-id",
+			wantErr:    ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(customProvider, nil)
+				providerRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+				providerRepo.On("UpdateCustom", mock.Anything, mock.Anything).Return(errors.New("repository error"))
+			},
+			options: []ProviderOption{
+				WithCustomPEM("pem", provider.KeyTypeECDSA),
 			},
 		},
 	}

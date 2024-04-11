@@ -10,6 +10,7 @@ var (
 	ErrProjectNotFound             = errors.New("project not found")
 	ErrNoProviderSpecified         = errors.New("no provider specified")
 	ErrProviderMismatch            = errors.New("provider mismatch")
+	ErrKeyTypeNotSpecified         = errors.New("key type not specified")
 	ErrInvalidProviderConfig       = errors.New("invalid provider config")
 	ErrUnknownProviderType         = errors.New("unknown provider type")
 	ErrProviderAlreadyExists       = errors.New("custom authentication already registered for this project")
@@ -18,6 +19,7 @@ var (
 	ErrEncryptionPartAlreadyExists = errors.New("encryption part already exists")
 	ErrAllowedOriginNotFound       = errors.New("allowed origin not found")
 	ErrEncryptionNotConfigured     = errors.New("encryption not configured")
+	ErrJWKPemConflict              = errors.New("jwk and pem cannot be set at the same time")
 	ErrInternal                    = errors.New("internal error")
 )
 

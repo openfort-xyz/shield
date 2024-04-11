@@ -33,9 +33,19 @@ type OpenfortProvider struct {
 }
 
 type CustomProvider struct {
-	ProviderID string `json:"provider_id,omitempty"`
-	JWK        string `json:"jwk,omitempty"`
+	ProviderID string  `json:"provider_id,omitempty"`
+	JWK        string  `json:"jwk,omitempty"`
+	PEM        string  `json:"pem,omitempty"`
+	KeyType    KeyType `json:"key_type,omitempty"`
 }
+
+type KeyType string
+
+const (
+	KeyTypeRSA     KeyType = "rsa"
+	KeyTypeECDSA   KeyType = "ecdsa"
+	KeyTypeEd25519 KeyType = "ed25519"
+)
 
 type AddProvidersResponse struct {
 	Providers []*ProviderResponse `json:"providers"`
@@ -51,15 +61,19 @@ type GetProvidersResponse struct {
 }
 
 type GetProviderResponse struct {
-	ProviderID     string `json:"provider_id"`
-	Type           string `json:"type"`
-	PublishableKey string `json:"publishable_key,omitempty"`
-	JWK            string `json:"jwk,omitempty"`
+	ProviderID     string  `json:"provider_id"`
+	Type           string  `json:"type"`
+	PublishableKey string  `json:"publishable_key,omitempty"`
+	JWK            string  `json:"jwk,omitempty"`
+	PEM            string  `json:"pem,omitempty"`
+	KeyType        KeyType `json:"key_type,omitempty"`
 }
 
 type UpdateProviderRequest struct {
-	PublishableKey string `json:"publishable_key,omitempty"`
-	JWK            string `json:"jwk,omitempty"`
+	PublishableKey string  `json:"publishable_key,omitempty"`
+	JWK            string  `json:"jwk,omitempty"`
+	PEM            string  `json:"pem,omitempty"`
+	KeyType        KeyType `json:"key_type,omitempty"`
 }
 
 type AddAllowedOriginRequest struct {
