@@ -2,8 +2,9 @@ package providersmgr
 
 import (
 	"context"
-	"github.com/golang-jwt/jwt/v5"
 	"log/slog"
+
+	"github.com/golang-jwt/jwt/v5"
 
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/providers"
@@ -53,15 +54,15 @@ func (c *custom) validatePEM(token string) (string, error) {
 	var keyFunc jwt.Keyfunc
 	switch c.config.KeyType {
 	case provider.KeyTypeRSA:
-		keyFunc = func(token *jwt.Token) (interface{}, error) {
+		keyFunc = func(*jwt.Token) (interface{}, error) {
 			return jwt.ParseRSAPublicKeyFromPEM([]byte(c.config.PEM))
 		}
 	case provider.KeyTypeECDSA:
-		keyFunc = func(token *jwt.Token) (interface{}, error) {
+		keyFunc = func(*jwt.Token) (interface{}, error) {
 			return jwt.ParseECPublicKeyFromPEM([]byte(c.config.PEM))
 		}
 	case provider.KeyTypeEd25519:
-		keyFunc = func(token *jwt.Token) (interface{}, error) {
+		keyFunc = func(*jwt.Token) (interface{}, error) {
 			return jwt.ParseEdPublicKeyFromPEM([]byte(c.config.PEM))
 		}
 	default:
