@@ -53,6 +53,10 @@ func newMySQL(cfg *Config) (gorm.Dialector, error) {
 	if err != nil {
 		return nil, err
 	}
+	sqlDB.SetConnMaxLifetime(cfg.MaxConnLifetime)
+	sqlDB.SetConnMaxIdleTime(cfg.MaxConnIdleTime)
+	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
+	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
 
 	return mysql.New(mysql.Config{
 		Conn: sqlDB,
@@ -66,6 +70,10 @@ func newCloudSQL(cfg *Config) (gorm.Dialector, error) {
 	if err != nil {
 		return nil, err
 	}
+	sqlDB.SetConnMaxLifetime(cfg.MaxConnLifetime)
+	sqlDB.SetConnMaxIdleTime(cfg.MaxConnIdleTime)
+	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
+	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
 
 	return mysql.New(mysql.Config{
 		Conn: sqlDB,

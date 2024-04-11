@@ -2,6 +2,7 @@ package sql
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/caarlos0/env/v10"
 )
@@ -13,6 +14,11 @@ type Config struct {
 	User   string `env:"DB_USER" envDefault:"user"`
 	Pass   string `env:"DB_PASS" envDefault:"password"`
 	DBName string `env:"DB_NAME" envDefault:"shield"`
+
+	MaxConnLifetime time.Duration `env:"DB_MAX_CONN_LIFETIME" envDefault:"1h"`
+	MaxConnIdleTime time.Duration `env:"DB_MAX_CONN_IDLE_TIME" envDefault:"30m"`
+	MaxIdleConns    int           `env:"DB_MAX_IDLE_CONNS" envDefault:"10"`
+	MaxOpenConns    int           `env:"DB_MAX_OPEN_CONNS" envDefault:"100"`
 
 	// MySQL
 	Charset   string `env:"DB_MYSQL_CHARSET" envDefault:"utf8mb4"`
