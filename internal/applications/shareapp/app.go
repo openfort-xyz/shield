@@ -94,6 +94,25 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 	return shr, nil
 }
 
+func (a *ShareApplication) DeleteShare(ctx context.Context) error {
+	a.logger.InfoContext(ctx, "deleting share")
+	usrID := contexter.GetUserID(ctx)
+
+	shr, err := a.shareRepo.GetByUserID(ctx, usrID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
+		return fromDomainError(err)
+	}
+
+	err = a.shareRepo.Delete(ctx, shr.ID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to delete share", logger.Error(err))
+		return fromDomainError(err)
+	}
+
+	return nil
+}
+
 func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, error) {
 	if opt.encryptionPart == nil || *opt.encryptionPart == "" {
 		return "", ErrEncryptionPartRequired

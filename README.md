@@ -285,3 +285,21 @@ OR
     "entropy": "none"
   }
   ```
+
+#### 3. Delete Share
+- **DELETE**: `https://shield.openfort.xyz/shares`
+- **Request Headers**:
+  - `Authorization`: Bearer Token
+  - `x-auth-provider`: 'openfort' or 'custom'
+  - `x-openfort-provider`: 'firebase' // Optional: Only required if x-auth-provider is 'openfort' and using third-party authentication
+  - `x-openfort-token-type`: 'idToken' // Optional: Only required if x-auth-provider is 'openfort' and using third-party authentication
+  - `x-encryption-part`: 'myRhu0uoymTgFE567285c6gunZa8bRtgUBdOWxp96kg=' // Optional: Only required if the share have project entropy
+- **Example Request**:
+  ```shell
+  curl --location --request DELETE 'https://shield.openfort.xyz/shares' \
+  --header 'Authorization: Bearer •••••••' \
+  --header 'x-auth-provider: openfort' \
+  --header 'x-openfort-provider: firebase' \
+  --header 'x-openfort-token-type: idToken' \
+  --header 'x-api-key: d2d617ff-dbb6-480d-993f-dc8ac8307617'
+  ```

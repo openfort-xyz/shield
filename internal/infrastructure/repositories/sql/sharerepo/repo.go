@@ -63,6 +63,18 @@ func (r *repository) GetByUserID(ctx context.Context, userID string) (*share.Sha
 	return r.parser.toDomain(dbShr), nil
 }
 
+func (r *repository) Delete(ctx context.Context, shareID string) error {
+	r.logger.InfoContext(ctx, "deleting share", slog.String("id", shareID))
+
+	err := r.db.Where("id = ?", shareID).Delete(&Share{}).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error deleting share", logger.Error(err))
+		return err
+	}
+
+	return nil
+}
+
 func (r *repository) ListDecryptedByProjectID(ctx context.Context, projectID string) ([]*share.Share, error) {
 	r.logger.InfoContext(ctx, "listing shares", slog.String("project_id", projectID))
 

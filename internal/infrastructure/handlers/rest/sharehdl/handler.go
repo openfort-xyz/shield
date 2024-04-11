@@ -80,6 +80,34 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// DeleteShare deletes a share
+// @Summary Delete share
+// @Description Delete a share for the user
+// @Tags Share
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param Authorization header string true "Bearer token"
+// @Param X-Auth-Provider header string true "Auth Provider"
+// @Param X-Openfort-Provider header string false "Openfort Provider"
+// @Param X-Openfort-Token-Type header string false "Openfort Token Type"
+// @Success 204 "Description: Share deleted successfully"
+// @Failure 404 "Description: Not Found"
+// @Failure 500 "Description: Internal Server Error"
+// @Router /shares [delete]
+func (h *Handler) DeleteShare(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "deleting share")
+
+	err := h.app.DeleteShare(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // GetShare gets a share
 // @Summary Get share
 // @Description Get a share for the user
