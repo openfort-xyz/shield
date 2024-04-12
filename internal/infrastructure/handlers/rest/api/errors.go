@@ -7,6 +7,7 @@ import (
 
 type Error struct {
 	Message string `json:"message"`
+	Code    string `json:"code,omitempty"`
 	Status  int    `json:"-"`
 }
 
@@ -21,39 +22,39 @@ func RespondWithError(w http.ResponseWriter, err *Error) {
 }
 
 var (
-	ErrProjectNotFound = &Error{"Project not found", http.StatusNotFound}
+	ErrProjectNotFound = &Error{"Project not found", "PJ_NOT_FOUND", http.StatusNotFound}
 
-	ErrUnknownProviderType   = &Error{"Unknown provider type", http.StatusBadRequest}
-	ErrMissingProvider       = &Error{"Missing provider", http.StatusBadRequest}
-	ErrProviderNotFound      = &Error{"Provider not found", http.StatusNotFound}
-	ErrInvalidProviderConfig = &Error{"Invalid provider config", http.StatusBadRequest}
-	ErrMissingKeyType        = &Error{"Missing key type", http.StatusBadRequest}
-	ErrProviderAlreadyExists = &Error{"Custom authentication already registered for this project", http.StatusConflict}
+	ErrUnknownProviderType   = &Error{"Unknown provider type", "PV_UNKNOWN", http.StatusBadRequest}
+	ErrMissingProvider       = &Error{"Missing provider", "PV_MISSING", http.StatusBadRequest}
+	ErrProviderNotFound      = &Error{"Provider not found", "PV_NOT_FOUND", http.StatusNotFound}
+	ErrInvalidProviderConfig = &Error{"Invalid provider config", "PV_CFG_INVALID", http.StatusBadRequest}
+	ErrMissingKeyType        = &Error{"Missing key type", "PV_CFG_INVALID", http.StatusBadRequest}
+	ErrProviderAlreadyExists = &Error{"Custom authentication already registered for this project", "PV_EXISTS", http.StatusConflict}
 
-	ErrShareNotFound      = &Error{"Share not found", http.StatusNotFound}
-	ErrShareAlreadyExists = &Error{"Share already exists", http.StatusConflict}
+	ErrShareNotFound      = &Error{"Share not found", "SH_NOT_FOUND", http.StatusNotFound}
+	ErrShareAlreadyExists = &Error{"Share already exists", "SH_EXISTS", http.StatusConflict}
 
-	ErrUserNotFound                = &Error{"User not found", http.StatusNotFound}
-	ErrExternalUserNotFound        = &Error{"External user not found", http.StatusNotFound}
-	ErrExternalUserAlreadyExists   = &Error{"External user already exists", http.StatusConflict}
-	ErrEncryptionPartRequired      = &Error{"The requested share have project entropy and encryption part is required", http.StatusConflict}
-	ErrEncryptionNotConfigured     = &Error{"Encryption not configured", http.StatusConflict}
-	ErrJWKPemConflict              = &Error{"JWK and PEM cannot be set at the same time", http.StatusConflict}
-	ErrInvalidEncryptionPart       = &Error{"Invalid encryption part", http.StatusBadRequest}
-	ErrEncryptionPartAlreadyExists = &Error{"Encryption part already exists", http.StatusConflict}
-	ErrAllowedOriginNotFound       = &Error{"Allowed origin not found", http.StatusNotFound}
+	ErrUserNotFound                = &Error{"User not found", "US_NOT_FOUND", http.StatusNotFound}
+	ErrExternalUserNotFound        = &Error{"External user not found", "US_EXT_NOT_FOUND", http.StatusNotFound}
+	ErrExternalUserAlreadyExists   = &Error{"External user already exists", "US_EXT_EXISTS", http.StatusConflict}
+	ErrEncryptionPartRequired      = &Error{"The requested share have project entropy and encryption part is required", "EC_MISSING", http.StatusConflict}
+	ErrEncryptionNotConfigured     = &Error{"Encryption not configured", "EC_MISSING", http.StatusConflict}
+	ErrJWKPemConflict              = &Error{"JWK and PEM cannot be set at the same time", "PV_CFG_INVALID", http.StatusConflict}
+	ErrInvalidEncryptionPart       = &Error{"Invalid encryption part", "EC_INVALID", http.StatusBadRequest}
+	ErrEncryptionPartAlreadyExists = &Error{"Encryption part already exists", "EC_EXISTS", http.StatusConflict}
+	ErrAllowedOriginNotFound       = &Error{"Allowed origin not found", "AO_NOT_FOUND", http.StatusNotFound}
 
-	ErrMissingAPIKey       = &Error{"Missing API key", http.StatusUnauthorized}
-	ErrMissingAPISecret    = &Error{"Missing API secret", http.StatusUnauthorized}
-	ErrInvalidAPISecret    = &Error{"Invalid API secret", http.StatusUnauthorized}
-	ErrMissingToken        = &Error{"Missing token", http.StatusUnauthorized}
-	ErrInvalidToken        = &Error{"Invalid token", http.StatusUnauthorized}
-	ErrMissingAuthProvider = &Error{"Missing auth provider", http.StatusUnauthorized}
-	ErrInvalidAuthProvider = &Error{"Invalid auth provider", http.StatusUnauthorized}
+	ErrMissingAPIKey       = &Error{"Missing API key", "A_MISSING", http.StatusUnauthorized}
+	ErrMissingAPISecret    = &Error{"Missing API secret", "A_MISSING", http.StatusUnauthorized}
+	ErrInvalidAPISecret    = &Error{"Invalid API secret", "A_INVALID", http.StatusUnauthorized}
+	ErrMissingToken        = &Error{"Missing token", "A_MISSING", http.StatusUnauthorized}
+	ErrInvalidToken        = &Error{"Invalid token", "A_INVALID", http.StatusUnauthorized}
+	ErrMissingAuthProvider = &Error{"Missing auth provider", "A_MISSING", http.StatusUnauthorized}
+	ErrInvalidAuthProvider = &Error{"Invalid auth provider", "A_INVALID", http.StatusUnauthorized}
 
-	ErrInternal = &Error{"Internal error", http.StatusInternalServerError}
+	ErrInternal = &Error{"Internal error", "INTERNAL", http.StatusInternalServerError}
 )
 
 func ErrBadRequestWithMessage(message string) *Error {
-	return &Error{message, http.StatusBadRequest}
+	return &Error{message, "BAD_REQUEST", http.StatusBadRequest}
 }
