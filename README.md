@@ -1,4 +1,31 @@
 # Shield
+
+![Openfort Protocol][banner-image]
+
+<div align="center">
+  <h4>
+    <a href="https://www.openfort.xyz/">
+      Website
+    </a>
+    <span> | </span>
+    <a href="https://www.openfort.xyz/docs">
+      Documentation
+    </a>
+    <span> | </span>
+    <a href="https://www.openfort.xyz/docs/reference/api/authentication">
+      API Docs
+    </a>
+    <span> | </span>
+    <a href="https://twitter.com/openfortxyz">
+      Twitter
+    </a>
+  </h4>
+</div>
+
+[banner-image]: https://blog-cms.openfort.xyz/uploads/Shield_85938c811e.png
+
+
+
 [![Go Report Card](https://goreportcard.com/badge/go.openfort.xyz/shield)](https://goreportcard.com/report/go.openfort.xyz/shield)
 ## Overview
 Shield by Openfort is a secure service dedicated to the protection of sensitive data. It ensures the confidentiality and security of data management by offering a robust framework for storing secrets and encryption parameters.
