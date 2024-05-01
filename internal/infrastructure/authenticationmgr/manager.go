@@ -3,10 +3,11 @@ package authenticationmgr
 import (
 	"context"
 	"errors"
-	"go.openfort.xyz/shield/pkg/contexter"
-	"go.openfort.xyz/shield/pkg/logger"
 	"log/slog"
 	"strings"
+
+	"go.openfort.xyz/shield/pkg/contexter"
+	"go.openfort.xyz/shield/pkg/logger"
 
 	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
