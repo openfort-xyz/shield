@@ -20,6 +20,7 @@ const OpenfortProviderHeader = "X-Openfort-Provider"                 //nolint:go
 const OpenfortTokenTypeHeader = "X-Openfort-Token-Type"              //nolint:gosec
 const AccessControlAllowOriginHeader = "Access-Control-Allow-Origin" //nolint:gosec
 const EncryptionPartHeader = "X-Encryption-Part"                     //nolint:gosec
+const UserIDHeader = "X-User-ID"                                     //nolint:gosec
 
 type Middleware struct {
 	manager *authenticationmgr.Manager
@@ -52,6 +53,37 @@ func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
 		}
 
 		ctx := contexter.WithProjectID(r.Context(), projectID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (m *Middleware) PreRegisterUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		userID := r.Header.Get(UserIDHeader)
+		if userID == "" {
+			api.RespondWithError(w, api.ErrMissingUserID)
+			return
+		}
+
+		providerStr := r.Header.Get(AuthProviderHeader)
+		if providerStr == "" {
+			api.RespondWithError(w, api.ErrMissingAuthProvider)
+			return
+		}
+
+		provider, err := m.manager.GetAuthProvider(providerStr)
+		if err != nil {
+			api.RespondWithError(w, api.ErrInvalidAuthProvider)
+			return
+		}
+
+		usr, err := m.manager.PreRegisterUser(r.Context(), userID, provider)
+		if err != nil {
+			api.RespondWithError(w, api.ErrPreRegisterUser)
+			return
+		}
+
+		ctx := contexter.WithUserID(r.Context(), usr)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

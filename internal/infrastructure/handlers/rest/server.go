@@ -75,6 +75,11 @@ func (s *Server) Start(ctx context.Context) error {
 	u.HandleFunc("", shareHdl.RegisterShare).Methods(http.MethodPost)
 	u.HandleFunc("", shareHdl.DeleteShare).Methods(http.MethodDelete)
 
+	a := r.PathPrefix("/admin").Subrouter()
+	a.Use(authMdw.AuthenticateAPISecret)
+	a.Use(authMdw.PreRegisterUser)
+	a.HandleFunc("/preregister", shareHdl.RegisterShare).Methods(http.MethodPost)
+
 	extraHeaders := strings.Split(s.config.CORSExtraAllowedHeaders, ",")
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: authMdw.AllowedOrigin,
