@@ -2,6 +2,10 @@ package authenticationmgr
 
 import (
 	"context"
+	"errors"
+	"go.openfort.xyz/shield/pkg/contexter"
+	"go.openfort.xyz/shield/pkg/logger"
+	"log/slog"
 	"strings"
 
 	"go.openfort.xyz/shield/internal/core/domain"
@@ -16,15 +20,21 @@ type Manager struct {
 	APISecretAuthenticator authentication.APISecretAuthenticator
 	UserAuthenticator      authentication.UserAuthenticator
 	repo                   repositories.ProjectRepository
+	providerManager        *providersmgr.Manager
+	userService            services.UserService
 	mapOrigins             map[string][]string
+	logger                 *slog.Logger
 }
 
 func NewManager(repo repositories.ProjectRepository, providerManager *providersmgr.Manager, userService services.UserService) *Manager {
 	return &Manager{
 		repo:                   repo,
 		APISecretAuthenticator: newAPISecretAuthenticator(repo),
+		providerManager:        providerManager,
 		UserAuthenticator:      newUserAuthenticator(repo, providerManager, userService),
+		userService:            userService,
 		mapOrigins:             make(map[string][]string),
+		logger:                 logger.New("authentication_manager"),
 	}
 }
 
@@ -45,6 +55,36 @@ func (m *Manager) GetAuthProvider(providerStr string) (provider.Type, error) {
 	default:
 		return provider.TypeUnknown, domain.ErrUnknownProviderType
 	}
+}
+
+func (m *Manager) PreRegisterUser(ctx context.Context, userID string, providerType provider.Type) (string, error) {
+	projID := contexter.GetProjectID(ctx)
+	prov, err := m.providerManager.GetProvider(ctx, projID, providerType)
+	if err != nil {
+		m.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
+		return "", err
+	}
+
+	usr, err := m.userService.GetByExternal(ctx, userID, prov.GetProviderID())
+	if err != nil {
+		if !errors.Is(err, domain.ErrUserNotFound) && !errors.Is(err, domain.ErrExternalUserNotFound) {
+			m.logger.ErrorContext(ctx, "failed to get user by external", logger.Error(err))
+			return "", err
+		}
+		usr, err = m.userService.Create(ctx, projID)
+		if err != nil {
+			m.logger.ErrorContext(ctx, "failed to create user", logger.Error(err))
+			return "", err
+		}
+
+		_, err = m.userService.CreateExternal(ctx, projID, usr.ID, userID, prov.GetProviderID())
+		if err != nil {
+			m.logger.ErrorContext(ctx, "failed to create external user", logger.Error(err))
+			return "", err
+		}
+	}
+
+	return usr.ID, nil
 }
 
 func (m *Manager) IsAllowedOrigin(ctx context.Context, apiKey string, origin string) (bool, error) {
