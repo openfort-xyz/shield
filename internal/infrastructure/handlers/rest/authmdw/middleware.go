@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"strings"
 
-	"go.openfort.xyz/shield/pkg/logger"
-
 	authenticate "go.openfort.xyz/shield/internal/core/ports/authentication"
 	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
 	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest/api"
@@ -141,23 +139,4 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 		ctx = contexter.WithProjectID(ctx, auth.ProjectID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-func (m *Middleware) AllowedOrigin(r *http.Request, origin string) bool {
-	if origin == "" {
-		return false
-	}
-
-	if origin == "https://dashboard.openfort.xyz" || origin == "https://iframe.openfort.xyz" || origin == "https://go.openfort.xyz" {
-		return true
-	}
-
-	apiKey := r.Header.Get(APIKeyHeader)
-	if apiKey == "" {
-		logger.New("auth_mdw").Warn("missing api key")
-		return false
-	}
-
-	allowed, err := m.manager.IsAllowedOrigin(r.Context(), apiKey, origin)
-	return err == nil && allowed
 }

@@ -11,7 +11,7 @@ type Config struct {
 	Driver Driver `env:"DB_DRIVER" envDefault:"mysql"`
 	Host   string `env:"DB_HOST" envDefault:"localhost"`
 	Port   int    `env:"DB_PORT" envDefault:"3306"`
-	User   string `env:"DB_USER" envDefault:"user"`
+	User   string `env:"DB_USER" envDefault:"root"`
 	Pass   string `env:"DB_PASS" envDefault:"password"`
 	DBName string `env:"DB_NAME" envDefault:"shield"`
 

@@ -82,8 +82,8 @@ func (s *Server) Start(ctx context.Context) error {
 
 	extraHeaders := strings.Split(s.config.CORSExtraAllowedHeaders, ",")
 	c := cors.New(cors.Options{
-		AllowOriginRequestFunc: authMdw.AllowedOrigin,
-		AllowedMethods:         []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
 		AllowedHeaders: append([]string{
 			authmdw.AccessControlAllowOriginHeader,
 			authmdw.TokenHeader,
