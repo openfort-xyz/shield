@@ -26,11 +26,3 @@ func (p *parser) toDatabase(proj *project.Project) *Project {
 		APISecret: proj.APISecret,
 	}
 }
-
-func (p *parser) toDomainAllowedOrigins(origins []AllowedOrigin) []string {
-	var result []string
-	for _, origin := range origins {
-		result = append(result, origin.Origin)
-	}
-	return result
-}

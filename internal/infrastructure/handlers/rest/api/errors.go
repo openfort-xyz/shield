@@ -45,7 +45,6 @@ var (
 	ErrJWKPemConflict              = &Error{"JWK and PEM cannot be set at the same time", "PV_CFG_INVALID", http.StatusConflict}
 	ErrInvalidEncryptionPart       = &Error{"Invalid encryption part", "EC_INVALID", http.StatusBadRequest}
 	ErrEncryptionPartAlreadyExists = &Error{"Encryption part already exists", "EC_EXISTS", http.StatusConflict}
-	ErrAllowedOriginNotFound       = &Error{"Allowed origin not found", "AO_NOT_FOUND", http.StatusNotFound}
 
 	ErrMissingAPIKey       = &Error{"Missing API key", "A_MISSING", http.StatusUnauthorized}
 	ErrMissingAPISecret    = &Error{"Missing API secret", "A_MISSING", http.StatusUnauthorized}

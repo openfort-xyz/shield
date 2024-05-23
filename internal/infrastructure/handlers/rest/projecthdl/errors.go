@@ -32,8 +32,6 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrInvalidEncryptionPart
 	case errors.Is(err, projectapp.ErrEncryptionPartAlreadyExists):
 		return api.ErrEncryptionPartAlreadyExists
-	case errors.Is(err, projectapp.ErrAllowedOriginNotFound):
-		return api.ErrAllowedOriginNotFound
 	case errors.Is(err, projectapp.ErrEncryptionNotConfigured):
 		return api.ErrEncryptionNotConfigured
 	case errors.Is(err, projectapp.ErrJWKPemConflict):

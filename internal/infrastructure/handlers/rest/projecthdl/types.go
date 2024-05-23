@@ -76,14 +76,6 @@ type UpdateProviderRequest struct {
 	KeyType        KeyType `json:"key_type,omitempty"`
 }
 
-type AddAllowedOriginRequest struct {
-	Origin string `json:"origin"`
-}
-
-type GetAllowedOriginsResponse struct {
-	Origins []string `json:"origins"`
-}
-
 type EncryptBodyRequest struct {
 	EncryptionPart string `json:"encryption_part"`
 }

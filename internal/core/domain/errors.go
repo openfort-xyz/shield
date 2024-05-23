@@ -8,7 +8,6 @@ var (
 	ErrEncryptionPartNotFound      = errors.New("encryption part not found")
 	ErrEncryptionPartAlreadyExists = errors.New("encryption part already exists")
 	ErrEncryptionPartRequired      = errors.New("encryption part is required")
-	ErrAllowedOriginNotFound       = errors.New("allowed origin not found")
 
 	// Provider errors
 	ErrInvalidProviderConfig = errors.New("invalid provider config")

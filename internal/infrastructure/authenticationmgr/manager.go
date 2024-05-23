@@ -87,27 +87,3 @@ func (m *Manager) PreRegisterUser(ctx context.Context, userID string, providerTy
 
 	return usr.ID, nil
 }
-
-func (m *Manager) IsAllowedOrigin(ctx context.Context, apiKey string, origin string) (bool, error) {
-	if cachedOrigins, cached := m.mapOrigins[apiKey]; cached {
-		for _, o := range cachedOrigins {
-			if o == origin {
-				return true, nil
-			}
-		}
-	}
-
-	dbOrigins, err := m.repo.GetAllowedOriginsByAPIKey(ctx, apiKey)
-	if err != nil {
-		return false, err
-	}
-	m.mapOrigins[apiKey] = dbOrigins
-
-	for _, o := range dbOrigins {
-		if o == origin {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}

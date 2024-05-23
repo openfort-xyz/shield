@@ -263,47 +263,6 @@ func (a *ProjectApplication) RemoveProvider(ctx context.Context, providerID stri
 	return nil
 }
 
-func (a *ProjectApplication) AddAllowedOrigin(ctx context.Context, origin string) error {
-	a.logger.InfoContext(ctx, "adding allowed origin")
-	projectID := contexter.GetProjectID(ctx)
-
-	err := a.projectRepo.AddAllowedOrigin(ctx, projectID, origin)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to add allowed origin", logger.Error(err))
-		return fromDomainError(err)
-	}
-
-	return nil
-}
-
-func (a *ProjectApplication) RemoveAllowedOrigin(ctx context.Context, origin string) error {
-	a.logger.InfoContext(ctx, "removing allowed origin")
-
-	projectID := contexter.GetProjectID(ctx)
-
-	err := a.projectRepo.RemoveAllowedOrigin(ctx, projectID, origin)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to remove allowed origin", logger.Error(err))
-		return fromDomainError(err)
-	}
-
-	return nil
-}
-
-func (a *ProjectApplication) GetAllowedOrigins(ctx context.Context) ([]string, error) {
-	a.logger.InfoContext(ctx, "getting allowed origins")
-
-	projectID := contexter.GetProjectID(ctx)
-
-	origins, err := a.projectRepo.GetAllowedOrigins(ctx, projectID)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get allowed origins", logger.Error(err))
-		return nil, fromDomainError(err)
-	}
-
-	return origins, nil
-}
-
 func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalPart string) error {
 	a.logger.InfoContext(ctx, "encrypting project shares")
 	projectID := contexter.GetProjectID(ctx)

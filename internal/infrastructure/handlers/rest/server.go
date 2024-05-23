@@ -63,9 +63,6 @@ func (s *Server) Start(ctx context.Context) error {
 	p.HandleFunc("/providers/{provider}", projectHdl.GetProvider).Methods(http.MethodGet)
 	p.HandleFunc("/providers/{provider}", projectHdl.UpdateProvider).Methods(http.MethodPut)
 	p.HandleFunc("/providers/{provider}", projectHdl.DeleteProvider).Methods(http.MethodDelete)
-	p.HandleFunc("/allowed-origins", projectHdl.GetAllowedOrigins).Methods(http.MethodGet)
-	p.HandleFunc("/allowed-origins", projectHdl.AddAllowedOrigin).Methods(http.MethodPost)
-	p.HandleFunc("/allowed-origins/{origin}", projectHdl.RemoveAllowedOrigin).Methods(http.MethodDelete)
 	p.HandleFunc("/encrypt", projectHdl.EncryptProjectShares).Methods(http.MethodPost)
 	p.HandleFunc("/encryption-key", projectHdl.RegisterEncryptionKey).Methods(http.MethodPost)
 

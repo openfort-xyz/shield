@@ -91,66 +91,6 @@ func (r *repository) Delete(ctx context.Context, projectID string) error {
 	return nil
 }
 
-func (r *repository) AddAllowedOrigin(ctx context.Context, projectID, origin string) error {
-	r.logger.InfoContext(ctx, "adding allowed origin")
-
-	allowedOrigin := &AllowedOrigin{
-		ID:        uuid.NewString(),
-		ProjectID: projectID,
-		Origin:    origin,
-	}
-
-	err := r.db.Create(allowedOrigin).Error
-	if err != nil {
-		r.logger.ErrorContext(ctx, "error adding allowed origin", logger.Error(err))
-		return err
-	}
-
-	return nil
-}
-
-func (r *repository) RemoveAllowedOrigin(ctx context.Context, projectID, origin string) error {
-	r.logger.InfoContext(ctx, "removing allowed origin")
-
-	cmd := r.db.Delete(&AllowedOrigin{}, "project_id = ? AND origin = ?", projectID, origin)
-	if cmd.Error != nil {
-		r.logger.ErrorContext(ctx, "error removing allowed origin", logger.Error(cmd.Error))
-		return cmd.Error
-	}
-
-	if cmd.RowsAffected == 0 {
-		return domain.ErrAllowedOriginNotFound
-	}
-
-	return nil
-}
-
-func (r *repository) GetAllowedOrigins(ctx context.Context, projectID string) ([]string, error) {
-	r.logger.InfoContext(ctx, "getting allowed origins")
-
-	var origins []AllowedOrigin
-	err := r.db.Model(&AllowedOrigin{}).Where("project_id = ?", projectID).Find(&origins).Error
-	if err != nil {
-		r.logger.ErrorContext(ctx, "error getting allowed origins", logger.Error(err))
-		return nil, err
-	}
-
-	return r.parser.toDomainAllowedOrigins(origins), nil
-}
-
-func (r *repository) GetAllowedOriginsByAPIKey(ctx context.Context, apiKey string) ([]string, error) {
-	r.logger.InfoContext(ctx, "getting allowed origins by API key")
-
-	var origins []AllowedOrigin
-	err := r.db.Model(&AllowedOrigin{}).Joins("JOIN shld_projects ON shld_projects.id = shld_allowed_origins.project_id").Where("shld_projects.api_key = ?", apiKey).Find(&origins).Error
-	if err != nil {
-		r.logger.ErrorContext(ctx, "error getting allowed origins", logger.Error(err))
-		return nil, err
-	}
-
-	return r.parser.toDomainAllowedOrigins(origins), nil
-}
-
 func (r *repository) GetEncryptionPart(ctx context.Context, projectID string) (string, error) {
 	r.logger.InfoContext(ctx, "getting encryption part")
 
