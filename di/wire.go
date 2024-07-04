@@ -5,6 +5,15 @@ package di
 
 import (
 	"github.com/google/wire"
+	"go.openfort.xyz/shield/internal/adapters/authenticationmgr"
+	identity2 "go.openfort.xyz/shield/internal/adapters/authenticators/identity"
+	"go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
+	"go.openfort.xyz/shield/internal/adapters/handlers/rest"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -13,14 +22,6 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
-	"go.openfort.xyz/shield/internal/infrastructure/authenticationmgr"
-	"go.openfort.xyz/shield/internal/infrastructure/handlers/rest"
-	"go.openfort.xyz/shield/internal/infrastructure/providersmgr"
-	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql"
-	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql/projectrepo"
-	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql/providerrepo"
-	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql/sharerepo"
-	"go.openfort.xyz/shield/internal/infrastructure/repositories/sql/userrepo"
 )
 
 func ProvideSQL() (c *sql.Client, err error) {
@@ -104,10 +105,10 @@ func ProvideShareService() (s services.ShareService, err error) {
 	return
 }
 
-func ProvideProviderManager() (pm *providersmgr.Manager, err error) {
+func ProvideProviderManager() (pm *identity2.identityFactory, err error) {
 	wire.Build(
-		providersmgr.NewManager,
-		providersmgr.GetConfigFromEnv,
+		identity2.NewIdentityFactory,
+		openfort_identity.GetConfigFromEnv,
 		ProvideSQLProviderRepository,
 	)
 

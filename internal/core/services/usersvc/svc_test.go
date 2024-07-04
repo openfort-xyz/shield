@@ -3,12 +3,12 @@ package usersvc
 import (
 	"context"
 	"errors"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/core/domain"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/usermockedrepo"
 	"go.openfort.xyz/shield/internal/core/domain/user"
-	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/usermockedrepo"
 )
 
 func TestCreateUser(t *testing.T) {
@@ -73,10 +73,10 @@ func TestGetUser(t *testing.T) {
 		{
 			name:    "not found",
 			wantErr: true,
-			err:     domain.ErrUserNotFound,
+			err:     domainErrors.ErrUserNotFound,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
-				mockRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domain.ErrUserNotFound)
+				mockRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrUserNotFound)
 			},
 		},
 		{
@@ -128,16 +128,16 @@ func TestGetUserByExternal(t *testing.T) {
 		{
 			name:    "external not found",
 			wantErr: true,
-			err:     domain.ErrExternalUserNotFound,
+			err:     domainErrors.ErrExternalUserNotFound,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
-				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return(nil, domain.ErrExternalUserNotFound)
+				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrExternalUserNotFound)
 			},
 		},
 		{
 			name:    "external empty",
 			wantErr: true,
-			err:     domain.ErrExternalUserNotFound,
+			err:     domainErrors.ErrExternalUserNotFound,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
 				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return([]*user.ExternalUser{}, nil)
@@ -146,11 +146,11 @@ func TestGetUserByExternal(t *testing.T) {
 		{
 			name:    "user not found",
 			wantErr: true,
-			err:     domain.ErrUserNotFound,
+			err:     domainErrors.ErrUserNotFound,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
 				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return([]*user.ExternalUser{{}}, nil)
-				mockRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domain.ErrUserNotFound)
+				mockRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrUserNotFound)
 			},
 		},
 		{
@@ -203,16 +203,16 @@ func TestCreateExternalUser(t *testing.T) {
 		{
 			name:    "user not found on repo",
 			wantErr: true,
-			err:     domain.ErrUserNotFound,
+			err:     domainErrors.ErrUserNotFound,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
-				mockRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domain.ErrUserNotFound)
+				mockRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrUserNotFound)
 			},
 		},
 		{
 			name:    "user empty on repo",
 			wantErr: true,
-			err:     domain.ErrUserNotFound,
+			err:     domainErrors.ErrUserNotFound,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
 				mockRepo.On("Get", mock.Anything, mock.Anything).Return(nil, nil)
@@ -221,7 +221,7 @@ func TestCreateExternalUser(t *testing.T) {
 		{
 			name:    "user not found project mismatch",
 			wantErr: true,
-			err:     domain.ErrUserNotFound,
+			err:     domainErrors.ErrUserNotFound,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
 				mockRepo.On("Get", mock.Anything, mock.Anything).Return(&user.User{ProjectID: "noproject"}, nil)
@@ -235,7 +235,7 @@ func TestCreateExternalUser(t *testing.T) {
 				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return([]*user.ExternalUser{{}}, nil)
 			},
 			wantErr: true,
-			err:     domain.ErrExternalUserAlreadyExists,
+			err:     domainErrors.ErrExternalUserAlreadyExists,
 		},
 		{
 			name:    "cant find external user",

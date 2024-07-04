@@ -5,11 +5,11 @@ import (
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/core/domain"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
-	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/projectmockrepo"
-	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/sharemockrepo"
 	"go.openfort.xyz/shield/pkg/contexter"
 	"go.openfort.xyz/shield/pkg/cypher"
 	"testing"
@@ -102,7 +102,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(encryptedShare, nil)
-				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domain.ErrEncryptionPartNotFound)
+				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 			},
 			opts: []Option{
 				WithEncryptionPart(externalPart),
@@ -140,7 +140,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domain.ErrShareNotFound)
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
 			},
 		},
 		{
@@ -172,7 +172,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(encryptedShare, nil)
-				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domain.ErrEncryptionPartNotFound)
+				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 			},
 			opts: []Option{
 				WithEncryptionPart(externalPart),
@@ -240,7 +240,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			share:   plainShare,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domain.ErrShareNotFound)
+				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, plainShare).Return(nil)
 			},
 		},
@@ -251,7 +251,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domain.ErrShareNotFound)
+				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, encryptedShare).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 			},
@@ -265,7 +265,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			share:   encryptedShare,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domain.ErrShareNotFound)
+				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 			},
 		},
 		{
@@ -275,8 +275,8 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domain.ErrShareNotFound)
-				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domain.ErrEncryptionPartNotFound)
+				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 			},
 			opts: []Option{
 				WithEncryptionPart(externalPart),
@@ -289,7 +289,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domain.ErrShareNotFound)
+				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 			},
 			opts: []Option{
@@ -353,7 +353,7 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 			wantErr: ErrShareNotFound,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domain.ErrShareNotFound)
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
 			},
 		},
 		{

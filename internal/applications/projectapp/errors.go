@@ -2,8 +2,7 @@ package projectapp
 
 import (
 	"errors"
-
-	"go.openfort.xyz/shield/internal/core/domain"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 )
 
 var (
@@ -26,27 +25,27 @@ func fromDomainError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, domain.ErrProjectNotFound) {
+	if errors.Is(err, domainErrors.ErrProjectNotFound) {
 		return ErrProjectNotFound
 	}
 
-	if errors.Is(err, domain.ErrInvalidProviderConfig) {
+	if errors.Is(err, domainErrors.ErrInvalidProviderConfig) {
 		return ErrInvalidProviderConfig
 	}
 
-	if errors.Is(err, domain.ErrUnknownProviderType) {
+	if errors.Is(err, domainErrors.ErrUnknownProviderType) {
 		return ErrUnknownProviderType
 	}
 
-	if errors.Is(err, domain.ErrProviderAlreadyExists) {
+	if errors.Is(err, domainErrors.ErrProviderAlreadyExists) {
 		return ErrProviderAlreadyExists
 	}
 
-	if errors.Is(err, domain.ErrProviderNotFound) {
+	if errors.Is(err, domainErrors.ErrProviderNotFound) {
 		return ErrProviderNotFound
 	}
 
-	if errors.Is(err, domain.ErrEncryptionPartNotFound) {
+	if errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
 		return ErrEncryptionNotConfigured
 	}
 

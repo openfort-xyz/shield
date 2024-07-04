@@ -3,9 +3,9 @@ package sharesvc
 import (
 	"context"
 	"errors"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"log/slog"
 
-	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
@@ -31,14 +31,14 @@ func (s *service) Create(ctx context.Context, shr *share.Share, opts ...services
 	s.logger.InfoContext(ctx, "creating share", slog.String("user_id", shr.UserID))
 
 	shrRepo, err := s.repo.GetByUserID(ctx, shr.UserID)
-	if err != nil && !errors.Is(err, domain.ErrShareNotFound) {
+	if err != nil && !errors.Is(err, domainErrors.ErrShareNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get share", logger.Error(err))
 		return err
 	}
 
 	if shrRepo != nil {
 		s.logger.ErrorContext(ctx, "share already exists", slog.String("user_id", shr.UserID))
-		return domain.ErrShareAlreadyExists
+		return domainErrors.ErrShareAlreadyExists
 	}
 
 	var o services.ShareOptions
@@ -48,7 +48,7 @@ func (s *service) Create(ctx context.Context, shr *share.Share, opts ...services
 
 	if shr.RequiresEncryption() {
 		if o.EncryptionKey == nil {
-			return domain.ErrEncryptionPartRequired
+			return domainErrors.ErrEncryptionPartRequired
 		}
 
 		shr.Secret, err = cypher.Encrypt(shr.Secret, *o.EncryptionKey)

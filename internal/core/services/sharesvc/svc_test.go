@@ -3,14 +3,14 @@ package sharesvc
 import (
 	"context"
 	"errors"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/cypher"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/core/domain"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
 	"go.openfort.xyz/shield/internal/core/domain/share"
-	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/sharemockrepo"
 )
 
 func TestCreateShare(t *testing.T) {
@@ -53,7 +53,7 @@ func TestCreateShare(t *testing.T) {
 			share:   testShare,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domain.ErrShareNotFound)
+				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
 				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*share.Share")).Return(nil)
 			},
 		},
@@ -63,7 +63,7 @@ func TestCreateShare(t *testing.T) {
 			wantErr: false,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domain.ErrShareNotFound)
+				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
 				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*share.Share")).Return(nil)
 			},
 			opts: []services.ShareOption{
@@ -76,9 +76,9 @@ func TestCreateShare(t *testing.T) {
 			share:   testEncryptionShare,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domain.ErrShareNotFound)
+				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
 			},
-			err: domain.ErrEncryptionPartRequired,
+			err: domainErrors.ErrEncryptionPartRequired,
 		},
 		{
 			name:    "encryption error",
@@ -86,7 +86,7 @@ func TestCreateShare(t *testing.T) {
 			share:   testEncryptionShare,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domain.ErrShareNotFound)
+				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
 			},
 			opts: []services.ShareOption{
 				services.WithEncryptionKey("invalid-key"),
@@ -96,7 +96,7 @@ func TestCreateShare(t *testing.T) {
 			name:    "share already exists",
 			wantErr: true,
 			share:   testShare,
-			err:     domain.ErrShareAlreadyExists,
+			err:     domainErrors.ErrShareAlreadyExists,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
 				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(&share.Share{}, nil)
@@ -117,7 +117,7 @@ func TestCreateShare(t *testing.T) {
 			share:   testShare,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domain.ErrShareNotFound)
+				mockRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
 				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*share.Share")).Return(errors.New("repository error"))
 			},
 		},

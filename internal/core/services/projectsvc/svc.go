@@ -3,10 +3,10 @@ package projectsvc
 import (
 	"context"
 	"errors"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"log/slog"
 
 	"github.com/google/uuid"
-	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
@@ -58,14 +58,14 @@ func (s *service) Create(ctx context.Context, name string) (*project.Project, er
 func (s *service) SetEncryptionPart(ctx context.Context, projectID, part string) error {
 	s.logger.InfoContext(ctx, "setting encryption part", slog.String("project_id", projectID))
 	ep, err := s.repo.GetEncryptionPart(ctx, projectID)
-	if err != nil && !errors.Is(err, domain.ErrEncryptionPartNotFound) {
+	if err != nil && !errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
 		return err
 	}
 
 	if ep != "" {
 		s.logger.Warn("encryption part already exists", slog.String("project_id", projectID))
-		return domain.ErrEncryptionPartAlreadyExists
+		return domainErrors.ErrEncryptionPartAlreadyExists
 	}
 
 	err = s.repo.SetEncryptionPart(ctx, projectID, part)

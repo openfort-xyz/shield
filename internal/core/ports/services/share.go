@@ -13,18 +13,11 @@ type ShareService interface {
 type ShareOption func(*ShareOptions)
 
 type ShareOptions struct {
-	EncryptionKey     *string
-	EncryptionSession *string
+	EncryptionKey *string
 }
 
 func WithEncryptionKey(key string) ShareOption {
 	return func(o *ShareOptions) {
 		o.EncryptionKey = &key
-	}
-}
-
-func WithEncryptionSession(session string) ShareOption {
-	return func(o *ShareOptions) {
-		o.EncryptionSession = &session
 	}
 }

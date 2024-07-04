@@ -3,9 +3,9 @@ package projectapp
 import (
 	"context"
 	"errors"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"log/slog"
 
-	"go.openfort.xyz/shield/internal/core/domain"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/domain/share"
@@ -93,7 +93,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	var providers []*provider.Provider
 	if cfg.openfortPublishableKey != nil {
 		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeOpenfort)
-		if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
+		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
 			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
@@ -109,7 +109,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 
 	if cfg.jwkURL != nil {
 		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
-		if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
+		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
 			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
@@ -121,7 +121,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 
 	if cfg.pem != nil {
 		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
-		if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
+		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
 			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
@@ -320,7 +320,7 @@ func (a *ProjectApplication) RegisterEncryptionKey(ctx context.Context) (string,
 	projectID := contexter.GetProjectID(ctx)
 
 	ep, err := a.projectRepo.GetEncryptionPart(ctx, projectID)
-	if err != nil && !errors.Is(err, domain.ErrEncryptionPartNotFound) {
+	if err != nil && !errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
 		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
 		return "", fromDomainError(err)
 	}
