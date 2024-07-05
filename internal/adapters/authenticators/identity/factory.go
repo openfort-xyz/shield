@@ -32,7 +32,7 @@ func (p *identityFactory) CreateCustomIdentity(ctx context.Context, apiKey strin
 	prov, err := p.repo.GetByAPIKeyAndType(ctx, apiKey, provider.TypeCustom)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrProjectNotFound) {
-			return nil, ErrProviderNotConfigured
+			return nil, domainErrors.ErrProviderNotConfigured
 		}
 		p.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 		return nil, err
@@ -40,7 +40,7 @@ func (p *identityFactory) CreateCustomIdentity(ctx context.Context, apiKey strin
 
 	config, ok := prov.Config.(*provider.CustomConfig)
 	if !ok {
-		return nil, ErrProviderConfigMismatch
+		return nil, domainErrors.ErrProviderConfigMismatch
 	}
 
 	return custom_identity.NewCustomIdentityFactory(config), nil
@@ -50,7 +50,7 @@ func (p *identityFactory) CreateOpenfortIdentity(ctx context.Context, apiKey str
 	prov, err := p.repo.GetByAPIKeyAndType(ctx, apiKey, provider.TypeOpenfort)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrProjectNotFound) {
-			return nil, ErrProviderNotConfigured
+			return nil, domainErrors.ErrProviderNotConfigured
 		}
 		p.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 		return nil, err
@@ -58,7 +58,7 @@ func (p *identityFactory) CreateOpenfortIdentity(ctx context.Context, apiKey str
 
 	config, ok := prov.Config.(*provider.OpenfortConfig)
 	if !ok {
-		return nil, ErrProviderConfigMismatch
+		return nil, domainErrors.ErrProviderConfigMismatch
 	}
 
 	return openfort_identity.NewOpenfortIdentityFactory(p.config, config, authenticationProvider, tokenType), nil

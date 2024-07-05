@@ -7,4 +7,5 @@ var (
 	ErrEncryptionPartNotFound      = errors.New("encryption part not found")
 	ErrEncryptionPartAlreadyExists = errors.New("encryption part already exists")
 	ErrEncryptionPartRequired      = errors.New("encryption part is required")
+	ErrInvalidEncryptionSession    = errors.New("invalid encryption session")
 )

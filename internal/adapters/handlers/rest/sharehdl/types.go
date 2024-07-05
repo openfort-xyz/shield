@@ -1,15 +1,17 @@
 package sharehdl
 
 const EncryptionPartHeader = "X-Encryption-Part"
+const EncryptionSessionHeader = "X-Encryption-Session"
 
 type Share struct {
-	Secret         string  `json:"secret"`
-	Entropy        Entropy `json:"entropy"`
-	Salt           string  `json:"salt,omitempty"`
-	Iterations     int     `json:"iterations,omitempty"`
-	Length         int     `json:"length,omitempty"`
-	Digest         string  `json:"digest,omitempty"`
-	EncryptionPart string  `json:"encryption_part,omitempty"`
+	Secret            string  `json:"secret"`
+	Entropy           Entropy `json:"entropy"`
+	Salt              string  `json:"salt,omitempty"`
+	Iterations        int     `json:"iterations,omitempty"`
+	Length            int     `json:"length,omitempty"`
+	Digest            string  `json:"digest,omitempty"`
+	EncryptionPart    string  `json:"encryption_part,omitempty"`
+	EncryptionSession string  `json:"encryption_session,omitempty"`
 }
 
 type RegisterShareRequest Share

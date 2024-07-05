@@ -2,7 +2,6 @@ package sharehdl
 
 import (
 	"errors"
-
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
 )
@@ -28,6 +27,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrEncryptionNotConfigured
 	case errors.Is(err, shareapp.ErrInvalidEncryptionPart):
 		return api.ErrInvalidEncryptionPart
+	case errors.Is(err, shareapp.ErrInvalidEncryptionSession):
+		return api.ErrInvalidEncryptionSession
 	default:
 		return api.ErrInternal
 	}

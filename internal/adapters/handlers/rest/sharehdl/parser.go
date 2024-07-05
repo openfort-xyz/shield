@@ -30,6 +30,10 @@ func (p *parser) toDomain(s *Share) *share.Share {
 		},
 	}
 
+	if s.EncryptionPart != "" || s.EncryptionSession != "" {
+		shr.EncryptionParameters.Entropy = share.EntropyProject
+	}
+
 	if s.Salt != "" {
 		shr.EncryptionParameters.Salt = s.Salt
 	}

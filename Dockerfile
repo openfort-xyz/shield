@@ -8,5 +8,5 @@ FROM scratch
 WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /app/app /usr/bin/
-COPY internal/infrastructure/repositories/sql/migrations /app/internal/infrastructure/repositories/sql/migrations
+COPY internal/infrastructure/adapters/sql/migrations /app/internal/infrastructure/adapters/sql/migrations
 ENTRYPOINT ["app"]

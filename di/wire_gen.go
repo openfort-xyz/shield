@@ -7,10 +7,13 @@
 package di
 
 import (
-	"go.openfort.xyz/shield/internal/adapters/authenticationmgr"
-	identity2 "go.openfort.xyz/shield/internal/adapters/authenticators/identity"
+	"go.openfort.xyz/shield/internal/adapters/authenticators"
+	"go.openfort.xyz/shield/internal/adapters/authenticators/identity"
 	"go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
+	"go.openfort.xyz/shield/internal/adapters/encryption"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest"
+	"go.openfort.xyz/shield/internal/adapters/repositories/bunt"
+	"go.openfort.xyz/shield/internal/adapters/repositories/bunt/encryptionpartsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
@@ -18,6 +21,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
+	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/internal/core/services/projectsvc"
@@ -34,6 +38,14 @@ func ProvideSQL() (*sql.Client, error) {
 		return nil, err
 	}
 	client, err := sql.New(config)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func ProvideBuntDB() (*bunt.Client, error) {
+	client, err := bunt.New()
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +88,15 @@ func ProvideSQLShareRepository() (repositories.ShareRepository, error) {
 	return shareRepository, nil
 }
 
+func ProvideInMemoryEncryptionPartsRepository() (repositories.EncryptionPartsRepository, error) {
+	client, err := ProvideBuntDB()
+	if err != nil {
+		return nil, err
+	}
+	encryptionPartsRepository := encryptionpartsrepo.New(client)
+	return encryptionPartsRepository, nil
+}
+
 func ProvideProjectService() (services.ProjectService, error) {
 	projectRepository, err := ProvideSQLProjectRepository()
 	if err != nil {
@@ -103,26 +124,30 @@ func ProvideUserService() (services.UserService, error) {
 	return userService, nil
 }
 
+func ProvideEncryptionFactory() (factories.EncryptionFactory, error) {
+	encryptionPartsRepository, err := ProvideInMemoryEncryptionPartsRepository()
+	if err != nil {
+		return nil, err
+	}
+	projectRepository, err := ProvideSQLProjectRepository()
+	if err != nil {
+		return nil, err
+	}
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepository, projectRepository)
+	return encryptionFactory, nil
+}
+
 func ProvideShareService() (services.ShareService, error) {
 	shareRepository, err := ProvideSQLShareRepository()
 	if err != nil {
 		return nil, err
 	}
-	shareService := sharesvc.New(shareRepository)
+	encryptionFactory, err := ProvideEncryptionFactory()
+	if err != nil {
+		return nil, err
+	}
+	shareService := sharesvc.New(shareRepository, encryptionFactory)
 	return shareService, nil
-}
-
-func ProvideProviderManager() (*identity2.identityFactory, error) {
-	config, err := openfort_identity.GetConfigFromEnv()
-	if err != nil {
-		return nil, err
-	}
-	providerRepository, err := ProvideSQLProviderRepository()
-	if err != nil {
-		return nil, err
-	}
-	manager := identity2.NewIdentityFactory(config, providerRepository)
-	return manager, nil
 }
 
 func ProvideShareApplication() (*shareapp.ShareApplication, error) {
@@ -138,7 +163,11 @@ func ProvideShareApplication() (*shareapp.ShareApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	shareApplication := shareapp.New(shareService, shareRepository, projectRepository)
+	encryptionFactory, err := ProvideEncryptionFactory()
+	if err != nil {
+		return nil, err
+	}
+	shareApplication := shareapp.New(shareService, shareRepository, projectRepository, encryptionFactory)
 	return shareApplication, nil
 }
 
@@ -163,16 +192,20 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository)
-	return projectApplication, nil
-}
-
-func ProvideAuthenticationManager() (*authenticationmgr.Manager, error) {
-	projectRepository, err := ProvideSQLProjectRepository()
+	encryptionFactory, err := ProvideEncryptionFactory()
 	if err != nil {
 		return nil, err
 	}
-	manager, err := ProvideProviderManager()
+	encryptionPartsRepository, err := ProvideInMemoryEncryptionPartsRepository()
+	if err != nil {
+		return nil, err
+	}
+	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, encryptionFactory, encryptionPartsRepository)
+	return projectApplication, nil
+}
+
+func ProvideAuthenticationFactory() (factories.AuthenticationFactory, error) {
+	projectRepository, err := ProvideSQLProjectRepository()
 	if err != nil {
 		return nil, err
 	}
@@ -180,8 +213,21 @@ func ProvideAuthenticationManager() (*authenticationmgr.Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	authenticationmgrManager := authenticationmgr.NewManager(projectRepository, manager, userService)
-	return authenticationmgrManager, nil
+	authenticationFactory := authenticators.NewAuthenticatorFactory(projectRepository, userService)
+	return authenticationFactory, nil
+}
+
+func ProvideIdentityFactory() (factories.IdentityFactory, error) {
+	config, err := openfort_identity.GetConfigFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	providerRepository, err := ProvideSQLProviderRepository()
+	if err != nil {
+		return nil, err
+	}
+	identityFactory := identity.NewIdentityFactory(config, providerRepository)
+	return identityFactory, nil
 }
 
 func ProvideRESTServer() (*rest.Server, error) {
@@ -197,10 +243,18 @@ func ProvideRESTServer() (*rest.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	manager, err := ProvideAuthenticationManager()
+	authenticationFactory, err := ProvideAuthenticationFactory()
 	if err != nil {
 		return nil, err
 	}
-	server := rest.New(config, projectApplication, shareApplication, manager)
+	identityFactory, err := ProvideIdentityFactory()
+	if err != nil {
+		return nil, err
+	}
+	userService, err := ProvideUserService()
+	if err != nil {
+		return nil, err
+	}
+	server := rest.New(config, projectApplication, shareApplication, authenticationFactory, identityFactory, userService)
 	return server, nil
 }

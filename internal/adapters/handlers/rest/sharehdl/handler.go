@@ -71,6 +71,9 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 	if req.EncryptionPart != "" {
 		opts = append(opts, shareapp.WithEncryptionPart(req.EncryptionPart))
 	}
+	if req.EncryptionSession != "" {
+		opts = append(opts, shareapp.WithEncryptionSession(req.EncryptionSession))
+	}
 	err = h.app.RegisterShare(ctx, share, opts...)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
@@ -132,6 +135,11 @@ func (h *Handler) GetShare(w http.ResponseWriter, r *http.Request) {
 	encryptionPart := r.Header.Get(EncryptionPartHeader)
 	if encryptionPart != "" {
 		opts = append(opts, shareapp.WithEncryptionPart(encryptionPart))
+	}
+
+	encryptionSession := r.Header.Get(EncryptionSessionHeader)
+	if encryptionSession != "" {
+		opts = append(opts, shareapp.WithEncryptionSession(encryptionSession))
 	}
 
 	shr, err := h.app.GetShare(ctx, opts...)

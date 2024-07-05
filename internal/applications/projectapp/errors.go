@@ -15,6 +15,7 @@ var (
 	ErrProviderAlreadyExists       = errors.New("custom authentication already registered for this project")
 	ErrProviderNotFound            = errors.New("custom authentication not found")
 	ErrInvalidEncryptionPart       = errors.New("invalid encryption part")
+	ErrInvalidEncryptionSession    = errors.New("invalid encryption session")
 	ErrEncryptionPartAlreadyExists = errors.New("encryption part already exists")
 	ErrEncryptionNotConfigured     = errors.New("encryption not configured")
 	ErrJWKPemConflict              = errors.New("jwk and pem cannot be set at the same time")
@@ -49,5 +50,8 @@ func fromDomainError(err error) error {
 		return ErrEncryptionNotConfigured
 	}
 
+	if errors.Is(err, domainErrors.ErrInvalidEncryptionSession) {
+		return ErrInvalidEncryptionSession
+	}
 	return ErrInternal
 }

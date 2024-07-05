@@ -4,26 +4,28 @@ import (
 	"context"
 	"errors"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"log/slog"
 
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/pkg/cypher"
 	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type service struct {
-	repo   repositories.ShareRepository
-	logger *slog.Logger
+	repo              repositories.ShareRepository
+	logger            *slog.Logger
+	encryptionFactory factories.EncryptionFactory
 }
 
 var _ services.ShareService = (*service)(nil)
 
-func New(repo repositories.ShareRepository) services.ShareService {
+func New(repo repositories.ShareRepository, encryptionFactory factories.EncryptionFactory) services.ShareService {
 	return &service{
-		repo:   repo,
-		logger: logger.New("share_service"),
+		repo:              repo,
+		logger:            logger.New("share_service"),
+		encryptionFactory: encryptionFactory,
 	}
 }
 
@@ -51,7 +53,8 @@ func (s *service) Create(ctx context.Context, shr *share.Share, opts ...services
 			return domainErrors.ErrEncryptionPartRequired
 		}
 
-		shr.Secret, err = cypher.Encrypt(shr.Secret, *o.EncryptionKey)
+		cypher := s.encryptionFactory.CreateEncryptionStrategy(*o.EncryptionKey)
+		shr.Secret, err = cypher.Encrypt(shr.Secret)
 		if err != nil {
 			s.logger.ErrorContext(ctx, "failed to encrypt secret", logger.Error(err))
 			return err

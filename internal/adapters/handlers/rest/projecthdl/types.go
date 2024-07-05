@@ -83,3 +83,11 @@ type EncryptBodyRequest struct {
 type RegisterEncryptionKeyResponse struct {
 	EncryptionPart string `json:"encryption_part"`
 }
+
+type RegisterEncryptionSessionRequest struct {
+	EncryptionPart string `json:"encryption_part"`
+}
+
+type RegisterEncryptionSessionResponse struct {
+	SessionID string `json:"session_id"`
+}

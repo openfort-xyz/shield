@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go.openfort.xyz/shield/internal/adapters/authenticators/identity"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/pkg/jwk"
 	"io"
@@ -87,7 +87,8 @@ func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authent
 	defer resp.Body.Close()
 
 	if resp.StatusCode/100 != 2 {
-		return "", identity.ErrUnexpectedStatusCode
+		o.logger.ErrorContext(ctx, "unexpected status code", slog.Int("status_code", resp.StatusCode))
+		return "", domainErrors.ErrUnexpectedStatusCode
 	}
 
 	rawResponse, err := io.ReadAll(resp.Body)

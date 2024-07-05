@@ -50,21 +50,27 @@ func (r *repository) Get(ctx context.Context, sessionId string) (string, error) 
 func (r *repository) Set(ctx context.Context, sessionId, part string) error {
 	return r.db.Update(func(tx *buntdb.Tx) error {
 		_, _, err := tx.Set(sessionId, part, nil)
-		if errors.Is(err, buntdb.ErrIndexExists) {
-			return domainErrors.ErrEncryptionPartAlreadyExists
+		if err != nil {
+			if errors.Is(err, buntdb.ErrIndexExists) {
+				return domainErrors.ErrEncryptionPartAlreadyExists
+			}
+			r.logger.ErrorContext(ctx, "error setting encryption part", logger.Error(err))
+			return err
 		}
-		r.logger.ErrorContext(ctx, "error setting encryption part", logger.Error(err))
-		return err
+
+		return nil
 	})
 }
 
 func (r *repository) Delete(ctx context.Context, sessionId string) error {
 	return r.db.Update(func(tx *buntdb.Tx) error {
 		_, err := tx.Delete(sessionId)
-		if errors.Is(err, buntdb.ErrNotFound) {
-			return domainErrors.ErrEncryptionPartNotFound
+		if err != nil {
+			if errors.Is(err, buntdb.ErrNotFound) {
+				return domainErrors.ErrEncryptionPartNotFound
+			}
+			r.logger.ErrorContext(ctx, "error deleting encryption part", logger.Error(err))
 		}
-		r.logger.ErrorContext(ctx, "error deleting encryption part", logger.Error(err))
 		return err
 	})
 }

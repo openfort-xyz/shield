@@ -2,7 +2,7 @@ package custom_identity
 
 import (
 	"context"
-	"go.openfort.xyz/shield/internal/adapters/authenticators/identity"
+	"go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/pkg/jwk"
 	"log/slog"
@@ -42,7 +42,7 @@ func (c *CustomIdentityFactory) Identify(ctx context.Context, token string) (str
 	case c.config.JWK != "":
 		externalUserID, err = jwk.Validate(token, c.config.JWK) // TODO parse error
 	default:
-		return "", identity.ErrProviderMisconfigured
+		return "", errors.ErrProviderMisconfigured
 	}
 	if err != nil {
 		c.logger.ErrorContext(ctx, "failed to validate jwt", logger.Error(err))
@@ -68,7 +68,7 @@ func (c *CustomIdentityFactory) validatePEM(token string) (string, error) {
 			return jwt.ParseEdPublicKeyFromPEM([]byte(c.config.PEM))
 		}
 	default:
-		return "", identity.ErrCertTypeNotSupported
+		return "", errors.ErrCertTypeNotSupported
 	}
 
 	parsed, err := jwt.Parse(token, keyFunc)

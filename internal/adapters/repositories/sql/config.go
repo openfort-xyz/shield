@@ -33,7 +33,7 @@ type Config struct {
 	UnixSocketPath string `env:"INSTANCE_UNIX_SOCKET"`
 }
 
-const migrationDirectory = "internal/infrastructure/repositories/sql/migrations"
+const migrationDirectory = "internal/adapters/repositories/sql/migrations"
 
 func GetConfigFromEnv() (*Config, error) {
 	cfg := &Config{}

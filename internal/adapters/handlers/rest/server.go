@@ -3,13 +3,14 @@ package rest
 import (
 	"context"
 	"fmt"
+	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"go.openfort.xyz/shield/internal/core/ports/services"
 	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"go.openfort.xyz/shield/internal/adapters/authenticationmgr"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/authmdw"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/projecthdl"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/ratelimitermdw"
@@ -23,23 +24,27 @@ import (
 
 // Server is the REST server for the shield API
 type Server struct {
-	projectApp  *projectapp.ProjectApplication
-	shareApp    *shareapp.ShareApplication
-	authManager *authenticationmgr.Manager
-	server      *http.Server
-	logger      *slog.Logger
-	config      *Config
+	projectApp            *projectapp.ProjectApplication
+	shareApp              *shareapp.ShareApplication
+	server                *http.Server
+	logger                *slog.Logger
+	config                *Config
+	authenticationFactory factories.AuthenticationFactory
+	identityFactory       factories.IdentityFactory
+	userService           services.UserService
 }
 
 // New creates a new REST server
-func New(cfg *Config, projectApp *projectapp.ProjectApplication, shareApp *shareapp.ShareApplication, authManager *authenticationmgr.Manager) *Server {
+func New(cfg *Config, projectApp *projectapp.ProjectApplication, shareApp *shareapp.ShareApplication, authenticationFactory factories.AuthenticationFactory, identityFactory factories.IdentityFactory, userService services.UserService) *Server {
 	return &Server{
-		projectApp:  projectApp,
-		shareApp:    shareApp,
-		authManager: authManager,
-		server:      new(http.Server),
-		logger:      logger.New("rest_server"),
-		config:      cfg,
+		projectApp:            projectApp,
+		shareApp:              shareApp,
+		server:                new(http.Server),
+		logger:                logger.New("rest_server"),
+		config:                cfg,
+		authenticationFactory: authenticationFactory,
+		identityFactory:       identityFactory,
+		userService:           userService,
 	}
 }
 
@@ -47,7 +52,7 @@ func New(cfg *Config, projectApp *projectapp.ProjectApplication, shareApp *share
 func (s *Server) Start(ctx context.Context) error {
 	projectHdl := projecthdl.New(s.projectApp)
 	shareHdl := sharehdl.New(s.shareApp)
-	authMdw := authmdw.New(s.authManager)
+	authMdw := authmdw.New(s.authenticationFactory, s.identityFactory, s.userService)
 	rateLimiterMdw := ratelimitermdw.New(s.config.RPS)
 
 	r := mux.NewRouter()
@@ -64,6 +69,7 @@ func (s *Server) Start(ctx context.Context) error {
 	p.HandleFunc("/providers/{provider}", projectHdl.UpdateProvider).Methods(http.MethodPut)
 	p.HandleFunc("/providers/{provider}", projectHdl.DeleteProvider).Methods(http.MethodDelete)
 	p.HandleFunc("/encrypt", projectHdl.EncryptProjectShares).Methods(http.MethodPost)
+	p.HandleFunc("/encryption-session", projectHdl.RegisterEncryptionSession).Methods(http.MethodPost)
 	p.HandleFunc("/encryption-key", projectHdl.RegisterEncryptionKey).Methods(http.MethodPost)
 
 	u := r.PathPrefix("/shares").Subrouter()

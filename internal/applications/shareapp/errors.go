@@ -14,6 +14,7 @@ var (
 	ErrEncryptionPartRequired    = errors.New("encryption part is required")
 	ErrEncryptionNotConfigured   = errors.New("encryption not configured")
 	ErrInvalidEncryptionPart     = errors.New("invalid encryption part")
+	ErrInvalidEncryptionSession  = errors.New("invalid encryption session")
 	ErrInternal                  = errors.New("internal error")
 )
 
@@ -34,5 +35,8 @@ func fromDomainError(err error) error {
 		return ErrEncryptionNotConfigured
 	}
 
+	if errors.Is(err, domainErrors.ErrInvalidEncryptionSession) {
+		return ErrInvalidEncryptionSession
+	}
 	return ErrInternal
 }

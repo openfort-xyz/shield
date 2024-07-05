@@ -346,6 +346,52 @@ func (h *Handler) EncryptProjectShares(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// RegisterEncryptionSession registers a session with a one-time encryption key for a project
+// @Summary Register encryption session
+// @Description Register a session with a one-time encryption key for a project
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param registerEncryptionSessionRequest body RegisterEncryptionSessionRequest true "Add Allowed Origin Request"
+// @Success 200 {object} RegisterEncryptionSessionResponse "Encryption session registered successfully"
+// @Failure 400 "Bad Request"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/encryption-session [post]
+func (h *Handler) RegisterEncryptionSession(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "registering encryption session")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+		return
+	}
+
+	var req RegisterEncryptionSessionRequest
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+
+	sessionID, err := h.app.RegisterEncryptionSession(ctx, req.EncryptionPart)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	resp, err := json.Marshal(RegisterEncryptionSessionResponse{SessionID: sessionID})
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}
+
 // RegisterEncryptionKey registers an encryption key for a project
 // @Summary Register encryption key
 // @Description Register an encryption key for a project

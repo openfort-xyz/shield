@@ -3,30 +3,11 @@ package cypher
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"io"
-
 	"github.com/codahale/sss"
+	"go.openfort.xyz/shield/pkg/random"
 )
-
-func generateRandomBytes(n int) ([]byte, error) {
-	b := make([]byte, n)
-	_, err := io.ReadFull(rand.Reader, b)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func generateRandomString(n int) (string, error) {
-	b, err := generateRandomBytes(n)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(b), nil
-}
 
 func Encrypt(plaintext, key string) (string, error) {
 	keyBytes, err := base64.StdEncoding.DecodeString(key)
@@ -44,7 +25,7 @@ func Encrypt(plaintext, key string) (string, error) {
 		return "", err
 	}
 
-	nonce, err := generateRandomBytes(aesGCM.NonceSize())
+	nonce, err := random.GenerateRandomBytes(aesGCM.NonceSize())
 	if err != nil {
 		return "", err
 	}
@@ -88,16 +69,7 @@ func Decrypt(encrypted, key string) (string, error) {
 	return string(plaintext), nil
 }
 
-func GenerateEncryptionKey() (string, string, error) {
-	key, err := generateRandomString(32)
-	if err != nil {
-		return "", "", err
-	}
-
-	return splitKey(key)
-}
-
-func splitKey(key string) (string, string, error) {
+func SplitEncryptionKey(key string) (string, string, error) {
 	rawKey, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
 		return "", "", err

@@ -2,13 +2,11 @@ package sql
 
 import (
 	"database/sql"
-	"fmt"
-	"path/filepath"
-
 	"github.com/pressly/goose"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"path/filepath"
 )
 
 type Client struct {
@@ -65,7 +63,6 @@ func newMySQL(cfg *Config) (gorm.Dialector, error) {
 
 func newCloudSQL(cfg *Config) (gorm.Dialector, error) {
 	dsn := cfg.CloudSQLDSN()
-	fmt.Println("DSN: " + dsn)
 	sqlDB, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err

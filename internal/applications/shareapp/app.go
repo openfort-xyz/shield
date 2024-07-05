@@ -2,6 +2,7 @@ package shareapp
 
 import (
 	"context"
+	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"log/slog"
 
 	"go.openfort.xyz/shield/internal/core/domain/share"
@@ -13,18 +14,20 @@ import (
 )
 
 type ShareApplication struct {
-	shareSvc    services.ShareService
-	shareRepo   repositories.ShareRepository
-	projectRepo repositories.ProjectRepository
-	logger      *slog.Logger
+	shareSvc          services.ShareService
+	shareRepo         repositories.ShareRepository
+	projectRepo       repositories.ProjectRepository
+	logger            *slog.Logger
+	encryptionFactory factories.EncryptionFactory
 }
 
-func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository) *ShareApplication {
+func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository, encryptionFactory factories.EncryptionFactory) *ShareApplication {
 	return &ShareApplication{
-		shareSvc:    shareSvc,
-		shareRepo:   shareRepo,
-		projectRepo: projectRepo,
-		logger:      logger.New("share_application"),
+		shareSvc:          shareSvc,
+		shareRepo:         shareRepo,
+		projectRepo:       projectRepo,
+		logger:            logger.New("share_application"),
+		encryptionFactory: encryptionFactory,
 	}
 }
 
@@ -41,10 +44,6 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 
 	var shrOpts []services.ShareOption
 	if shr.RequiresEncryption() {
-		if opt.encryptionPart == nil {
-			return ErrEncryptionPartRequired
-		}
-
 		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return err
@@ -114,20 +113,42 @@ func (a *ShareApplication) DeleteShare(ctx context.Context) error {
 }
 
 func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, error) {
-	if opt.encryptionPart == nil || *opt.encryptionPart == "" {
+	var builderType factories.EncryptionKeyBuilderType
+	var identifier string
+	switch {
+	case opt.encryptionPart != nil && *opt.encryptionPart != "":
+		builderType = factories.Plain
+		identifier = *opt.encryptionPart
+	case opt.encryptionSession != nil && *opt.encryptionSession != "":
+		builderType = factories.Session
+		identifier = *opt.encryptionSession
+	default:
 		return "", ErrEncryptionPartRequired
 	}
 
-	storedPart, err := a.projectRepo.GetEncryptionPart(ctx, projID)
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
+		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
+		return "", ErrInternal
+	}
+
+	err = builder.SetDatabasePart(ctx, projID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get database encryption part", logger.Error(err))
 		return "", fromDomainError(err)
 	}
 
-	encryptionKey, err := cypher.ReconstructEncryptionKey(storedPart, *opt.encryptionPart)
+	err = builder.SetProjectPart(ctx, identifier)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get project encryption part", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+
+	encryptionKey, err := builder.Build(ctx)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to reconstruct encryption key", logger.Error(err))
 		return "", ErrInvalidEncryptionPart
 	}
+
 	return encryptionKey, nil
 }

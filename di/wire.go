@@ -5,10 +5,13 @@ package di
 
 import (
 	"github.com/google/wire"
-	"go.openfort.xyz/shield/internal/adapters/authenticationmgr"
-	identity2 "go.openfort.xyz/shield/internal/adapters/authenticators/identity"
+	"go.openfort.xyz/shield/internal/adapters/authenticators"
+	"go.openfort.xyz/shield/internal/adapters/authenticators/identity"
 	"go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
+	"go.openfort.xyz/shield/internal/adapters/encryption"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest"
+	"go.openfort.xyz/shield/internal/adapters/repositories/bunt"
+	"go.openfort.xyz/shield/internal/adapters/repositories/bunt/encryptionpartsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
@@ -16,6 +19,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
+	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/internal/core/services/projectsvc"
@@ -28,6 +32,14 @@ func ProvideSQL() (c *sql.Client, err error) {
 	wire.Build(
 		sql.New,
 		sql.GetConfigFromEnv,
+	)
+
+	return
+}
+
+func ProvideBuntDB() (c *bunt.Client, err error) {
+	wire.Build(
+		bunt.New,
 	)
 
 	return
@@ -69,6 +81,15 @@ func ProvideSQLShareRepository() (r repositories.ShareRepository, err error) {
 	return
 }
 
+func ProvideInMemoryEncryptionPartsRepository() (r repositories.EncryptionPartsRepository, err error) {
+	wire.Build(
+		encryptionpartsrepo.New,
+		ProvideBuntDB,
+	)
+
+	return
+}
+
 func ProvideProjectService() (s services.ProjectService, err error) {
 	wire.Build(
 		projectsvc.New,
@@ -96,20 +117,21 @@ func ProvideUserService() (s services.UserService, err error) {
 	return
 }
 
-func ProvideShareService() (s services.ShareService, err error) {
+func ProvideEncryptionFactory() (f factories.EncryptionFactory, err error) {
 	wire.Build(
-		sharesvc.New,
-		ProvideSQLShareRepository,
+		encryption.NewEncryptionFactory,
+		ProvideInMemoryEncryptionPartsRepository,
+		ProvideSQLProjectRepository,
 	)
 
 	return
 }
 
-func ProvideProviderManager() (pm *identity2.identityFactory, err error) {
+func ProvideShareService() (s services.ShareService, err error) {
 	wire.Build(
-		identity2.NewIdentityFactory,
-		openfort_identity.GetConfigFromEnv,
-		ProvideSQLProviderRepository,
+		sharesvc.New,
+		ProvideSQLShareRepository,
+		ProvideEncryptionFactory,
 	)
 
 	return
@@ -121,6 +143,7 @@ func ProvideShareApplication() (a *shareapp.ShareApplication, err error) {
 		ProvideShareService,
 		ProvideSQLShareRepository,
 		ProvideSQLProjectRepository,
+		ProvideEncryptionFactory,
 	)
 
 	return
@@ -134,17 +157,28 @@ func ProvideProjectApplication() (a *projectapp.ProjectApplication, err error) {
 		ProvideProviderService,
 		ProvideSQLProviderRepository,
 		ProvideSQLShareRepository,
+		ProvideEncryptionFactory,
+		ProvideInMemoryEncryptionPartsRepository,
 	)
 
 	return
 }
 
-func ProvideAuthenticationManager() (am *authenticationmgr.Manager, err error) {
+func ProvideAuthenticationFactory() (f factories.AuthenticationFactory, err error) {
 	wire.Build(
-		authenticationmgr.NewManager,
-		ProvideSQLProjectRepository,
-		ProvideProviderManager,
+		authenticators.NewAuthenticatorFactory,
 		ProvideUserService,
+		ProvideSQLProjectRepository,
+	)
+
+	return
+}
+
+func ProvideIdentityFactory() (f factories.IdentityFactory, err error) {
+	wire.Build(
+		identity.NewIdentityFactory,
+		openfort_identity.GetConfigFromEnv,
+		ProvideSQLProviderRepository,
 	)
 
 	return
@@ -156,7 +190,9 @@ func ProvideRESTServer() (s *rest.Server, err error) {
 		rest.GetConfigFromEnv,
 		ProvideShareApplication,
 		ProvideProjectApplication,
-		ProvideAuthenticationManager,
+		ProvideUserService,
+		ProvideAuthenticationFactory,
+		ProvideIdentityFactory,
 	)
 
 	return

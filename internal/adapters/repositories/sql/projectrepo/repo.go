@@ -95,7 +95,7 @@ func (r *repository) GetEncryptionPart(ctx context.Context, projectID string) (s
 	r.logger.InfoContext(ctx, "getting encryption part")
 
 	encryptionPart := &EncryptionPart{}
-	err := r.db.Where("project_id = ?", projectID).First(encryptionPart).Error
+	err := r.db.Model(&EncryptionPart{}).Where("project_id = ?", projectID).First(encryptionPart).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", domainErrors.ErrEncryptionPartNotFound
