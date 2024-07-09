@@ -83,6 +83,69 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// UpdateShare updates a share
+// @Summary Update share
+// @Description Update a share for the user
+// @Tags Share
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param Authorization header string true "Bearer token"
+// @Param X-Auth-Provider header string true "Auth Provider"
+// @Param X-Openfort-Provider header string false "Openfort Provider"
+// @Param X-Openfort-Token-Type header string false "Openfort Token Type"
+// @Param updateShareRequest body UpdateShareRequest true "Update Share Request"
+// @Success 200 {object} UpdateShareResponse "Successful response"
+// @Failure 400 {object} api.Error "Bad Request"
+// @Failure 404 {object} api.Error "Not Found"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /shares [put]
+func (h *Handler) UpdateShare(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "updating share")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+		return
+	}
+
+	var req UpdateShareRequest
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+
+	if errV := h.validator.validateShare((*Share)(&req)); errV != nil {
+		api.RespondWithError(w, errV)
+		return
+	}
+
+	share := h.parser.toDomain((*Share)(&req))
+	var opts []shareapp.Option
+	if req.EncryptionPart != "" {
+		opts = append(opts, shareapp.WithEncryptionPart(req.EncryptionPart))
+	}
+	if req.EncryptionSession != "" {
+		opts = append(opts, shareapp.WithEncryptionSession(req.EncryptionSession))
+	}
+	shr, err := h.app.UpdateShare(ctx, share, opts...)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	resp, err := json.Marshal(UpdateShareResponse(*h.parser.fromDomain(shr)))
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}
+
 // DeleteShare deletes a share
 // @Summary Delete share
 // @Description Delete a share for the user

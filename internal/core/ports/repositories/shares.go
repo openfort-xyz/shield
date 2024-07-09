@@ -12,4 +12,5 @@ type ShareRepository interface {
 	Delete(ctx context.Context, shareID string) error
 	ListDecryptedByProjectID(ctx context.Context, projectID string) ([]*share.Share, error)
 	UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string) error
+	Update(ctx context.Context, shr *share.Share) error
 }

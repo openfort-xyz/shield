@@ -108,3 +108,16 @@ func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID string
 
 	return nil
 }
+
+func (r *repository) Update(ctx context.Context, shr *share.Share) error {
+	r.logger.InfoContext(ctx, "updating share", slog.String("id", shr.ID))
+
+	dbShr := r.parser.toDatabase(shr)
+	err := r.db.Model(&Share{}).Where("id = ?", shr.ID).Updates(dbShr).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
+		return err
+	}
+
+	return nil
+}

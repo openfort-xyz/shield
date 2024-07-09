@@ -44,3 +44,8 @@ func (m *MockShareRepository) UpdateProjectEncryption(ctx context.Context, share
 	args := m.Mock.Called(ctx, shareID, encrypted)
 	return args.Error(0)
 }
+
+func (m *MockShareRepository) Update(ctx context.Context, shr *share.Share) error {
+	args := m.Mock.Called(ctx, shr)
+	return args.Error(0)
+}

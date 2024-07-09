@@ -16,6 +16,8 @@ type Share struct {
 
 type RegisterShareRequest Share
 type GetShareResponse Share
+type UpdateShareRequest Share
+type UpdateShareResponse Share
 
 type Entropy string
 
