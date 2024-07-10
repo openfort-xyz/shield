@@ -5,7 +5,6 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"github.com/codahale/sss"
 	"go.openfort.xyz/shield/pkg/random"
 )
@@ -36,34 +35,28 @@ func Encrypt(plaintext, key string) (string, error) {
 }
 
 func Decrypt(encrypted, key string) (string, error) {
-	fmt.Printf("encrypted: %s key: %s\n", encrypted, key)
 	encryptedBytes, err := base64.StdEncoding.DecodeString(encrypted)
 	if err != nil {
-		fmt.Println("error decoding base64")
 		return "", err
 	}
 
 	keyBytes, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
-		fmt.Println("error decoding key")
 		return "", err
 	}
 
 	block, err := aes.NewCipher(keyBytes)
 	if err != nil {
-		fmt.Println("error creating cipher")
 		return "", err
 	}
 
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
-		fmt.Println("error creating gcm")
 		return "", err
 	}
 
 	nonceSize := aesGCM.NonceSize()
 	if len(encryptedBytes) < nonceSize {
-		fmt.Println("invalid nonce size")
 		return "", errors.New("ciphertext too short")
 	}
 
