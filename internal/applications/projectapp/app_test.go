@@ -5,6 +5,8 @@ import (
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.openfort.xyz/shield/internal/adapters/encryption"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/providermockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
@@ -15,7 +17,7 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/projectsvc"
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/pkg/contexter"
-	"go.openfort.xyz/shield/pkg/cypher"
+	"go.openfort.xyz/shield/pkg/random"
 	"testing"
 )
 
@@ -27,7 +29,9 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 	providerRepo := new(providermockrepo.MockProviderRepository)
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
 
 	tc := []struct {
 		name     string
@@ -130,7 +134,9 @@ func TestProjectApplication_GetProject(t *testing.T) {
 	providerRepo := new(providermockrepo.MockProviderRepository)
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
 	projOK := &project.Project{
 		ID:             "project-id",
 		Name:           "project name",
@@ -193,7 +199,9 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 	providerRepo := new(providermockrepo.MockProviderRepository)
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
 
 	tc := []struct {
 		name          string
@@ -363,7 +371,9 @@ func TestProjectApplication_GetProviders(t *testing.T) {
 	providerRepo := new(providermockrepo.MockProviderRepository)
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
 	providers := []*provider.Provider{
 		{
 			ID:        "provider-id",
@@ -433,7 +443,9 @@ func TestProjectApplication_GetProviderDetail(t *testing.T) {
 	providerRepo := new(providermockrepo.MockProviderRepository)
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
 
 	prov := &provider.Provider{
 		ID:        "provider-id",
@@ -517,7 +529,9 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 	providerRepo := new(providermockrepo.MockProviderRepository)
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
 
 	openfortProvider := &provider.Provider{
 		ID:        "provider-id",
@@ -729,7 +743,9 @@ func TestProjectApplication_RemoveProvider(t *testing.T) {
 	providerRepo := new(providermockrepo.MockProviderRepository)
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
 
 	openfortProvider := &provider.Provider{
 		ID:        "provider-id",
@@ -819,9 +835,17 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 	providerRepo := new(providermockrepo.MockProviderRepository)
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
 
-	storedPart, externalPart, err := cypher.GenerateEncryptionKey()
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf(key)
+	}
+
+	reconstructor := encryptionFactory.CreateReconstructionStrategy()
+	storedPart, projectPart, err := reconstructor.Split(key)
 	if err != nil {
 		t.Fatalf("failed to generate encryption key: %v", err)
 	}
@@ -865,7 +889,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 	}{
 		{
 			name:         "success",
-			externalPart: externalPart,
+			externalPart: projectPart,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.ExpectedCalls = nil
@@ -877,7 +901,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 		},
 		{
 			name:         "encryption part not found",
-			externalPart: externalPart,
+			externalPart: projectPart,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", domainErrors.ErrEncryptionPartNotFound)
@@ -886,7 +910,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 		},
 		{
 			name:         "error getting encryption part",
-			externalPart: externalPart,
+			externalPart: projectPart,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", errors.New("repository error"))
@@ -904,7 +928,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 		},
 		{
 			name:         "error listing shares",
-			externalPart: externalPart,
+			externalPart: projectPart,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.ExpectedCalls = nil
@@ -915,7 +939,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 		},
 		{
 			name:         "error updating share",
-			externalPart: externalPart,
+			externalPart: projectPart,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return(storedPart, nil)
@@ -945,7 +969,9 @@ func TestProjectApplication_RegisterEncryptionKey(t *testing.T) {
 	providerRepo := new(providermockrepo.MockProviderRepository)
 	projectService := projectsvc.New(projectRepo)
 	providerService := providersvc.New(providerRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
 
 	tc := []struct {
 		name    string

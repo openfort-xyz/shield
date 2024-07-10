@@ -27,9 +27,9 @@ func NewEncryptionFactory(encryptionPartsRepo repositories.EncryptionPartsReposi
 func (e *encryptionFactory) CreateEncryptionKeyBuilder(builderType factories.EncryptionKeyBuilderType) (builders.EncryptionKeyBuilder, error) {
 	switch builderType {
 	case factories.Plain:
-		return plain_builder.NewEncryptionKeyBuilder(e.projectRepo), nil
+		return plain_builder.NewEncryptionKeyBuilder(e.projectRepo, sss_reconstruction_strategy.NewSSSReconstructionStrategy()), nil
 	case factories.Session:
-		return session_builder.NewEncryptionKeyBuilder(e.encryptionPartsRepo, e.projectRepo), nil
+		return session_builder.NewEncryptionKeyBuilder(e.encryptionPartsRepo, e.projectRepo, sss_reconstruction_strategy.NewSSSReconstructionStrategy()), nil
 	}
 
 	return nil, errors.New("invalid builder type") //TODO extract error

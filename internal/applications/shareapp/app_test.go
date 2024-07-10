@@ -5,13 +5,15 @@ import (
 	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.openfort.xyz/shield/internal/adapters/encryption"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/pkg/contexter"
-	"go.openfort.xyz/shield/pkg/cypher"
+	"go.openfort.xyz/shield/pkg/random"
 	"testing"
 )
 
@@ -20,20 +22,25 @@ func TestShareApplication_GetShare(t *testing.T) {
 	ctx = contexter.WithUserID(ctx, "user_id")
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
-	shareSvc := sharesvc.New(shareRepo)
-	app := New(shareSvc, shareRepo, projectRepo)
-	storedPart, externalPart, err := cypher.GenerateEncryptionKey()
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory)
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf(key)
+	}
+
+	reconstructor := encryptionFactory.CreateReconstructionStrategy()
+	storedPart, projectPart, err := reconstructor.Split(key)
 	if err != nil {
 		t.Fatalf("failed to generate encryption key: %v", err)
 	}
-	encryptionKey, err := cypher.ReconstructEncryptionKey(storedPart, externalPart)
-	if err != nil {
-		t.Fatalf("failed to reconstruct encryption key: %v", err)
-	}
 
-	encryptedSecret, err := cypher.Encrypt("secret", encryptionKey)
+	cypher := encryptionFactory.CreateEncryptionStrategy(key)
+	encryptedSecret, err := cypher.Encrypt("secret")
 	if err != nil {
-		t.Fatalf("failed to encrypt secret: %v", err)
+		t.Fatalf("failed to cypher secret: %v", err)
 	}
 
 	plainShare := &share.Share{
@@ -77,44 +84,66 @@ func TestShareApplication_GetShare(t *testing.T) {
 			wantErr: nil,
 			want:    decryptedShare,
 			mock: func() {
+				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(encryptedShare, nil)
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 			},
 			opts: []Option{
-				WithEncryptionPart(externalPart),
+				WithEncryptionPart(projectPart),
+			},
+		},
+		{
+			name:    "encrypted success with session",
+			wantErr: nil,
+			want:    decryptedShare,
+			mock: func() {
+				tmpEncryptedShare := *encryptedShare
+				shareRepo.ExpectedCalls = nil
+				projectRepo.ExpectedCalls = nil
+				encryptionPartsRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
+				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
+				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(projectPart, nil)
+				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
+			},
+			opts: []Option{
+				WithEncryptionSession("sessionID"),
 			},
 		},
 		{
 			name:    "encryption part required",
 			wantErr: ErrEncryptionPartRequired,
 			mock: func() {
+				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(encryptedShare, nil)
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 			},
 		},
 		{
 			name:    "encryption not configured",
 			wantErr: ErrEncryptionNotConfigured,
 			mock: func() {
+				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(encryptedShare, nil)
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 			},
 			opts: []Option{
-				WithEncryptionPart(externalPart),
+				WithEncryptionPart(projectPart),
 			},
 		},
 		{
 			name:    "invalid encryption part",
 			wantErr: ErrInvalidEncryptionPart,
 			mock: func() {
+				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(encryptedShare, nil)
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 			},
 			opts: []Option{
@@ -131,7 +160,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 			},
 			opts: []Option{
-				WithEncryptionPart(externalPart),
+				WithEncryptionPart(projectPart),
 			},
 		},
 		{
@@ -156,26 +185,28 @@ func TestShareApplication_GetShare(t *testing.T) {
 			name:    "get encryption part repository error",
 			wantErr: ErrInternal,
 			mock: func() {
+				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(encryptedShare, nil)
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", errors.New("repository error"))
 			},
 			opts: []Option{
-				WithEncryptionPart(externalPart),
+				WithEncryptionPart(projectPart),
 			},
 		},
 		{
 			name:    "encryption part not found",
 			wantErr: ErrEncryptionNotConfigured,
 			mock: func() {
+				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(encryptedShare, nil)
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 			},
 			opts: []Option{
-				WithEncryptionPart(externalPart),
+				WithEncryptionPart(projectPart),
 			},
 		},
 	}
@@ -196,20 +227,24 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 	ctx = contexter.WithUserID(ctx, "user_id")
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
-	shareSvc := sharesvc.New(shareRepo)
-	app := New(shareSvc, shareRepo, projectRepo)
-	storedPart, externalPart, err := cypher.GenerateEncryptionKey()
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory)
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf(key)
+	}
+
+	storedPart, projectPart, err := encryptionFactory.CreateReconstructionStrategy().Split(key)
 	if err != nil {
 		t.Fatalf("failed to generate encryption key: %v", err)
 	}
-	encryptionKey, err := cypher.ReconstructEncryptionKey(storedPart, externalPart)
-	if err != nil {
-		t.Fatalf("failed to reconstruct encryption key: %v", err)
-	}
 
-	encryptedSecret, err := cypher.Encrypt("secret", encryptionKey)
+	cypher := encryptionFactory.CreateEncryptionStrategy(key)
+	encryptedSecret, err := cypher.Encrypt("secret")
 	if err != nil {
-		t.Fatalf("failed to encrypt secret: %v", err)
+		t.Fatalf("failed to cypher secret: %v", err)
 	}
 
 	plainShare := &share.Share{
@@ -256,7 +291,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 			},
 			opts: []Option{
-				WithEncryptionPart(externalPart),
+				WithEncryptionPart(projectPart),
 			},
 		},
 		{
@@ -279,7 +314,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 			},
 			opts: []Option{
-				WithEncryptionPart(externalPart),
+				WithEncryptionPart(projectPart),
 			},
 		},
 		{
@@ -331,8 +366,10 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 	ctx = contexter.WithUserID(ctx, "user_id")
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
-	shareSvc := sharesvc.New(shareRepo)
-	app := New(shareSvc, shareRepo, projectRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory)
 
 	tc := []struct {
 		name    string

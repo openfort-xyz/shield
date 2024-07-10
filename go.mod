@@ -1,6 +1,6 @@
 module go.openfort.xyz/shield
 
-go 1.22.0
+go 1.22.5
 
 require (
 	github.com/MicahParks/keyfunc/v3 v3.3.3
@@ -16,7 +16,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/buntdb v1.3.1
 	go.uber.org/ratelimit v0.3.1
-	golang.org/x/crypto v0.24.0
+	golang.org/x/crypto v0.25.0
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/gorm v1.25.10

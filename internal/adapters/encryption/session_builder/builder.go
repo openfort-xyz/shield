@@ -6,20 +6,22 @@ import (
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/builders"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/pkg/cypher"
+	"go.openfort.xyz/shield/internal/core/ports/strategies"
 )
 
 type sessionBuilder struct {
-	projectPart         string
-	databasePart        string
-	encryptionPartsRepo repositories.EncryptionPartsRepository
-	projectRepo         repositories.ProjectRepository
+	projectPart            string
+	databasePart           string
+	encryptionPartsRepo    repositories.EncryptionPartsRepository
+	projectRepo            repositories.ProjectRepository
+	reconstructionStrategy strategies.ReconstructionStrategy
 }
 
-func NewEncryptionKeyBuilder(encryptionPartsRepo repositories.EncryptionPartsRepository, projectRepository repositories.ProjectRepository) builders.EncryptionKeyBuilder {
+func NewEncryptionKeyBuilder(encryptionPartsRepo repositories.EncryptionPartsRepository, projectRepository repositories.ProjectRepository, reconstructionStrategy strategies.ReconstructionStrategy) builders.EncryptionKeyBuilder {
 	return &sessionBuilder{
-		encryptionPartsRepo: encryptionPartsRepo,
-		projectRepo:         projectRepository,
+		encryptionPartsRepo:    encryptionPartsRepo,
+		projectRepo:            projectRepository,
+		reconstructionStrategy: reconstructionStrategy,
 	}
 }
 
@@ -60,5 +62,5 @@ func (b *sessionBuilder) Build(ctx context.Context) (string, error) {
 		return "", errors.New("database part is required") // TODO extract error
 	}
 
-	return cypher.ReconstructEncryptionKey(b.projectPart, b.databasePart)
+	return b.reconstructionStrategy.Reconstruct(b.databasePart, b.projectPart)
 }

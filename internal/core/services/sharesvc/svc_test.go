@@ -3,9 +3,13 @@ package sharesvc
 import (
 	"context"
 	"errors"
+	"go.openfort.xyz/shield/internal/adapters/encryption"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/cypher"
+	"go.openfort.xyz/shield/pkg/random"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -15,7 +19,10 @@ import (
 
 func TestCreateShare(t *testing.T) {
 	mockRepo := new(sharemockrepo.MockShareRepository)
-	svc := New(mockRepo)
+	projectRepo := new(projectmockrepo.MockProjectRepository)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	svc := New(mockRepo, encryptionFactory)
 	ctx := context.Background()
 	testUserID := "test-user"
 	testData := "test-data"
@@ -30,11 +37,18 @@ func TestCreateShare(t *testing.T) {
 			Entropy: share.EntropyProject,
 		},
 	}
-	storedPart, externalPart, err := cypher.GenerateEncryptionKey()
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf(key)
+	}
+
+	reconstructor := encryptionFactory.CreateReconstructionStrategy()
+	storedPart, projectPart, err := reconstructor.Split(key)
 	if err != nil {
 		t.Fatalf("failed to generate encryption key: %v", err)
 	}
-	encryptionKey, err := cypher.ReconstructEncryptionKey(storedPart, externalPart)
+
+	encryptionKey, err := cypher.ReconstructEncryptionKey(storedPart, projectPart)
 	if err != nil {
 		t.Fatalf("failed to reconstruct encryption key: %v", err)
 	}

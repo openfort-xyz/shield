@@ -5,18 +5,20 @@ import (
 	"errors"
 	"go.openfort.xyz/shield/internal/core/ports/builders"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/pkg/cypher"
+	"go.openfort.xyz/shield/internal/core/ports/strategies"
 )
 
 type plainBuilder struct {
-	projectPart  string
-	databasePart string
-	projectRepo  repositories.ProjectRepository
+	projectPart            string
+	databasePart           string
+	projectRepo            repositories.ProjectRepository
+	reconstructionStrategy strategies.ReconstructionStrategy
 }
 
-func NewEncryptionKeyBuilder(repo repositories.ProjectRepository) builders.EncryptionKeyBuilder {
+func NewEncryptionKeyBuilder(repo repositories.ProjectRepository, reconstructionStrategy strategies.ReconstructionStrategy) builders.EncryptionKeyBuilder {
 	return &plainBuilder{
-		projectRepo: repo,
+		projectRepo:            repo,
+		reconstructionStrategy: reconstructionStrategy,
 	}
 }
 
@@ -44,5 +46,5 @@ func (b *plainBuilder) Build(ctx context.Context) (string, error) {
 		return "", errors.New("database part is required") // TODO extract error
 	}
 
-	return cypher.ReconstructEncryptionKey(b.projectPart, b.databasePart)
+	return b.reconstructionStrategy.Reconstruct(b.databasePart, b.projectPart)
 }

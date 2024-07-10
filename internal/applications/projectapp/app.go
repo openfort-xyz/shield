@@ -379,20 +379,16 @@ func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectI
 	}
 
 	reconstructionStrategy := a.encryptionFactory.CreateReconstructionStrategy()
-	parts, err := reconstructionStrategy.Split(key)
+	storedPart, projectPart, err := reconstructionStrategy.Split(key)
 	if err != nil {
 		a.logger.Error("failed to split encryption key", logger.Error(err))
 		return "", ErrInternal
 	}
-	if len(parts) != 2 {
-		a.logger.Error("invalid encryption key parts", slog.Int("parts", len(parts)))
-		return "", ErrInternal
-	}
 
-	err = a.projectSvc.SetEncryptionPart(ctx, projectID, parts[0])
+	err = a.projectSvc.SetEncryptionPart(ctx, projectID, storedPart)
 	if err != nil {
 		return "", err
 	}
 
-	return parts[1], nil
+	return projectPart, nil
 }

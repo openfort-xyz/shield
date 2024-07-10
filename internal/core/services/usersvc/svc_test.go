@@ -16,6 +16,10 @@ func TestCreateUser(t *testing.T) {
 	svc := New(mockRepo)
 	ctx := context.Background()
 
+	projectID := "project"
+	providerID := "provider"
+	externalUserID := "external"
+
 	tc := []struct {
 		name    string
 		wantErr bool
@@ -42,7 +46,7 @@ func TestCreateUser(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			_, err := svc.Create(ctx, "fdsa")
+			_, err := svc.GetOrCreate(ctx, projectID, externalUserID, providerID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -55,6 +59,10 @@ func TestGetUser(t *testing.T) {
 	mockRepo := new(usermockedrepo.MockUserRepository)
 	svc := New(mockRepo)
 	ctx := context.Background()
+
+	projectID := "project"
+	providerID := "provider"
+	externalUserID := "external"
 
 	tc := []struct {
 		name    string
@@ -92,7 +100,7 @@ func TestGetUser(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			_, err := svc.Get(ctx, "fdsa")
+			_, err := svc.GetOrCreate(ctx, projectID, externalUserID, providerID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -166,7 +174,7 @@ func TestGetUserByExternal(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			_, err := svc.GetByExternal(ctx, "fdsa", "fdsa")
+			_, err := svc.GetOrCreate(ctx, "project", "user", "provider")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByExternal() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -261,7 +269,7 @@ func TestCreateExternalUser(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			_, err := svc.CreateExternal(ctx, "project", "user", "external", "provider")
+			_, err := svc.GetOrCreate(ctx, "project", "user", "provider")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateExternal() error = %v, wantErr %v", err, tt.wantErr)
 				return

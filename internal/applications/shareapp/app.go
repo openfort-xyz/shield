@@ -2,6 +2,7 @@ package shareapp
 
 import (
 	"context"
+	"fmt"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"log/slog"
 
@@ -118,6 +119,8 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 		return nil, fromDomainError(err)
 	}
 
+	fmt.Println(shr)
+
 	var opt options
 	for _, o := range opts {
 		o(&opt)
@@ -128,6 +131,7 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println(encryptionKey)
 
 		cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
 		shr.Secret, err = cypher.Decrypt(shr.Secret)
