@@ -1023,3 +1023,49 @@ func TestProjectApplication_RegisterEncryptionKey(t *testing.T) {
 		})
 	}
 }
+
+func TestProjectApplication_RegisterEncryptionSession(t *testing.T) {
+	ctx := contexter.WithProjectID(context.Background(), "project_id")
+	ctx = contexter.WithUserID(ctx, "user_id")
+	shareRepo := new(sharemockrepo.MockShareRepository)
+	projectRepo := new(projectmockrepo.MockProjectRepository)
+	providerRepo := new(providermockrepo.MockProviderRepository)
+	projectService := projectsvc.New(projectRepo)
+	providerService := providersvc.New(providerRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+
+	tc := []struct {
+		name    string
+		wantErr error
+		mock    func()
+	}{
+		{
+			name:    "success",
+			wantErr: nil,
+			mock: func() {
+				encryptionPartsRepo.ExpectedCalls = nil
+				encryptionPartsRepo.On("Set", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+		},
+		{
+			name:    "error setting encryption session",
+			wantErr: ErrInternal,
+			mock: func() {
+				encryptionPartsRepo.ExpectedCalls = nil
+				encryptionPartsRepo.On("Set", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("repository error"))
+			},
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mock()
+			ass := assert.New(t)
+			_, err := app.RegisterEncryptionSession(ctx, "encryptionPart")
+			ass.Equal(tt.wantErr, err)
+		})
+	}
+
+}

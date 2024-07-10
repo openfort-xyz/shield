@@ -421,3 +421,73 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 		})
 	}
 }
+
+func TestShareApplication_UpdateShare(t *testing.T) {
+	ctx := contexter.WithProjectID(context.Background(), "project_id")
+	ctx = contexter.WithUserID(ctx, "user_id")
+	shareRepo := new(sharemockrepo.MockShareRepository)
+	projectRepo := new(projectmockrepo.MockProjectRepository)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory)
+	updates := &share.Share{
+		ID:                   "share-id",
+		Secret:               "secret",
+		UserID:               "user_id",
+		EncryptionParameters: nil,
+	}
+
+	tc := []struct {
+		name    string
+		wantErr error
+		mock    func()
+		updates *share.Share
+	}{
+		{
+			name:    "success",
+			wantErr: nil,
+			updates: updates,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id"}, nil)
+				shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+			},
+		},
+		{
+			name:    "share not found",
+			wantErr: ErrShareNotFound,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
+			},
+		},
+		{
+			name:    "repository error",
+			wantErr: ErrInternal,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, errors.New("repository error"))
+			},
+		},
+		{
+			name:    "delete error",
+			updates: updates,
+			wantErr: ErrInternal,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id"}, nil)
+				shareRepo.On("Update", mock.Anything, mock.Anything).Return(errors.New("repository error"))
+			},
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mock()
+			ass := assert.New(t)
+			_, err := app.UpdateShare(ctx, tt.updates)
+			ass.ErrorIs(tt.wantErr, err)
+		})
+	}
+}
