@@ -5,34 +5,41 @@ import (
 	"errors"
 	"log/slog"
 
-	"go.openfort.xyz/shield/internal/core/domain"
+	"github.com/google/uuid"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"go.openfort.xyz/shield/pkg/random"
+
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/contexter"
-	"go.openfort.xyz/shield/pkg/cypher"
 	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type ProjectApplication struct {
-	projectSvc   services.ProjectService
-	projectRepo  repositories.ProjectRepository
-	providerSvc  services.ProviderService
-	providerRepo repositories.ProviderRepository
-	sharesRepo   repositories.ShareRepository
-	logger       *slog.Logger
+	projectSvc          services.ProjectService
+	projectRepo         repositories.ProjectRepository
+	providerSvc         services.ProviderService
+	providerRepo        repositories.ProviderRepository
+	sharesRepo          repositories.ShareRepository
+	logger              *slog.Logger
+	encryptionFactory   factories.EncryptionFactory
+	encryptionPartsRepo repositories.EncryptionPartsRepository
 }
 
-func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRepository, providerSvc services.ProviderService, providerRepo repositories.ProviderRepository, sharesRepo repositories.ShareRepository) *ProjectApplication {
+func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRepository, providerSvc services.ProviderService, providerRepo repositories.ProviderRepository, sharesRepo repositories.ShareRepository, encryptionFactory factories.EncryptionFactory, encryptionPartsRepo repositories.EncryptionPartsRepository) *ProjectApplication {
 	return &ProjectApplication{
-		projectSvc:   projectSvc,
-		projectRepo:  projectRepo,
-		providerSvc:  providerSvc,
-		providerRepo: providerRepo,
-		sharesRepo:   sharesRepo,
-		logger:       logger.New("project_application"),
+		projectSvc:          projectSvc,
+		projectRepo:         projectRepo,
+		providerSvc:         providerSvc,
+		providerRepo:        providerRepo,
+		sharesRepo:          sharesRepo,
+		logger:              logger.New("project_application"),
+		encryptionFactory:   encryptionFactory,
+		encryptionPartsRepo: encryptionPartsRepo,
 	}
 }
 
@@ -93,7 +100,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	var providers []*provider.Provider
 	if cfg.openfortPublishableKey != nil {
 		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeOpenfort)
-		if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
+		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
 			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
@@ -109,7 +116,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 
 	if cfg.jwkURL != nil {
 		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
-		if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
+		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
 			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
@@ -121,7 +128,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 
 	if cfg.pem != nil {
 		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
-		if err != nil && !errors.Is(err, domain.ErrProviderNotFound) {
+		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
 			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
@@ -267,13 +274,25 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 	a.logger.InfoContext(ctx, "encrypting project shares")
 	projectID := contexter.GetProjectID(ctx)
 
-	storedPart, err := a.projectRepo.GetEncryptionPart(ctx, projectID)
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(factories.Plain)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
+		return ErrInternal
+	}
+
+	err = builder.SetDatabasePart(ctx, projectID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
 		return fromDomainError(err)
 	}
 
-	encryptionKey, err := cypher.ReconstructEncryptionKey(storedPart, externalPart)
+	err = builder.SetProjectPart(ctx, externalPart)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
+		return fromDomainError(err)
+	}
+
+	encryptionKey, err := builder.Build(ctx)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to reconstruct encryption key", logger.Error(err))
 		return ErrInvalidEncryptionPart
@@ -287,19 +306,18 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 
 	var encryptedShares []*share.Share
 	for _, shr := range shares {
-		if shr.EncryptionParameters != nil && shr.EncryptionParameters.Entropy != share.EntropyNone {
+		if shr.EncryptionParameters != nil || shr.Entropy != share.EntropyNone {
 			continue
 		}
 
-		shr.Secret, err = cypher.Encrypt(shr.Secret, encryptionKey)
+		cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
+		shr.Secret, err = cypher.Encrypt(shr.Secret)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to encrypt share", logger.Error(err))
 			return fromDomainError(err)
 		}
 
-		shr.EncryptionParameters = &share.EncryptionParameters{
-			Entropy: share.EntropyProject,
-		}
+		shr.Entropy = share.EntropyProject
 
 		encryptedShares = append(encryptedShares, shr)
 	}
@@ -315,12 +333,25 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 	return nil
 }
 
+func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string) (string, error) {
+	a.logger.InfoContext(ctx, "registering encryption session")
+
+	sessionID := uuid.NewString()
+	err := a.encryptionPartsRepo.Set(ctx, sessionID, encryptionPart)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to set encryption part", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+
+	return sessionID, nil
+}
+
 func (a *ProjectApplication) RegisterEncryptionKey(ctx context.Context) (string, error) {
 	a.logger.InfoContext(ctx, "registering encryption key")
 	projectID := contexter.GetProjectID(ctx)
 
 	ep, err := a.projectRepo.GetEncryptionPart(ctx, projectID)
-	if err != nil && !errors.Is(err, domain.ErrEncryptionPartNotFound) {
+	if err != nil && !errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
 		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
 		return "", fromDomainError(err)
 	}
@@ -340,16 +371,23 @@ func (a *ProjectApplication) RegisterEncryptionKey(ctx context.Context) (string,
 }
 
 func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectID string) (externalPart string, err error) {
-	var shieldPart string
-	shieldPart, externalPart, err = cypher.GenerateEncryptionKey()
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		a.logger.Error("failed to generate random key", logger.Error(err))
+		return "", ErrInternal
+	}
+
+	reconstructionStrategy := a.encryptionFactory.CreateReconstructionStrategy()
+	storedPart, projectPart, err := reconstructionStrategy.Split(key)
+	if err != nil {
+		a.logger.Error("failed to split encryption key", logger.Error(err))
+		return "", ErrInternal
+	}
+
+	err = a.projectSvc.SetEncryptionPart(ctx, projectID, storedPart)
 	if err != nil {
 		return "", err
 	}
 
-	err = a.projectSvc.SetEncryptionPart(ctx, projectID, shieldPart)
-	if err != nil {
-		return "", err
-	}
-
-	return externalPart, nil
+	return projectPart, nil
 }

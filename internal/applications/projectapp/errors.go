@@ -3,7 +3,7 @@ package projectapp
 import (
 	"errors"
 
-	"go.openfort.xyz/shield/internal/core/domain"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 )
 
 var (
@@ -16,6 +16,7 @@ var (
 	ErrProviderAlreadyExists       = errors.New("custom authentication already registered for this project")
 	ErrProviderNotFound            = errors.New("custom authentication not found")
 	ErrInvalidEncryptionPart       = errors.New("invalid encryption part")
+	ErrInvalidEncryptionSession    = errors.New("invalid encryption session")
 	ErrEncryptionPartAlreadyExists = errors.New("encryption part already exists")
 	ErrEncryptionNotConfigured     = errors.New("encryption not configured")
 	ErrJWKPemConflict              = errors.New("jwk and pem cannot be set at the same time")
@@ -26,29 +27,32 @@ func fromDomainError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, domain.ErrProjectNotFound) {
+	if errors.Is(err, domainErrors.ErrProjectNotFound) {
 		return ErrProjectNotFound
 	}
 
-	if errors.Is(err, domain.ErrInvalidProviderConfig) {
+	if errors.Is(err, domainErrors.ErrInvalidProviderConfig) {
 		return ErrInvalidProviderConfig
 	}
 
-	if errors.Is(err, domain.ErrUnknownProviderType) {
+	if errors.Is(err, domainErrors.ErrUnknownProviderType) {
 		return ErrUnknownProviderType
 	}
 
-	if errors.Is(err, domain.ErrProviderAlreadyExists) {
+	if errors.Is(err, domainErrors.ErrProviderAlreadyExists) {
 		return ErrProviderAlreadyExists
 	}
 
-	if errors.Is(err, domain.ErrProviderNotFound) {
+	if errors.Is(err, domainErrors.ErrProviderNotFound) {
 		return ErrProviderNotFound
 	}
 
-	if errors.Is(err, domain.ErrEncryptionPartNotFound) {
+	if errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
 		return ErrEncryptionNotConfigured
 	}
 
+	if errors.Is(err, domainErrors.ErrInvalidEncryptionSession) {
+		return ErrInvalidEncryptionSession
+	}
 	return ErrInternal
 }

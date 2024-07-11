@@ -5,7 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"go.openfort.xyz/shield/internal/core/domain"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
@@ -33,7 +34,7 @@ func (s *service) Configure(ctx context.Context, prov *provider.Provider) error 
 	case provider.TypeOpenfort:
 		return s.configureOpenfortProvider(ctx, prov)
 	default:
-		return domain.ErrUnknownProviderType
+		return domainErrors.ErrUnknownProviderType
 	}
 }
 
@@ -49,7 +50,7 @@ func (s *service) configureCustomProvider(ctx context.Context, prov *provider.Pr
 	customAuth, ok := prov.Config.(*provider.CustomConfig)
 	if !ok {
 		s.logger.ErrorContext(ctx, "invalid custom provider config")
-		return domain.ErrInvalidProviderConfig
+		return domainErrors.ErrInvalidProviderConfig
 	}
 
 	customAuth.ProviderID = prov.ID
@@ -80,7 +81,7 @@ func (s *service) configureOpenfortProvider(ctx context.Context, prov *provider.
 	openfortAuth, ok := prov.Config.(*provider.OpenfortConfig)
 	if !ok {
 		s.logger.ErrorContext(ctx, "invalid openfort provider config")
-		return domain.ErrInvalidProviderConfig
+		return domainErrors.ErrInvalidProviderConfig
 	}
 
 	openfortAuth.ProviderID = prov.ID

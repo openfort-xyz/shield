@@ -1,4 +1,4 @@
-FROM golang:1.22.0-alpine as builder
+FROM golang:1.22.5-alpine as builder
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY . .
@@ -8,5 +8,5 @@ FROM scratch
 WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /app/app /usr/bin/
-COPY internal/infrastructure/repositories/sql/migrations /app/internal/infrastructure/repositories/sql/migrations
+COPY internal/adapters/repositories/sql/migrations /app/internal/adapters/repositories/sql/migrations
 ENTRYPOINT ["app"]

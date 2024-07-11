@@ -4,27 +4,30 @@ import (
 	"context"
 	"log/slog"
 
+	"go.openfort.xyz/shield/internal/core/ports/factories"
+
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/contexter"
-	"go.openfort.xyz/shield/pkg/cypher"
 	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type ShareApplication struct {
-	shareSvc    services.ShareService
-	shareRepo   repositories.ShareRepository
-	projectRepo repositories.ProjectRepository
-	logger      *slog.Logger
+	shareSvc          services.ShareService
+	shareRepo         repositories.ShareRepository
+	projectRepo       repositories.ProjectRepository
+	logger            *slog.Logger
+	encryptionFactory factories.EncryptionFactory
 }
 
-func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository) *ShareApplication {
+func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository, encryptionFactory factories.EncryptionFactory) *ShareApplication {
 	return &ShareApplication{
-		shareSvc:    shareSvc,
-		shareRepo:   shareRepo,
-		projectRepo: projectRepo,
-		logger:      logger.New("share_application"),
+		shareSvc:          shareSvc,
+		shareRepo:         shareRepo,
+		projectRepo:       projectRepo,
+		logger:            logger.New("share_application"),
+		encryptionFactory: encryptionFactory,
 	}
 }
 
@@ -41,10 +44,6 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 
 	var shrOpts []services.ShareOption
 	if shr.RequiresEncryption() {
-		if opt.encryptionPart == nil {
-			return ErrEncryptionPartRequired
-		}
-
 		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return err
@@ -60,6 +59,63 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 	}
 
 	return nil
+}
+
+func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, opts ...Option) (*share.Share, error) {
+	a.logger.InfoContext(ctx, "updating share")
+	usrID := contexter.GetUserID(ctx)
+	projID := contexter.GetProjectID(ctx)
+
+	dbShare, err := a.shareRepo.GetByUserID(ctx, usrID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
+		return nil, fromDomainError(err)
+	}
+
+	if shr.Entropy != 0 {
+		dbShare.Entropy = shr.Entropy
+	}
+
+	if shr.EncryptionParameters != nil {
+		dbShare.EncryptionParameters = shr.EncryptionParameters
+	}
+
+	if dbShare.Entropy == share.EntropyNone {
+		if dbShare.EncryptionParameters != nil {
+			dbShare.EncryptionParameters = nil
+		}
+	}
+
+	if shr.Secret != "" {
+		dbShare.Secret = shr.Secret
+	}
+
+	var opt options
+	for _, o := range opts {
+		o(&opt)
+	}
+
+	if dbShare.RequiresEncryption() {
+		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
+		if err != nil {
+			return nil, err
+		}
+
+		cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
+		dbShare.Secret, err = cypher.Encrypt(dbShare.Secret)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to encrypt secret", logger.Error(err))
+			return nil, ErrInternal
+		}
+	}
+
+	err = a.shareRepo.Update(ctx, dbShare)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to create share", logger.Error(err))
+		return nil, fromDomainError(err)
+	}
+
+	return shr, nil
 }
 
 func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share.Share, error) {
@@ -84,7 +140,8 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 			return nil, err
 		}
 
-		shr.Secret, err = cypher.Decrypt(shr.Secret, encryptionKey)
+		cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
+		shr.Secret, err = cypher.Decrypt(shr.Secret)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to decrypt secret", logger.Error(err))
 			return nil, ErrInternal
@@ -114,20 +171,42 @@ func (a *ShareApplication) DeleteShare(ctx context.Context) error {
 }
 
 func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, error) {
-	if opt.encryptionPart == nil || *opt.encryptionPart == "" {
+	var builderType factories.EncryptionKeyBuilderType
+	var identifier string
+	switch {
+	case opt.encryptionPart != nil && *opt.encryptionPart != "":
+		builderType = factories.Plain
+		identifier = *opt.encryptionPart
+	case opt.encryptionSession != nil && *opt.encryptionSession != "":
+		builderType = factories.Session
+		identifier = *opt.encryptionSession
+	default:
 		return "", ErrEncryptionPartRequired
 	}
 
-	storedPart, err := a.projectRepo.GetEncryptionPart(ctx, projID)
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
+		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
+		return "", ErrInternal
+	}
+
+	err = builder.SetDatabasePart(ctx, projID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get database encryption part", logger.Error(err))
 		return "", fromDomainError(err)
 	}
 
-	encryptionKey, err := cypher.ReconstructEncryptionKey(storedPart, *opt.encryptionPart)
+	err = builder.SetProjectPart(ctx, identifier)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get project encryption part", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+
+	encryptionKey, err := builder.Build(ctx)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to reconstruct encryption key", logger.Error(err))
 		return "", ErrInvalidEncryptionPart
 	}
+
 	return encryptionKey, nil
 }

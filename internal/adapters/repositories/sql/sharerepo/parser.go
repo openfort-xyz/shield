@@ -1,0 +1,122 @@
+package sharerepo
+
+import (
+	"go.openfort.xyz/shield/internal/core/domain/share"
+	"gorm.io/gorm"
+)
+
+type parser struct {
+	mapEntropyDomain map[Entropy]share.Entropy
+	mapDomainEntropy map[share.Entropy]Entropy
+}
+
+func newParser() *parser {
+	return &parser{
+		mapEntropyDomain: map[Entropy]share.Entropy{
+			EntropyNone:    share.EntropyNone,
+			EntropyUser:    share.EntropyUser,
+			EntropyProject: share.EntropyProject,
+		},
+		mapDomainEntropy: map[share.Entropy]Entropy{
+			share.EntropyNone:    EntropyNone,
+			share.EntropyUser:    EntropyUser,
+			share.EntropyProject: EntropyProject,
+		},
+	}
+}
+
+func (p *parser) toDomain(s *Share) *share.Share {
+	var encryptionParameters *share.EncryptionParameters
+	if s.Salt != "" {
+		encryptionParameters = new(share.EncryptionParameters)
+		encryptionParameters.Salt = s.Salt
+	}
+	if s.Iterations != 0 {
+		if encryptionParameters == nil {
+			encryptionParameters = new(share.EncryptionParameters)
+		}
+		encryptionParameters.Iterations = s.Iterations
+	}
+	if s.Length != 0 {
+		if encryptionParameters == nil {
+			encryptionParameters = new(share.EncryptionParameters)
+		}
+		encryptionParameters.Length = s.Length
+	}
+	if s.Digest != "" {
+		if encryptionParameters == nil {
+			encryptionParameters = new(share.EncryptionParameters)
+		}
+		encryptionParameters.Digest = s.Digest
+	}
+
+	return &share.Share{
+		ID:                   s.ID,
+		Secret:               s.Data,
+		UserID:               s.UserID,
+		Entropy:              p.mapEntropyDomain[s.Entropy],
+		EncryptionParameters: encryptionParameters,
+	}
+}
+
+func (p *parser) toDatabase(s *share.Share) *Share {
+	shr := &Share{
+		ID:      s.ID,
+		Data:    s.Secret,
+		UserID:  s.UserID,
+		Entropy: p.mapDomainEntropy[s.Entropy],
+	}
+
+	if s.EncryptionParameters != nil {
+		if s.EncryptionParameters.Salt != "" {
+			shr.Salt = s.EncryptionParameters.Salt
+		}
+		if s.EncryptionParameters.Iterations != 0 {
+			shr.Iterations = s.EncryptionParameters.Iterations
+		}
+		if s.EncryptionParameters.Length != 0 {
+			shr.Length = s.EncryptionParameters.Length
+		}
+		if s.EncryptionParameters.Digest != "" {
+			shr.Digest = s.EncryptionParameters.Digest
+		}
+	}
+
+	return shr
+}
+
+func (p *parser) toUpdates(s *share.Share) map[string]interface{} {
+	updates := make(map[string]interface{})
+
+	if s.Secret != "" {
+		updates["data"] = s.Secret
+	}
+
+	if s.Entropy != 0 {
+		updates["entropy"] = p.mapDomainEntropy[s.Entropy]
+	}
+
+	if s.Entropy != share.EntropyUser {
+		updates["salt"] = gorm.Expr("NULL")
+		updates["iterations"] = gorm.Expr("NULL")
+		updates["length"] = gorm.Expr("NULL")
+		updates["digest"] = gorm.Expr("NULL")
+	}
+
+	if s.EncryptionParameters != nil && s.Entropy == share.EntropyUser {
+		if s.EncryptionParameters.Salt != "" {
+			updates["salt"] = s.EncryptionParameters.Salt
+		}
+		if s.EncryptionParameters.Iterations != 0 {
+			updates["iterations"] = s.EncryptionParameters.Iterations
+		}
+		if s.EncryptionParameters.Length != 0 {
+			updates["length"] = s.EncryptionParameters.Length
+		}
+		if s.EncryptionParameters.Digest != "" {
+			updates["digest"] = s.EncryptionParameters.Digest
+		}
+	}
+
+	return updates
+}

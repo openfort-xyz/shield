@@ -4,9 +4,10 @@ type Share struct {
 	ID                   string
 	Secret               string
 	UserID               string
+	Entropy              Entropy
 	EncryptionParameters *EncryptionParameters
 }
 
 func (s *Share) RequiresEncryption() bool {
-	return s.EncryptionParameters != nil && s.EncryptionParameters.Entropy == EntropyProject
+	return s.Entropy == EntropyProject
 }

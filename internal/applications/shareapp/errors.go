@@ -3,7 +3,7 @@ package shareapp
 import (
 	"errors"
 
-	"go.openfort.xyz/shield/internal/core/domain"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 )
 
 var (
@@ -15,25 +15,29 @@ var (
 	ErrEncryptionPartRequired    = errors.New("encryption part is required")
 	ErrEncryptionNotConfigured   = errors.New("encryption not configured")
 	ErrInvalidEncryptionPart     = errors.New("invalid encryption part")
+	ErrInvalidEncryptionSession  = errors.New("invalid encryption session")
 	ErrInternal                  = errors.New("internal error")
 )
 
 func fromDomainError(err error) error {
-	if errors.Is(err, domain.ErrShareNotFound) {
+	if errors.Is(err, domainErrors.ErrShareNotFound) {
 		return ErrShareNotFound
 	}
 
-	if errors.Is(err, domain.ErrShareAlreadyExists) {
+	if errors.Is(err, domainErrors.ErrShareAlreadyExists) {
 		return ErrShareAlreadyExists
 	}
 
-	if errors.Is(err, domain.ErrEncryptionPartRequired) {
+	if errors.Is(err, domainErrors.ErrEncryptionPartRequired) {
 		return ErrEncryptionPartRequired
 	}
 
-	if errors.Is(err, domain.ErrEncryptionPartNotFound) {
+	if errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
 		return ErrEncryptionNotConfigured
 	}
 
+	if errors.Is(err, domainErrors.ErrInvalidEncryptionSession) {
+		return ErrInvalidEncryptionSession
+	}
 	return ErrInternal
 }

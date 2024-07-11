@@ -3,11 +3,11 @@ package projectsvc
 import (
 	"context"
 	"errors"
-	"go.openfort.xyz/shield/internal/core/domain"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/infrastructure/repositories/mocks/projectmockrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 )
 
 func TestService_Create(t *testing.T) {
@@ -79,7 +79,7 @@ func TestService_SetEncryptionPart(t *testing.T) {
 			wantErr: false,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetEncryptionPart", mock.Anything, testProjectID).Return("", domain.ErrEncryptionPartNotFound)
+				mockRepo.On("GetEncryptionPart", mock.Anything, testProjectID).Return("", domainErrors.ErrEncryptionPartNotFound)
 				mockRepo.On("SetEncryptionPart", mock.Anything, testProjectID, testPart).Return(nil)
 			},
 		},
@@ -90,7 +90,7 @@ func TestService_SetEncryptionPart(t *testing.T) {
 				mockRepo.ExpectedCalls = nil
 				mockRepo.On("GetEncryptionPart", mock.Anything, testProjectID).Return("test-encryption-part", nil)
 			},
-			err: domain.ErrEncryptionPartAlreadyExists,
+			err: domainErrors.ErrEncryptionPartAlreadyExists,
 		},
 		{
 			name:    "repository error on get encryption part",
@@ -105,7 +105,7 @@ func TestService_SetEncryptionPart(t *testing.T) {
 			wantErr: true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetEncryptionPart", mock.Anything, testProjectID).Return("", domain.ErrEncryptionPartNotFound)
+				mockRepo.On("GetEncryptionPart", mock.Anything, testProjectID).Return("", domainErrors.ErrEncryptionPartNotFound)
 				mockRepo.On("SetEncryptionPart", mock.Anything, testProjectID, testPart).Return(errors.New("repository error"))
 			},
 		},
