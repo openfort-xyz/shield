@@ -3,8 +3,9 @@ package userrepo
 import (
 	"context"
 	"errors"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"log/slog"
+
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
@@ -93,6 +94,9 @@ func (r *repository) FindExternalBy(ctx context.Context, opts ...repositories.Op
 	var dbExtUsrs []ExternalUser
 	err := r.db.Where(options.query).Find(&dbExtUsrs).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return []*user.ExternalUser{}, nil
+		}
 		r.logger.ErrorContext(ctx, "error finding external user", logger.Error(err))
 		return nil, err
 	}

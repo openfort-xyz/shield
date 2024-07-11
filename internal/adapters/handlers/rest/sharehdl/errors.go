@@ -2,6 +2,7 @@ package sharehdl
 
 import (
 	"errors"
+
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
 )

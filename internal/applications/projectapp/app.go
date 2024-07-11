@@ -3,11 +3,12 @@ package projectapp
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	"github.com/google/uuid"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/pkg/random"
-	"log/slog"
 
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
@@ -305,7 +306,7 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 
 	var encryptedShares []*share.Share
 	for _, shr := range shares {
-		if shr.EncryptionParameters != nil && shr.EncryptionParameters.Entropy != share.EntropyNone {
+		if shr.EncryptionParameters != nil || shr.Entropy != share.EntropyNone {
 			continue
 		}
 
@@ -316,9 +317,7 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 			return fromDomainError(err)
 		}
 
-		shr.EncryptionParameters = &share.EncryptionParameters{
-			Entropy: share.EntropyProject,
-		}
+		shr.Entropy = share.EntropyProject
 
 		encryptedShares = append(encryptedShares, shr)
 	}

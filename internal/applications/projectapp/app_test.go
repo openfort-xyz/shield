@@ -851,11 +851,11 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 	}
 
 	encryptedShare := &share.Share{
-		ID:     "encrypted_share_id",
-		Secret: "djksalfjadsfds",
-		UserID: "user_id",
+		ID:      "encrypted_share_id",
+		Secret:  "djksalfjadsfds",
+		UserID:  "user_id",
+		Entropy: share.EntropyUser,
 		EncryptionParameters: &share.EncryptionParameters{
-			Entropy:    share.EntropyUser,
 			Salt:       "somesalt",
 			Iterations: 1000,
 			Length:     256,
@@ -864,21 +864,17 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 	}
 
 	plainShare := &share.Share{
-		ID:     "share_id",
-		Secret: "secret",
-		UserID: "user_id",
-		EncryptionParameters: &share.EncryptionParameters{
-			Entropy: share.EntropyNone,
-		},
+		ID:      "share_id",
+		Secret:  "secret",
+		UserID:  "user_id",
+		Entropy: share.EntropyNone,
 	}
 
 	plainShare2 := &share.Share{
-		ID:     "share_id",
-		Secret: "secret",
-		UserID: "user_id",
-		EncryptionParameters: &share.EncryptionParameters{
-			Entropy: share.EntropyNone,
-		},
+		ID:      "share_id",
+		Secret:  "secret",
+		UserID:  "user_id",
+		Entropy: share.EntropyNone,
 	}
 
 	tc := []struct {

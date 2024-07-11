@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"errors"
+
 	"github.com/codahale/sss"
 	"go.openfort.xyz/shield/pkg/random"
 )

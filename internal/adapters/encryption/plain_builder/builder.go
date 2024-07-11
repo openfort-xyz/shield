@@ -1,8 +1,10 @@
-package plain_builder
+package plnbldr
 
 import (
 	"context"
-	"errors"
+
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+
 	"go.openfort.xyz/shield/internal/core/ports/builders"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/strategies"
@@ -22,7 +24,7 @@ func NewEncryptionKeyBuilder(repo repositories.ProjectRepository, reconstruction
 	}
 }
 
-func (b *plainBuilder) SetProjectPart(ctx context.Context, identifier string) error {
+func (b *plainBuilder) SetProjectPart(_ context.Context, identifier string) error {
 	b.projectPart = identifier
 	return nil
 }
@@ -37,13 +39,13 @@ func (b *plainBuilder) SetDatabasePart(ctx context.Context, identifier string) e
 	return nil
 }
 
-func (b *plainBuilder) Build(ctx context.Context) (string, error) {
+func (b *plainBuilder) Build(_ context.Context) (string, error) {
 	if b.projectPart == "" {
-		return "", errors.New("project part is required") // TODO extract error
+		return "", domainErrors.ErrProjectPartRequired
 	}
 
 	if b.databasePart == "" {
-		return "", errors.New("database part is required") // TODO extract error
+		return "", domainErrors.ErrDatabasePartRequired
 	}
 
 	return b.reconstructionStrategy.Reconstruct(b.databasePart, b.projectPart)

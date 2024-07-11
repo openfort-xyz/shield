@@ -1,10 +1,11 @@
-package project_authenticator
+package projauth
 
 import (
 	"context"
+	"log/slog"
+
 	"go.openfort.xyz/shield/internal/core/domain/authentication"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"log/slog"
 
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/pkg/logger"

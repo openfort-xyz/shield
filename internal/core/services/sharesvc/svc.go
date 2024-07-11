@@ -3,9 +3,10 @@ package sharesvc
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"log/slog"
 
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"

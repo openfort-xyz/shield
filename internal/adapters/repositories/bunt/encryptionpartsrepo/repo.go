@@ -3,12 +3,13 @@ package encryptionpartsrepo
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	"github.com/tidwall/buntdb"
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/pkg/logger"
-	"log/slog"
 )
 
 type repository struct {
@@ -25,11 +26,11 @@ func New(db *bunt.Client) repositories.EncryptionPartsRepository {
 	}
 }
 
-func (r *repository) Get(ctx context.Context, sessionId string) (string, error) {
+func (r *repository) Get(ctx context.Context, sessionID string) (string, error) {
 	var part string
 	err := r.db.View(func(tx *buntdb.Tx) error {
 		var err error
-		part, err = tx.Get(sessionId)
+		part, err = tx.Get(sessionID)
 		return err
 	})
 	if err != nil {
@@ -47,9 +48,9 @@ func (r *repository) Get(ctx context.Context, sessionId string) (string, error) 
 	return part, nil
 }
 
-func (r *repository) Set(ctx context.Context, sessionId, part string) error {
+func (r *repository) Set(ctx context.Context, sessionID, part string) error {
 	return r.db.Update(func(tx *buntdb.Tx) error {
-		_, _, err := tx.Set(sessionId, part, nil)
+		_, _, err := tx.Set(sessionID, part, nil)
 		if err != nil {
 			if errors.Is(err, buntdb.ErrIndexExists) {
 				return domainErrors.ErrEncryptionPartAlreadyExists
@@ -62,9 +63,9 @@ func (r *repository) Set(ctx context.Context, sessionId, part string) error {
 	})
 }
 
-func (r *repository) Delete(ctx context.Context, sessionId string) error {
+func (r *repository) Delete(ctx context.Context, sessionID string) error {
 	return r.db.Update(func(tx *buntdb.Tx) error {
-		_, err := tx.Delete(sessionId)
+		_, err := tx.Delete(sessionID)
 		if err != nil {
 			if errors.Is(err, buntdb.ErrNotFound) {
 				return domainErrors.ErrEncryptionPartNotFound

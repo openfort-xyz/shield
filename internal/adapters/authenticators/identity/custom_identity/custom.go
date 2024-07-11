@@ -1,11 +1,12 @@
-package custom_identity
+package cstmidty
 
 import (
 	"context"
+	"log/slog"
+
 	"go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/pkg/jwk"
-	"log/slog"
 
 	"github.com/golang-jwt/jwt/v5"
 
@@ -40,7 +41,7 @@ func (c *CustomIdentityFactory) Identify(ctx context.Context, token string) (str
 	case c.config.PEM != "" && c.config.KeyType != provider.KeyTypeUnknown:
 		externalUserID, err = c.validatePEM(token)
 	case c.config.JWK != "":
-		externalUserID, err = jwk.Validate(token, c.config.JWK) // TODO parse error
+		externalUserID, err = jwk.Validate(token, c.config.JWK)
 	default:
 		return "", errors.ErrProviderMisconfigured
 	}

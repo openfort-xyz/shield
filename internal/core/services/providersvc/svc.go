@@ -3,8 +3,9 @@ package providersvc
 import (
 	"context"
 	"errors"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"log/slog"
+
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"

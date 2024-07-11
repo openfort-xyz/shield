@@ -218,7 +218,7 @@ func ProvideAuthenticationFactory() (factories.AuthenticationFactory, error) {
 }
 
 func ProvideIdentityFactory() (factories.IdentityFactory, error) {
-	config, err := openfort_identity.GetConfigFromEnv()
+	config, err := ofidty.GetConfigFromEnv()
 	if err != nil {
 		return nil, err
 	}

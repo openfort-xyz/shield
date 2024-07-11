@@ -177,7 +177,7 @@ func ProvideAuthenticationFactory() (f factories.AuthenticationFactory, err erro
 func ProvideIdentityFactory() (f factories.IdentityFactory, err error) {
 	wire.Build(
 		identity.NewIdentityFactory,
-		openfort_identity.GetConfigFromEnv,
+		ofidty.GetConfigFromEnv,
 		ProvideSQLProviderRepository,
 	)
 

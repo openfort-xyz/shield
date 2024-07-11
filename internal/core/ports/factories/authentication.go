@@ -2,6 +2,7 @@ package factories
 
 import (
 	"context"
+
 	"go.openfort.xyz/shield/internal/core/domain/authentication"
 )
 

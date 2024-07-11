@@ -3,11 +3,13 @@ package identity
 import (
 	"context"
 	"errors"
-	"go.openfort.xyz/shield/internal/adapters/authenticators/identity/custom_identity"
-	"go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
+	"log/slog"
+
+	cstmidty "go.openfort.xyz/shield/internal/adapters/authenticators/identity/custom_identity"
+	ofidty "go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
+
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"log/slog"
 
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -15,12 +17,12 @@ import (
 )
 
 type identityFactory struct {
-	config *openfort_identity.Config
+	config *ofidty.Config
 	repo   repositories.ProviderRepository
 	logger *slog.Logger
 }
 
-func NewIdentityFactory(cfg *openfort_identity.Config, repo repositories.ProviderRepository) factories.IdentityFactory {
+func NewIdentityFactory(cfg *ofidty.Config, repo repositories.ProviderRepository) factories.IdentityFactory {
 	return &identityFactory{
 		config: cfg,
 		repo:   repo,
@@ -43,7 +45,7 @@ func (p *identityFactory) CreateCustomIdentity(ctx context.Context, apiKey strin
 		return nil, domainErrors.ErrProviderConfigMismatch
 	}
 
-	return custom_identity.NewCustomIdentityFactory(config), nil
+	return cstmidty.NewCustomIdentityFactory(config), nil
 }
 
 func (p *identityFactory) CreateOpenfortIdentity(ctx context.Context, apiKey string, authenticationProvider, tokenType *string) (factories.Identity, error) {
@@ -61,5 +63,5 @@ func (p *identityFactory) CreateOpenfortIdentity(ctx context.Context, apiKey str
 		return nil, domainErrors.ErrProviderConfigMismatch
 	}
 
-	return openfort_identity.NewOpenfortIdentityFactory(p.config, config, authenticationProvider, tokenType), nil
+	return ofidty.NewOpenfortIdentityFactory(p.config, config, authenticationProvider, tokenType), nil
 }

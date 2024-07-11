@@ -1,8 +1,8 @@
 package authenticators
 
 import (
-	"go.openfort.xyz/shield/internal/adapters/authenticators/project_authenticator"
-	"go.openfort.xyz/shield/internal/adapters/authenticators/user_authenticator"
+	projauth "go.openfort.xyz/shield/internal/adapters/authenticators/project_authenticator"
+	usrauth "go.openfort.xyz/shield/internal/adapters/authenticators/user_authenticator"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
@@ -21,9 +21,9 @@ func NewAuthenticatorFactory(projectRepo repositories.ProjectRepository, userSer
 }
 
 func (f *authenticatorFactory) CreateProjectAuthenticator(apiKey, apiSecret string) factories.Authenticator {
-	return project_authenticator.NewProjectAuthenticator(f.projectRepo, apiKey, apiSecret)
+	return projauth.NewProjectAuthenticator(f.projectRepo, apiKey, apiSecret)
 }
 
 func (f *authenticatorFactory) CreateUserAuthenticator(apiKey, token string, identityFactory factories.Identity) factories.Authenticator {
-	return user_authenticator.NewUserAuthenticator(f.projectRepo, f.userService, apiKey, token, identityFactory)
+	return usrauth.NewUserAuthenticator(f.projectRepo, f.userService, apiKey, token, identityFactory)
 }

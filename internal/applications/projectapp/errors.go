@@ -2,6 +2,7 @@ package projectapp
 
 import (
 	"errors"
+
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 )
 

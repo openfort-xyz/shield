@@ -1,4 +1,4 @@
-package aes_encryption_strategy
+package aesenc
 
 import "go.openfort.xyz/shield/pkg/cypher"
 

@@ -44,22 +44,16 @@ func TestShareApplication_GetShare(t *testing.T) {
 	}
 
 	plainShare := &share.Share{
-		Secret: "secret",
-		EncryptionParameters: &share.EncryptionParameters{
-			Entropy: share.EntropyNone,
-		},
+		Secret:  "secret",
+		Entropy: share.EntropyNone,
 	}
 	encryptedShare := &share.Share{
-		Secret: encryptedSecret,
-		EncryptionParameters: &share.EncryptionParameters{
-			Entropy: share.EntropyProject,
-		},
+		Secret:  encryptedSecret,
+		Entropy: share.EntropyProject,
 	}
 	decryptedShare := &share.Share{
-		Secret: "secret",
-		EncryptionParameters: &share.EncryptionParameters{
-			Entropy: share.EntropyProject,
-		},
+		Secret:  "secret",
+		Entropy: share.EntropyProject,
 	}
 
 	tc := []struct {
@@ -248,18 +242,14 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 	}
 
 	plainShare := &share.Share{
-		Secret: "secret",
-		UserID: "user_id",
-		EncryptionParameters: &share.EncryptionParameters{
-			Entropy: share.EntropyNone,
-		},
+		Secret:  "secret",
+		UserID:  "user_id",
+		Entropy: share.EntropyNone,
 	}
 	encryptedShare := &share.Share{
-		Secret: encryptedSecret,
-		UserID: "user_id",
-		EncryptionParameters: &share.EncryptionParameters{
-			Entropy: share.EntropyProject,
-		},
+		Secret:  encryptedSecret,
+		UserID:  "user_id",
+		Entropy: share.EntropyProject,
 	}
 
 	tc := []struct {

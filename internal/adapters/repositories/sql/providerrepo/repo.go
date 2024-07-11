@@ -3,8 +3,9 @@ package providerrepo
 import (
 	"context"
 	"errors"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"log/slog"
+
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
@@ -74,7 +75,6 @@ func (r *repository) GetByAPIKeyAndType(ctx context.Context, apiKey string, prov
 		}
 		r.logger.ErrorContext(ctx, "error getting provider", logger.Error(err))
 		return nil, err
-
 	}
 
 	return r.parser.toDomainProvider(dbProv), nil

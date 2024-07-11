@@ -3,8 +3,9 @@ package projectsvc
 import (
 	"context"
 	"errors"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"log/slog"
+
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain/project"

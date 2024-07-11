@@ -2,8 +2,9 @@ package shareapp
 
 import (
 	"context"
-	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"log/slog"
+
+	"go.openfort.xyz/shield/internal/core/ports/factories"
 
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -71,8 +72,18 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, op
 		return nil, fromDomainError(err)
 	}
 
+	if shr.Entropy != 0 {
+		dbShare.Entropy = shr.Entropy
+	}
+
 	if shr.EncryptionParameters != nil {
 		dbShare.EncryptionParameters = shr.EncryptionParameters
+	}
+
+	if dbShare.Entropy == share.EntropyNone {
+		if dbShare.EncryptionParameters != nil {
+			dbShare.EncryptionParameters = nil
+		}
 	}
 
 	if shr.Secret != "" {

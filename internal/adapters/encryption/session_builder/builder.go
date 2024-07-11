@@ -1,8 +1,9 @@
-package session_builder
+package sessbldr
 
 import (
 	"context"
 	"errors"
+
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/builders"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -53,13 +54,13 @@ func (b *sessionBuilder) SetDatabasePart(ctx context.Context, identifier string)
 	return nil
 }
 
-func (b *sessionBuilder) Build(ctx context.Context) (string, error) {
+func (b *sessionBuilder) Build(_ context.Context) (string, error) {
 	if b.projectPart == "" {
-		return "", errors.New("project part is required") // TODO extract error
+		return "", domainErrors.ErrProjectPartRequired
 	}
 
 	if b.databasePart == "" {
-		return "", errors.New("database part is required") // TODO extract error
+		return "", domainErrors.ErrDatabasePartRequired
 	}
 
 	return b.reconstructionStrategy.Reconstruct(b.databasePart, b.projectPart)

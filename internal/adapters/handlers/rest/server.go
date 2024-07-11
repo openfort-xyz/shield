@@ -3,11 +3,12 @@ package rest
 import (
 	"context"
 	"fmt"
-	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/internal/core/ports/services"
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"go.openfort.xyz/shield/internal/core/ports/services"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -77,6 +78,7 @@ func (s *Server) Start(ctx context.Context) error {
 	u.HandleFunc("", shareHdl.GetShare).Methods(http.MethodGet)
 	u.HandleFunc("", shareHdl.RegisterShare).Methods(http.MethodPost)
 	u.HandleFunc("", shareHdl.DeleteShare).Methods(http.MethodDelete)
+	u.HandleFunc("", shareHdl.UpdateShare).Methods(http.MethodPut)
 
 	a := r.PathPrefix("/admin").Subrouter()
 	a.Use(authMdw.AuthenticateAPISecret)

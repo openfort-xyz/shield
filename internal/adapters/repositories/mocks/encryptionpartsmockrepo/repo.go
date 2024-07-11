@@ -13,16 +13,16 @@ type MockEncryptionPartsRepository struct {
 
 var _ repositories.EncryptionPartsRepository = (*MockEncryptionPartsRepository)(nil)
 
-func (m *MockEncryptionPartsRepository) Get(ctx context.Context, sessionId string) (string, error) {
-	args := m.Mock.Called(ctx, sessionId)
+func (m *MockEncryptionPartsRepository) Get(ctx context.Context, sessionID string) (string, error) {
+	args := m.Mock.Called(ctx, sessionID)
 	if args.Get(0) == nil {
 		return "", args.Error(1)
 	}
 	return args.Get(0).(string), args.Error(1)
 }
 
-func (m *MockEncryptionPartsRepository) Set(ctx context.Context, sessionId, part string) error {
-	args := m.Mock.Called(ctx, sessionId, part)
+func (m *MockEncryptionPartsRepository) Set(ctx context.Context, sessionID, part string) error {
+	args := m.Mock.Called(ctx, sessionID, part)
 	return args.Error(0)
 }
 

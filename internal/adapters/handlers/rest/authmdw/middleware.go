@@ -1,10 +1,11 @@
 package authmdw
 
 import (
-	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/internal/core/ports/services"
 	"net/http"
 	"strings"
+
+	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"go.openfort.xyz/shield/internal/core/ports/services"
 
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
 	"go.openfort.xyz/shield/pkg/contexter"
@@ -84,11 +85,12 @@ func (m *Middleware) PreRegisterUser(next http.Handler) http.Handler {
 
 		var identity factories.Identity
 		var err error
-		if providerStr == AuthenticationTypeCustom {
+		switch providerStr {
+		case AuthenticationTypeCustom:
 			identity, err = m.identityFactory.CreateCustomIdentity(r.Context(), apiKey)
-		} else if providerStr == AuthenticationTypeOpenfort {
+		case AuthenticationTypeOpenfort:
 			identity, err = m.identityFactory.CreateOpenfortIdentity(r.Context(), apiKey, nil, nil)
-		} else {
+		default:
 			api.RespondWithError(w, api.ErrInvalidAuthProvider)
 			return
 		}
@@ -138,9 +140,11 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 
 		var identity factories.Identity
 		var err error
-		if providerStr == AuthenticationTypeCustom {
+
+		switch providerStr {
+		case AuthenticationTypeCustom:
 			identity, err = m.identityFactory.CreateCustomIdentity(r.Context(), apiKey)
-		} else if providerStr == AuthenticationTypeOpenfort {
+		case AuthenticationTypeOpenfort:
 			var openfortProvider *string
 			if r.Header.Get(OpenfortProviderHeader) != "" {
 				openfortProvider = new(string)
@@ -152,7 +156,7 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 				*openfortTokenType = r.Header.Get(OpenfortTokenTypeHeader)
 			}
 			identity, err = m.identityFactory.CreateOpenfortIdentity(r.Context(), apiKey, openfortProvider, openfortTokenType)
-		} else {
+		default:
 			api.RespondWithError(w, api.ErrInvalidAuthProvider)
 			return
 		}

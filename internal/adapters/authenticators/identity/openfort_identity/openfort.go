@@ -1,17 +1,18 @@
-package openfort_identity
+package ofidty
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/pkg/jwk"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
+
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"go.openfort.xyz/shield/pkg/jwk"
 
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/pkg/logger"
@@ -54,8 +55,8 @@ func (o *OpenfortIdentityFactory) Identify(ctx context.Context, token string) (s
 	return o.accessToken(ctx, token)
 }
 
-func (o *OpenfortIdentityFactory) accessToken(ctx context.Context, token string) (string, error) {
-	return jwk.Validate(token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey)) // TODO parse error
+func (o *OpenfortIdentityFactory) accessToken(_ context.Context, token string) (string, error) {
+	return jwk.Validate(token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey))
 }
 
 func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authenticationProvider, tokenType string) (string, error) {

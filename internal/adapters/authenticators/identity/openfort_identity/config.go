@@ -1,4 +1,4 @@
-package openfort_identity
+package ofidty
 
 import "github.com/caarlos0/env/v10"
 

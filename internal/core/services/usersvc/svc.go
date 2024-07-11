@@ -3,8 +3,9 @@ package usersvc
 import (
 	"context"
 	"errors"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"log/slog"
+
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 
 	"go.openfort.xyz/shield/internal/core/domain/user"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -42,7 +43,7 @@ func (s *service) GetOrCreate(ctx context.Context, projectID, externalUserID, pr
 			return nil, err
 		}
 
-		_, err = s.createExternal(ctx, projectID, usr.ID, externalUserID, providerID)
+		_, err = s.createExternal(ctx, usr, externalUserID, providerID)
 		if err != nil {
 			s.logger.ErrorContext(ctx, "failed to create external user", logger.Error(err))
 			return nil, err
@@ -91,43 +92,16 @@ func (s *service) getByExternal(ctx context.Context, externalUserID, providerID 
 	return usr, nil
 }
 
-func (s *service) createExternal(ctx context.Context, projectID, userID, externalUserID, providerID string) (*user.ExternalUser, error) {
-	s.logger.InfoContext(ctx, "creating external user", slog.String("project_id", projectID))
-
-	usr, err := s.repo.Get(ctx, userID)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get user", logger.Error(err))
-		return nil, err
-	}
-
-	if usr == nil {
-		s.logger.ErrorContext(ctx, "user not found", slog.String("user_id", userID))
-		return nil, domainErrors.ErrUserNotFound
-	}
-
-	if usr.ProjectID != projectID {
-		s.logger.ErrorContext(ctx, "user does not belong to project", slog.String("project_id", projectID), slog.String("user_id", userID))
-		return nil, domainErrors.ErrUserNotFound
-	}
-
-	extUsrs, err := s.repo.FindExternalBy(ctx, s.repo.WithUserID(userID), s.repo.WithProviderID(providerID))
-	if err != nil && !errors.Is(err, domainErrors.ErrExternalUserNotFound) {
-		s.logger.ErrorContext(ctx, "failed to get external user", logger.Error(err))
-		return nil, err
-	}
-
-	if len(extUsrs) != 0 {
-		s.logger.ErrorContext(ctx, "external user already exists for this user and provider", slog.String("user_id", userID), slog.String("provider_type", providerID))
-		return nil, domainErrors.ErrExternalUserAlreadyExists
-	}
+func (s *service) createExternal(ctx context.Context, usr *user.User, externalUserID, providerID string) (*user.ExternalUser, error) {
+	s.logger.InfoContext(ctx, "creating external user")
 
 	extUsr := &user.ExternalUser{
-		UserID:         userID,
+		UserID:         usr.ID,
 		ExternalUserID: externalUserID,
 		ProviderID:     providerID,
 	}
 
-	err = s.repo.CreateExternal(ctx, extUsr)
+	err := s.repo.CreateExternal(ctx, extUsr)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create external user", logger.Error(err))
 		return nil, err

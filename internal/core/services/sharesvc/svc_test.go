@@ -31,11 +31,9 @@ func TestCreateShare(t *testing.T) {
 		Secret: testData,
 	}
 	testEncryptionShare := &share.Share{
-		UserID: testUserID,
-		Secret: testData,
-		EncryptionParameters: &share.EncryptionParameters{
-			Entropy: share.EntropyProject,
-		},
+		UserID:  testUserID,
+		Secret:  testData,
+		Entropy: share.EntropyProject,
 	}
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
