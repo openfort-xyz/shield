@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS shld_shamir_migrations (
 CREATE INDEX idx_project_id_success ON shld_shamir_migrations(project_id, success);
 DROP TABLE IF EXISTS shld_allowed_origins;
 -- +goose StatementBegin
--- +d
+-- +goose StatementEnd
 
 -- +goose Down
 DROP INDEX idx_project_id_success ON shld_shamir_migrations;
