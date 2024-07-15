@@ -54,11 +54,11 @@ func (b *sessionBuilder) SetDatabasePart(ctx context.Context, identifier string)
 	return nil
 }
 
-func (b *sessionBuilder) GetProjectPart(ctx context.Context) string {
+func (b *sessionBuilder) GetProjectPart(_ context.Context) string {
 	return b.projectPart
 }
 
-func (b *sessionBuilder) GetDatabasePart(ctx context.Context) string {
+func (b *sessionBuilder) GetDatabasePart(_ context.Context) string {
 	return b.databasePart
 }
 

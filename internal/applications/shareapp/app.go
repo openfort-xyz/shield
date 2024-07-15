@@ -2,8 +2,9 @@ package shareapp
 
 import (
 	"context"
-	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	"log/slog"
+
+	"go.openfort.xyz/shield/internal/applications/shamirjob"
 
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 

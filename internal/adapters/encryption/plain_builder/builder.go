@@ -39,12 +39,11 @@ func (b *plainBuilder) SetDatabasePart(ctx context.Context, identifier string) e
 	return nil
 }
 
-func (b *plainBuilder) GetProjectPart(ctx context.Context) string {
+func (b *plainBuilder) GetProjectPart(_ context.Context) string {
 	return b.projectPart
-
 }
 
-func (b *plainBuilder) GetDatabasePart(ctx context.Context) string {
+func (b *plainBuilder) GetDatabasePart(_ context.Context) string {
 	return b.databasePart
 }
 
