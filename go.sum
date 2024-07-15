@@ -91,6 +91,10 @@ github.com/tidwall/rtred v0.1.2/go.mod h1:hd69WNXQ5RP9vHd7dqekAz+RIdtfBogmglkZSR
 github.com/tidwall/tinyqueue v0.1.1 h1:SpNEvEggbpyN5DIReaJ2/1ndroY8iyEGxPYxoSaymYE=
 github.com/tidwall/tinyqueue v0.1.1/go.mod h1:O/QNHwrnjqr6IHItYrzoHAKYhBkLI67Q096fQP5zMYw=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+go.openfort.xyz/shamir-secret-sharing-go v0.0.0-20240711164902-c1a2df301b09 h1:fPnhsnHpX8xztLlMqXU1xM7ohNkUxW5bCkzk0n/e2c0=
+go.openfort.xyz/shamir-secret-sharing-go v0.0.0-20240711164902-c1a2df301b09/go.mod h1:EdgAbmmHezcyCO3ucE+JFMCGwcvV9CSoEsQuHkRM9js=
+go.openfort.xyz/shamir-secret-sharing-go v0.0.1 h1:/WeytO+6yXSH9op3zU8Eirxyj8UK/0MbhbS32uy+yYQ=
+go.openfort.xyz/shamir-secret-sharing-go v0.0.1/go.mod h1:EdgAbmmHezcyCO3ucE+JFMCGwcvV9CSoEsQuHkRM9js=
 go.uber.org/atomic v1.7.0 h1:ADUqmZGgLDDfbSL9ZmPxKTybcoEYHgpYfELNoN+7hsw=
 go.uber.org/atomic v1.7.0/go.mod h1:fEN4uk6kAWBTFdckzkM89CLk9XfWZrxpCo0nPH17wJc=
 go.uber.org/ratelimit v0.3.1 h1:K4qVE+byfv/B3tC+4nYWP7v/6SimcO7HzHekoMNBma0=

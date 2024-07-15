@@ -14,4 +14,7 @@ type ProjectRepository interface {
 
 	GetEncryptionPart(ctx context.Context, projectID string) (string, error)
 	SetEncryptionPart(ctx context.Context, projectID, part string) error
+
+	CreateMigration(ctx context.Context, projectID string, success bool) error
+	HasSuccessfulMigration(ctx context.Context, projectID string) (bool, error)
 }

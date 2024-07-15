@@ -9,6 +9,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
+	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
@@ -25,13 +26,13 @@ func TestShareApplication_GetShare(t *testing.T) {
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory, &shamirjob.Job{})
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
 		t.Fatalf(key)
 	}
 
-	reconstructor := encryptionFactory.CreateReconstructionStrategy()
+	reconstructor := encryptionFactory.CreateReconstructionStrategy(true)
 	storedPart, projectPart, err := reconstructor.Split(key)
 	if err != nil {
 		t.Fatalf("failed to generate encryption key: %v", err)
@@ -83,6 +84,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -101,6 +103,8 @@ func TestShareApplication_GetShare(t *testing.T) {
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(projectPart, nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
+
 			},
 			opts: []Option{
 				WithEncryptionSession("sessionID"),
@@ -125,6 +129,8 @@ func TestShareApplication_GetShare(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
+
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -139,6 +145,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart("invalid-key"),
@@ -152,6 +159,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(decryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -184,6 +192,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", errors.New("repository error"))
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -198,6 +207,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -224,13 +234,13 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory, &shamirjob.Job{})
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
 		t.Fatalf(key)
 	}
 
-	storedPart, projectPart, err := encryptionFactory.CreateReconstructionStrategy().Split(key)
+	storedPart, projectPart, err := encryptionFactory.CreateReconstructionStrategy(true).Split(key)
 	if err != nil {
 		t.Fatalf("failed to generate encryption key: %v", err)
 	}
@@ -279,6 +289,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, encryptedShare).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -302,6 +313,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -316,6 +328,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart("invalid-key"),
@@ -359,7 +372,7 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory, &shamirjob.Job{})
 
 	tc := []struct {
 		name    string
@@ -420,7 +433,7 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory, &shamirjob.Job{})
 	updates := &share.Share{
 		ID:                   "share-id",
 		Secret:               "secret",

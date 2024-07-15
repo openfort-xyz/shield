@@ -32,8 +32,8 @@ func (m *MockShareRepository) Delete(ctx context.Context, shareID string) error 
 	return args.Error(0)
 }
 
-func (m *MockShareRepository) ListDecryptedByProjectID(ctx context.Context, projectID string) ([]*share.Share, error) {
-	args := m.Mock.Called(ctx, projectID)
+func (m *MockShareRepository) ListProjectIDAndEntropy(ctx context.Context, projectID string, entropy share.Entropy) ([]*share.Share, error) {
+	args := m.Mock.Called(ctx, projectID, entropy)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -47,5 +47,10 @@ func (m *MockShareRepository) UpdateProjectEncryption(ctx context.Context, share
 
 func (m *MockShareRepository) Update(ctx context.Context, shr *share.Share) error {
 	args := m.Mock.Called(ctx, shr)
+	return args.Error(0)
+}
+
+func (m *MockShareRepository) BulkUpdate(ctx context.Context, shrs []*share.Share) error {
+	args := m.Mock.Called(ctx, shrs)
 	return args.Error(0)
 }

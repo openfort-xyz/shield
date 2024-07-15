@@ -76,14 +76,14 @@ func (r *repository) Delete(ctx context.Context, shareID string) error {
 	return nil
 }
 
-func (r *repository) ListDecryptedByProjectID(ctx context.Context, projectID string) ([]*share.Share, error) {
+func (r *repository) ListProjectIDAndEntropy(ctx context.Context, projectID string, entropy share.Entropy) ([]*share.Share, error) {
 	r.logger.InfoContext(ctx, "listing shares", slog.String("project_id", projectID))
 
 	var dbShares []*Share
 	err := r.db.Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
 		Joins("JOIN shld_projects ON shld_users.project_id = shld_projects.id").
 		Where("shld_projects.id = ?", projectID).
-		Where("shld_shares.entropy = ?", EntropyNone).
+		Where("shld_shares.entropy = ?", r.parser.mapDomainEntropy[entropy]).
 		Find(&dbShares).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error listing shares", logger.Error(err))
@@ -121,4 +121,26 @@ func (r *repository) Update(ctx context.Context, shr *share.Share) error {
 	}
 
 	return nil
+}
+
+func (r *repository) BulkUpdate(ctx context.Context, shrs []*share.Share) error {
+	r.logger.InfoContext(ctx, "bulk updating shares")
+
+	var dbShares []*Share
+	for _, shr := range shrs {
+		dbShares = append(dbShares, r.parser.toDatabase(shr))
+	}
+
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		for _, dbShr := range dbShares {
+			err := tx.Save(dbShr).Error
+			if err != nil {
+				r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
+				return err
+			}
+		}
+
+		r.logger.InfoContext(ctx, "bulk updated shares", slog.Int("count", len(shrs)))
+		return nil
+	})
 }

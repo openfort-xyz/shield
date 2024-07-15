@@ -67,6 +67,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", nil)
 				projectRepo.On("SetEncryptionPart", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				projectRepo.On("CreateMigration", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -844,7 +845,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 		t.Fatalf(key)
 	}
 
-	reconstructor := encryptionFactory.CreateReconstructionStrategy()
+	reconstructor := encryptionFactory.CreateReconstructionStrategy(true)
 	storedPart, projectPart, err := reconstructor.Split(key)
 	if err != nil {
 		t.Fatalf("failed to generate encryption key: %v", err)
@@ -889,10 +890,11 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.ExpectedCalls = nil
-				shareRepo.On("ListDecryptedByProjectID", mock.Anything, mock.Anything).Return([]*share.Share{plainShare, encryptedShare}, nil)
+				shareRepo.On("ListProjectIDAndEntropy", mock.Anything, mock.Anything, mock.Anything).Return([]*share.Share{plainShare, encryptedShare}, nil)
 				shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return(storedPart, nil)
 				shareRepo.On("UpdateProjectEncryption", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, mock.Anything).Return(true, nil)
 			},
 		},
 		{
@@ -901,6 +903,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", domainErrors.ErrEncryptionPartNotFound)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, mock.Anything).Return(true, nil)
 			},
 			wantErr: ErrEncryptionNotConfigured,
 		},
@@ -910,6 +913,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", errors.New("repository error"))
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, mock.Anything).Return(true, nil)
 			},
 			wantErr: ErrInternal,
 		},
@@ -919,6 +923,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("invalid", nil)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, mock.Anything).Return(true, nil)
 			},
 			wantErr: ErrInvalidEncryptionPart,
 		},
@@ -929,7 +934,8 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.ExpectedCalls = nil
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return(storedPart, nil)
-				shareRepo.On("ListDecryptedByProjectID", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+				shareRepo.On("ListProjectIDAndEntropy", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, mock.Anything).Return(true, nil)
 			},
 			wantErr: ErrInternal,
 		},
@@ -940,8 +946,9 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return(storedPart, nil)
 				shareRepo.ExpectedCalls = nil
-				shareRepo.On("ListDecryptedByProjectID", mock.Anything, mock.Anything).Return([]*share.Share{plainShare2}, nil)
+				shareRepo.On("ListProjectIDAndEntropy", mock.Anything, mock.Anything, mock.Anything).Return([]*share.Share{plainShare2}, nil)
 				shareRepo.On("UpdateProjectEncryption", mock.Anything, "share_id", mock.Anything).Return(errors.New("repository error"))
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, mock.Anything).Return(true, nil)
 			},
 			wantErr: ErrInternal,
 		},
@@ -981,6 +988,7 @@ func TestProjectApplication_RegisterEncryptionKey(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 				projectRepo.On("SetEncryptionPart", mock.Anything, "project_id", mock.Anything).Return(nil)
+				projectRepo.On("CreateMigration", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{

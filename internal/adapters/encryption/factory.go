@@ -2,6 +2,7 @@ package encryption
 
 import (
 	aesencryptionstrategy "go.openfort.xyz/shield/internal/adapters/encryption/aes_encryption_strategy"
+	depsssrec "go.openfort.xyz/shield/internal/adapters/encryption/deprecated_sss_reconstruction_strategy"
 	plnbldr "go.openfort.xyz/shield/internal/adapters/encryption/plain_builder"
 	sessbldr "go.openfort.xyz/shield/internal/adapters/encryption/session_builder"
 	sssrec "go.openfort.xyz/shield/internal/adapters/encryption/sss_reconstruction_strategy"
@@ -24,19 +25,28 @@ func NewEncryptionFactory(encryptionPartsRepo repositories.EncryptionPartsReposi
 	}
 }
 
-func (e *encryptionFactory) CreateEncryptionKeyBuilder(builderType factories.EncryptionKeyBuilderType) (builders.EncryptionKeyBuilder, error) {
+func (e *encryptionFactory) CreateEncryptionKeyBuilder(builderType factories.EncryptionKeyBuilderType, projectMigrated bool) (builders.EncryptionKeyBuilder, error) {
+	var reconstructionStrategy strategies.ReconstructionStrategy
+	if projectMigrated {
+		reconstructionStrategy = sssrec.NewSSSReconstructionStrategy()
+	} else {
+		reconstructionStrategy = depsssrec.NewSSSReconstructionStrategy()
+	}
 	switch builderType {
 	case factories.Plain:
-		return plnbldr.NewEncryptionKeyBuilder(e.projectRepo, sssrec.NewSSSReconstructionStrategy()), nil
+		return plnbldr.NewEncryptionKeyBuilder(e.projectRepo, reconstructionStrategy), nil
 	case factories.Session:
-		return sessbldr.NewEncryptionKeyBuilder(e.encryptionPartsRepo, e.projectRepo, sssrec.NewSSSReconstructionStrategy()), nil
+		return sessbldr.NewEncryptionKeyBuilder(e.encryptionPartsRepo, e.projectRepo, reconstructionStrategy), nil
 	}
 
 	return nil, errors.ErrInvalidEncryptionKeyBuilderType
 }
 
-func (e *encryptionFactory) CreateReconstructionStrategy() strategies.ReconstructionStrategy {
-	return sssrec.NewSSSReconstructionStrategy()
+func (e *encryptionFactory) CreateReconstructionStrategy(projectMigrated bool) strategies.ReconstructionStrategy {
+	if projectMigrated {
+		return sssrec.NewSSSReconstructionStrategy()
+	}
+	return depsssrec.NewSSSReconstructionStrategy()
 }
 
 func (e *encryptionFactory) CreateEncryptionStrategy(key string) strategies.EncryptionStrategy {

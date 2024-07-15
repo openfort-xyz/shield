@@ -52,3 +52,13 @@ func (m *MockProjectRepository) SetEncryptionPart(ctx context.Context, projectID
 	args := m.Mock.Called(ctx, projectID, part)
 	return args.Error(0)
 }
+
+func (m *MockProjectRepository) CreateMigration(ctx context.Context, projectID string, success bool) error {
+	args := m.Mock.Called(ctx, projectID, success)
+	return args.Error(0)
+}
+
+func (m *MockProjectRepository) HasSuccessfulMigration(ctx context.Context, projectID string) (bool, error) {
+	args := m.Mock.Called(ctx, projectID)
+	return args.Bool(0), args.Error(1)
+}
