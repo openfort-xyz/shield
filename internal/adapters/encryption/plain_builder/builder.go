@@ -39,6 +39,15 @@ func (b *plainBuilder) SetDatabasePart(ctx context.Context, identifier string) e
 	return nil
 }
 
+func (b *plainBuilder) GetProjectPart(ctx context.Context) string {
+	return b.projectPart
+
+}
+
+func (b *plainBuilder) GetDatabasePart(ctx context.Context) string {
+	return b.databasePart
+}
+
 func (b *plainBuilder) Build(_ context.Context) (string, error) {
 	if b.projectPart == "" {
 		return "", domainErrors.ErrProjectPartRequired

@@ -18,6 +18,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
+	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -137,6 +138,16 @@ func ProvideShareService() (s services.ShareService, err error) {
 	return
 }
 
+func ProvideShamirJob() (j *shamirjob.Job, err error) {
+	wire.Build(
+		shamirjob.New,
+		ProvideSQLProjectRepository,
+		ProvideSQLShareRepository,
+	)
+
+	return
+}
+
 func ProvideShareApplication() (a *shareapp.ShareApplication, err error) {
 	wire.Build(
 		shareapp.New,
@@ -144,6 +155,7 @@ func ProvideShareApplication() (a *shareapp.ShareApplication, err error) {
 		ProvideSQLShareRepository,
 		ProvideSQLProjectRepository,
 		ProvideEncryptionFactory,
+		ProvideShamirJob,
 	)
 
 	return

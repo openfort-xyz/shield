@@ -5,7 +5,6 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"errors"
-
 	"github.com/codahale/sss"
 	"go.openfort.xyz/shield/pkg/random"
 )
@@ -103,9 +102,9 @@ func ReconstructEncryptionKey(part1, part2 string) (string, error) {
 		return "", err
 	}
 
-	subset := make(map[byte][]byte)
-	subset[1] = rawPart1
-	subset[2] = rawPart2
+	subset := make(map[byte][]byte, 2)
+	subset[0] = rawPart1
+	subset[1] = rawPart2
 
 	key := sss.Combine(subset)
 

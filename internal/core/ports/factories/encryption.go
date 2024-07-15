@@ -6,8 +6,8 @@ import (
 )
 
 type EncryptionFactory interface {
-	CreateEncryptionKeyBuilder(builderType EncryptionKeyBuilderType) (builders.EncryptionKeyBuilder, error)
-	CreateReconstructionStrategy() strategies.ReconstructionStrategy
+	CreateEncryptionKeyBuilder(builderType EncryptionKeyBuilderType, projectMigrated bool) (builders.EncryptionKeyBuilder, error)
+	CreateReconstructionStrategy(projectMigrated bool) strategies.ReconstructionStrategy
 	CreateEncryptionStrategy(key string) strategies.EncryptionStrategy
 }
 

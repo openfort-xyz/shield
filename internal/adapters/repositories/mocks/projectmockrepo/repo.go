@@ -2,7 +2,6 @@ package projectmockrepo
 
 import (
 	"context"
-
 	"github.com/stretchr/testify/mock"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -51,4 +50,14 @@ func (m *MockProjectRepository) GetEncryptionPart(ctx context.Context, projectID
 func (m *MockProjectRepository) SetEncryptionPart(ctx context.Context, projectID, part string) error {
 	args := m.Mock.Called(ctx, projectID, part)
 	return args.Error(0)
+}
+
+func (m *MockProjectRepository) CreateMigration(ctx context.Context, projectID string, success bool) error {
+	args := m.Mock.Called(ctx, projectID, success)
+	return args.Error(0)
+}
+
+func (m *MockProjectRepository) HasSuccessfulMigration(ctx context.Context, projectID string) (bool, error) {
+	args := m.Mock.Called(ctx, projectID)
+	return args.Bool(0), args.Error(1)
 }

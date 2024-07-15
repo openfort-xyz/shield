@@ -125,3 +125,34 @@ func (r *repository) SetEncryptionPart(ctx context.Context, projectID, part stri
 
 	return nil
 }
+
+func (r *repository) CreateMigration(ctx context.Context, projectID string, success bool) error {
+	r.logger.InfoContext(ctx, "creating migration", slog.String("project_id", projectID), slog.Bool("success", success))
+
+	migration := &Migration{
+		ID:        uuid.NewString(),
+		ProjectID: projectID,
+		Success:   success,
+	}
+
+	err := r.db.Create(migration).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error creating migration", logger.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func (r *repository) HasSuccessfulMigration(ctx context.Context, projectID string) (bool, error) {
+	r.logger.InfoContext(ctx, "checking for successful migration", slog.String("project_id", projectID))
+
+	var count int64
+	err := r.db.Model(&Migration{}).Where("project_id = ? AND success = ?", projectID, true).Count(&count).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error checking for successful migration", logger.Error(err))
+		return false, err
+	}
+
+	return count > 0, nil
+}

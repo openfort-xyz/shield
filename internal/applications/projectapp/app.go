@@ -60,12 +60,12 @@ func (a *ProjectApplication) CreateProject(ctx context.Context, name string, opt
 	if o.generateEncryptionKey {
 		part, err := a.registerEncryptionKey(ctx, proj.ID)
 		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
 			errD := a.projectRepo.Delete(ctx, proj.ID)
 			if errD != nil {
 				a.logger.Error("failed to delete project", logger.Error(errD))
 				err = errors.Join(err, errD)
 			}
-			a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
 
@@ -274,7 +274,13 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 	a.logger.InfoContext(ctx, "encrypting project shares")
 	projectID := contexter.GetProjectID(ctx)
 
-	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(factories.Plain)
+	isMigrated, err := a.projectRepo.HasSuccessfulMigration(ctx, projectID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to check migration", logger.Error(err))
+		return ErrInternal
+	}
+
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(factories.Plain, isMigrated)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
 		return ErrInternal
@@ -298,7 +304,7 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 		return ErrInvalidEncryptionPart
 	}
 
-	shares, err := a.sharesRepo.ListDecryptedByProjectID(ctx, projectID)
+	shares, err := a.sharesRepo.ListProjectIDAndEntropy(ctx, projectID, share.EntropyNone)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to list shares", logger.Error(err))
 		return fromDomainError(err)
@@ -377,7 +383,7 @@ func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectI
 		return "", ErrInternal
 	}
 
-	reconstructionStrategy := a.encryptionFactory.CreateReconstructionStrategy()
+	reconstructionStrategy := a.encryptionFactory.CreateReconstructionStrategy(true)
 	storedPart, projectPart, err := reconstructionStrategy.Split(key)
 	if err != nil {
 		a.logger.Error("failed to split encryption key", logger.Error(err))
@@ -387,6 +393,12 @@ func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectI
 	err = a.projectSvc.SetEncryptionPart(ctx, projectID, storedPart)
 	if err != nil {
 		return "", err
+	}
+
+	err = a.projectRepo.CreateMigration(ctx, projectID, true)
+	if err != nil {
+		a.logger.Error("failed to create migration", logger.Error(err))
+		return "", ErrInternal
 	}
 
 	return projectPart, nil

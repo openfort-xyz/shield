@@ -8,7 +8,6 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/pkg/cypher"
 	"go.openfort.xyz/shield/pkg/random"
 	"testing"
 
@@ -40,13 +39,13 @@ func TestCreateShare(t *testing.T) {
 		t.Fatalf(key)
 	}
 
-	reconstructor := encryptionFactory.CreateReconstructionStrategy()
+	reconstructor := encryptionFactory.CreateReconstructionStrategy(true)
 	storedPart, projectPart, err := reconstructor.Split(key)
 	if err != nil {
 		t.Fatalf("failed to generate encryption key: %v", err)
 	}
 
-	encryptionKey, err := cypher.ReconstructEncryptionKey(storedPart, projectPart)
+	encryptionKey, err := reconstructor.Reconstruct(storedPart, projectPart)
 	if err != nil {
 		t.Fatalf("failed to reconstruct encryption key: %v", err)
 	}

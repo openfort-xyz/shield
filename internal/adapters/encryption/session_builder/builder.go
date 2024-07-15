@@ -54,6 +54,14 @@ func (b *sessionBuilder) SetDatabasePart(ctx context.Context, identifier string)
 	return nil
 }
 
+func (b *sessionBuilder) GetProjectPart(ctx context.Context) string {
+	return b.projectPart
+}
+
+func (b *sessionBuilder) GetDatabasePart(ctx context.Context) string {
+	return b.databasePart
+}
+
 func (b *sessionBuilder) Build(_ context.Context) (string, error) {
 	if b.projectPart == "" {
 		return "", domainErrors.ErrProjectPartRequired

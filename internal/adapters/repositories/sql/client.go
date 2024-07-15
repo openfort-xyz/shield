@@ -2,12 +2,11 @@ package sql
 
 import (
 	"database/sql"
-	"path/filepath"
-
 	"github.com/pressly/goose"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"path/filepath"
 )
 
 type Client struct {

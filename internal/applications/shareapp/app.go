@@ -2,6 +2,7 @@ package shareapp
 
 import (
 	"context"
+	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	"log/slog"
 
 	"go.openfort.xyz/shield/internal/core/ports/factories"
@@ -19,15 +20,17 @@ type ShareApplication struct {
 	projectRepo       repositories.ProjectRepository
 	logger            *slog.Logger
 	encryptionFactory factories.EncryptionFactory
+	shamirJob         *shamirjob.Job
 }
 
-func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository, encryptionFactory factories.EncryptionFactory) *ShareApplication {
+func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository, encryptionFactory factories.EncryptionFactory, shamirJob *shamirjob.Job) *ShareApplication {
 	return &ShareApplication{
 		shareSvc:          shareSvc,
 		shareRepo:         shareRepo,
 		projectRepo:       projectRepo,
 		logger:            logger.New("share_application"),
 		encryptionFactory: encryptionFactory,
+		shamirJob:         shamirJob,
 	}
 }
 
@@ -184,7 +187,13 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 		return "", ErrEncryptionPartRequired
 	}
 
-	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType)
+	isMigrated, err := a.projectRepo.HasSuccessfulMigration(ctx, projID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to check migration", logger.Error(err))
+		return "", ErrInternal
+	}
+
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType, isMigrated)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
 		return "", ErrInternal
@@ -206,6 +215,16 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to reconstruct encryption key", logger.Error(err))
 		return "", ErrInvalidEncryptionPart
+	}
+
+	if !isMigrated {
+		ctxWithoutCancel := context.WithoutCancel(ctx)
+		go func() {
+			err = a.shamirJob.Execute(ctxWithoutCancel, projID, builder.GetDatabasePart(ctxWithoutCancel), builder.GetProjectPart(ctxWithoutCancel), encryptionKey)
+			if err != nil {
+				a.logger.ErrorContext(ctx, "failed to execute shamir job", logger.Error(err))
+			}
+		}()
 	}
 
 	return encryptionKey, nil

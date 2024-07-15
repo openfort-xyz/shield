@@ -20,6 +20,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
+	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
@@ -150,6 +151,19 @@ func ProvideShareService() (services.ShareService, error) {
 	return shareService, nil
 }
 
+func ProvideShamirJob() (*shamirjob.Job, error) {
+	projectRepository, err := ProvideSQLProjectRepository()
+	if err != nil {
+		return nil, err
+	}
+	shareRepository, err := ProvideSQLShareRepository()
+	if err != nil {
+		return nil, err
+	}
+	job := shamirjob.New(projectRepository, shareRepository)
+	return job, nil
+}
+
 func ProvideShareApplication() (*shareapp.ShareApplication, error) {
 	shareService, err := ProvideShareService()
 	if err != nil {
@@ -167,7 +181,11 @@ func ProvideShareApplication() (*shareapp.ShareApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	shareApplication := shareapp.New(shareService, shareRepository, projectRepository, encryptionFactory)
+	job, err := ProvideShamirJob()
+	if err != nil {
+		return nil, err
+	}
+	shareApplication := shareapp.New(shareService, shareRepository, projectRepository, encryptionFactory, job)
 	return shareApplication, nil
 }
 

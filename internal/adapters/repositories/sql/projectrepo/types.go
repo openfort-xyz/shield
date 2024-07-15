@@ -29,3 +29,14 @@ type EncryptionPart struct {
 func (EncryptionPart) TableName() string {
 	return "shld_encryption_parts"
 }
+
+type Migration struct {
+	ID        string    `gorm:"column:id;primaryKey"`
+	ProjectID string    `gorm:"column:project_id"`
+	Timestamp time.Time `gorm:"column:timestamp;autoCreateTime"`
+	Success   bool      `gorm:"column:success"`
+}
+
+func (Migration) TableName() string {
+	return "shld_shamir_migrations"
+}
