@@ -133,7 +133,7 @@ func (r *repository) BulkUpdate(ctx context.Context, shrs []*share.Share) error 
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		for _, dbShr := range dbShares {
-			err := tx.Save(dbShr).Error
+			err := tx.Model(&Share{}).Where("id = ?", dbShr.ID).Updates(dbShr).Error
 			if err != nil {
 				r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
 				return err
