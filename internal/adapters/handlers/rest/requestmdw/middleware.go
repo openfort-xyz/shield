@@ -3,7 +3,8 @@ package requestmdw
 import (
 	"net/http"
 
-	"github.com/google/uuid"
+	"go.openfort.xyz/shield/pkg/random"
+
 	"go.openfort.xyz/shield/pkg/contexter"
 )
 
@@ -15,7 +16,8 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 		if r.Header.Get(RequestIDHeader) != "" {
 			ctx = contexter.WithRequestID(ctx, r.Header.Get(RequestIDHeader))
 		} else {
-			ctx = contexter.WithRequestID(ctx, uuid.NewString())
+			requestID, _ := random.UUIDv7()
+			ctx = contexter.WithRequestID(ctx, requestID)
 		}
 
 		w.Header().Set(RequestIDHeader, contexter.GetRequestID(ctx))

@@ -22,6 +22,7 @@ const EncryptionPartHeader = "X-Encryption-Part"                     //nolint:go
 const UserIDHeader = "X-User-ID"                                     //nolint:gosec
 const AuthenticationTypeCustom = "custom"                            //nolint:gosec
 const AuthenticationTypeOpenfort = "openfort"                        //nolint:gosec
+const RequestIDHeader = "X-Request-ID"                               //nolint:gosec
 
 type Middleware struct {
 	authenticationFactory factories.AuthenticationFactory
