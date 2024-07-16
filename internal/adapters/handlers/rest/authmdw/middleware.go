@@ -19,6 +19,7 @@ const OpenfortProviderHeader = "X-Openfort-Provider"                 //nolint:go
 const OpenfortTokenTypeHeader = "X-Openfort-Token-Type"              //nolint:gosec
 const AccessControlAllowOriginHeader = "Access-Control-Allow-Origin" //nolint:gosec
 const EncryptionPartHeader = "X-Encryption-Part"                     //nolint:gosec
+const EncryptionSessionHeader = "X-Encryption-Session"               //nolint:gosec
 const UserIDHeader = "X-User-ID"                                     //nolint:gosec
 const AuthenticationTypeCustom = "custom"                            //nolint:gosec
 const AuthenticationTypeOpenfort = "openfort"                        //nolint:gosec

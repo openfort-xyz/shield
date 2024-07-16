@@ -99,6 +99,7 @@ func (s *Server) Start(ctx context.Context) error {
 			authmdw.OpenfortProviderHeader,
 			authmdw.OpenfortTokenTypeHeader,
 			authmdw.EncryptionPartHeader,
+			authmdw.EncryptionSessionHeader,
 			authmdw.RequestIDHeader,
 		}, extraHeaders...),
 		MaxAge: s.config.CORSMaxAge,
