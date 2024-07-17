@@ -32,8 +32,8 @@ func (v *validator) validateShare(share *Share) *api.Error {
 			return api.ErrBadRequestWithMessage("digest is required when entropy is user")
 		}
 	case EntropyProject:
-		if share.EncryptionPart == "" {
-			return api.ErrBadRequestWithMessage("encryption_part is required when entropy is project")
+		if share.EncryptionPart == "" && share.EncryptionSession == "" {
+			return api.ErrBadRequestWithMessage("encryption_part or encryption_session is required when entropy is project")
 		}
 	default:
 		return api.ErrBadRequestWithMessage("invalid entropy")
