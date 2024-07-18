@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.openfort.xyz/shield/pkg/contexter"
 	"io"
 	"log/slog"
 	"net/http"
@@ -79,6 +80,7 @@ func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authent
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", o.publishableKey))
+	req.Header.Set("X-Request-ID", contexter.GetRequestID(ctx))
 	client := http.Client{Timeout: time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
