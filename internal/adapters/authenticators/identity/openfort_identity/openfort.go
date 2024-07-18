@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go.openfort.xyz/shield/pkg/contexter"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"go.openfort.xyz/shield/pkg/contexter"
 
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
