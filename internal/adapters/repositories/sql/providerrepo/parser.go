@@ -73,9 +73,9 @@ func (p *parser) toDomainOpenfortProvider(prov *ProviderOpenfort) *provider.Open
 }
 
 func (p *parser) toDatabaseCustomProvider(prov *provider.CustomConfig) *ProviderCustom {
-	var jwkUrl *string
+	var jwkURL *string
 	if prov.JWK != "" {
-		jwkUrl = &prov.JWK
+		jwkURL = &prov.JWK
 	}
 
 	var pem *string
@@ -89,7 +89,7 @@ func (p *parser) toDatabaseCustomProvider(prov *provider.CustomConfig) *Provider
 	}
 	return &ProviderCustom{
 		ProviderID: prov.ProviderID,
-		JWKUrl:     jwkUrl,
+		JWKUrl:     jwkURL,
 		PEM:        pem,
 		KeyType:    keyType,
 	}
