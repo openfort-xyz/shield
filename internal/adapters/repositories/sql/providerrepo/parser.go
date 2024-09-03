@@ -73,11 +73,25 @@ func (p *parser) toDomainOpenfortProvider(prov *ProviderOpenfort) *provider.Open
 }
 
 func (p *parser) toDatabaseCustomProvider(prov *provider.CustomConfig) *ProviderCustom {
+	var jwkUrl *string
+	if prov.JWK != "" {
+		jwkUrl = &prov.JWK
+	}
+
+	var pem *string
+	if prov.PEM != "" {
+		pem = &prov.PEM
+	}
+
+	var keyType *KeyType
+	if keyTypeStr := p.mapKeyTypeToDatabase[prov.KeyType]; keyTypeStr != "" {
+		keyType = &keyTypeStr
+	}
 	return &ProviderCustom{
 		ProviderID: prov.ProviderID,
-		JWKUrl:     prov.JWK,
-		PEM:        prov.PEM,
-		KeyType:    p.mapKeyTypeToDatabase[prov.KeyType],
+		JWKUrl:     jwkUrl,
+		PEM:        pem,
+		KeyType:    keyType,
 	}
 }
 
@@ -98,10 +112,24 @@ func (p *parser) toUpdateCustomProviderMap(prov *provider.CustomConfig) map[stri
 }
 
 func (p *parser) toDomainCustomProvider(prov *ProviderCustom) *provider.CustomConfig {
+	jwk := ""
+	if prov.JWKUrl != nil {
+		jwk = *prov.JWKUrl
+	}
+
+	pem := ""
+	if prov.PEM != nil {
+		pem = *prov.PEM
+	}
+
+	keyType := provider.KeyTypeUnknown
+	if prov.KeyType != nil {
+		keyType = p.mapKeyTypeToDomain[*prov.KeyType]
+	}
 	return &provider.CustomConfig{
 		ProviderID: prov.ProviderID,
-		JWK:        prov.JWKUrl,
-		PEM:        prov.PEM,
-		KeyType:    p.mapKeyTypeToDomain[prov.KeyType],
+		JWK:        jwk,
+		PEM:        pem,
+		KeyType:    keyType,
 	}
 }

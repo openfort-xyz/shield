@@ -56,7 +56,7 @@ func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
 		authenticator := m.authenticationFactory.CreateProjectAuthenticator(apiKey, apiSecret)
 		authentication, err := authenticator.Authenticate(r.Context())
 		if err != nil {
-			api.RespondWithError(w, api.ErrInvalidAPISecret)
+			api.RespondWithError(w, api.ErrInvalidAPICredentials)
 			return
 		}
 

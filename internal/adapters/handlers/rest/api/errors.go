@@ -47,13 +47,13 @@ var (
 	ErrInvalidEncryptionSession    = &Error{"Invalid encryption session", "EC_INVALID", http.StatusBadRequest}
 	ErrEncryptionPartAlreadyExists = &Error{"Encryption part already exists", "EC_EXISTS", http.StatusConflict}
 
-	ErrMissingAPIKey       = &Error{"Missing API key", "A_MISSING", http.StatusUnauthorized}
-	ErrMissingAPISecret    = &Error{"Missing API secret", "A_MISSING", http.StatusUnauthorized}
-	ErrInvalidAPISecret    = &Error{"Invalid API secret", "A_INVALID", http.StatusUnauthorized}
-	ErrMissingToken        = &Error{"Missing token", "A_MISSING", http.StatusUnauthorized}
-	ErrInvalidToken        = &Error{"Invalid token", "A_INVALID", http.StatusUnauthorized}
-	ErrMissingAuthProvider = &Error{"Missing auth provider", "A_MISSING", http.StatusUnauthorized}
-	ErrInvalidAuthProvider = &Error{"Invalid auth provider", "A_INVALID", http.StatusUnauthorized}
+	ErrMissingAPIKey         = &Error{"Missing API key", "A_MISSING", http.StatusUnauthorized}
+	ErrMissingAPISecret      = &Error{"Missing API secret", "A_MISSING", http.StatusUnauthorized}
+	ErrInvalidAPICredentials = &Error{"Invalid API key or API secret", "A_INVALID", http.StatusUnauthorized}
+	ErrMissingToken          = &Error{"Missing token", "A_MISSING", http.StatusUnauthorized}
+	ErrInvalidToken          = &Error{"Invalid token", "A_INVALID", http.StatusUnauthorized}
+	ErrMissingAuthProvider   = &Error{"Missing auth provider", "A_MISSING", http.StatusUnauthorized}
+	ErrInvalidAuthProvider   = &Error{"Invalid auth provider", "A_INVALID", http.StatusUnauthorized}
 
 	ErrInternal = &Error{"Internal error", "INTERNAL", http.StatusInternalServerError}
 )

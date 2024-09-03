@@ -127,6 +127,9 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	}
 
 	if cfg.pem != nil {
+		if cfg.keyType == provider.KeyTypeUnknown {
+			return nil, ErrKeyTypeNotSpecified
+		}
 		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
 		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
 			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
