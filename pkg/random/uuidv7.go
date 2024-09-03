@@ -20,5 +20,5 @@ func UUIDv7() (string, error) {
 
 	value[6] = (value[6] & 0x0F) | 0x70
 	value[8] = (value[8] & 0x3F) | 0x80
-	return fmt.Sprintf("%x\n", value), nil
+	return fmt.Sprintf("%x", value), nil
 }
