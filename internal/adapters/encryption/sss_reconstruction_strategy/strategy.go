@@ -2,6 +2,7 @@ package sssrec
 
 import (
 	"encoding/base64"
+
 	sss "go.openfort.xyz/shamir-secret-sharing-go"
 	"go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/strategies"
