@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.19]
+### Fixed
+- Control error invalid encryption part
+- Fix docs register share endpoint
+
 ## [v0.1.18]
 ### Fixed
 - Invalid API authentication message

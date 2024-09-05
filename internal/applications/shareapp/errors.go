@@ -32,6 +32,10 @@ func fromDomainError(err error) error {
 		return ErrEncryptionPartRequired
 	}
 
+	if errors.Is(err, domainErrors.ErrInvalidEncryptionPart) {
+		return ErrInvalidEncryptionPart
+	}
+
 	if errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
 		return ErrEncryptionNotConfigured
 	}

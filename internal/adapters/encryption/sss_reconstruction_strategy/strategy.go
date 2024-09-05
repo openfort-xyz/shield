@@ -2,7 +2,6 @@ package sssrec
 
 import (
 	"encoding/base64"
-
 	sss "go.openfort.xyz/shamir-secret-sharing-go"
 	"go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/strategies"
@@ -64,6 +63,10 @@ func (s *SSSReconstructionStrategy) Reconstruct(storedPart string, projectPart s
 	// Backward compatibility with old keys
 	if len(rawProjectPart) == 32 {
 		rawProjectPart = append([]byte{2}, rawProjectPart...)
+	}
+
+	if len(rawProjectPart) < 33 {
+		return "", errors.ErrInvalidEncryptionPart
 	}
 
 	combined, err := sss.Combine([][]byte{rawStoredPart, rawProjectPart})

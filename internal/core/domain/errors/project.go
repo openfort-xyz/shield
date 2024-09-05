@@ -7,6 +7,7 @@ var (
 	ErrEncryptionPartNotFound          = errors.New("encryption part not found")
 	ErrEncryptionPartAlreadyExists     = errors.New("encryption part already exists")
 	ErrEncryptionPartRequired          = errors.New("encryption part is required")
+	ErrInvalidEncryptionPart           = errors.New("invalid encryption part")
 	ErrInvalidEncryptionSession        = errors.New("invalid encryption session")
 	ErrInvalidEncryptionKeyBuilderType = errors.New("invalid encryption key builder type")
 	ErrReconstructedKeyMismatch        = errors.New("reconstructed key mismatch")

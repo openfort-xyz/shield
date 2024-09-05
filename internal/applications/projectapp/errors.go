@@ -54,5 +54,9 @@ func fromDomainError(err error) error {
 	if errors.Is(err, domainErrors.ErrInvalidEncryptionSession) {
 		return ErrInvalidEncryptionSession
 	}
+
+	if errors.Is(err, domainErrors.ErrInvalidEncryptionPart) {
+		return ErrInvalidEncryptionPart
+	}
 	return ErrInternal
 }

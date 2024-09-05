@@ -97,7 +97,7 @@ Users are automatically associated with a project based on the provided API key.
 
 #### **1.1 Register Share**
 
-- **Endpoint:** `POST /shares/register`
+- **Endpoint:** `POST /shares`
 - **Request:**
   - **Type:** `RegisterShareRequest`
     - Mandatory header `Authorization` with access token and `X-API-Key` with project's api key
