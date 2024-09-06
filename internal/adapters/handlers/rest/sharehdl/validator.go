@@ -17,6 +17,10 @@ func (v *validator) validateShare(share *Share) *api.Error {
 	switch share.Entropy {
 	case EntropyNone:
 	case "":
+		if share.Salt != "" || share.Iterations != 0 || share.Length != 0 || share.Digest != "" || share.EncryptionPart != "" || share.EncryptionSession != "" {
+			return api.ErrBadRequestWithMessage("if entropy is not set, encryption parameters should not be set")
+		}
+
 		share.Entropy = EntropyNone
 	case EntropyUser:
 		if share.Salt == "" {
