@@ -26,3 +26,7 @@ const (
 	EntropyUser    Entropy = "user"
 	EntropyProject Entropy = "project"
 )
+
+type GetShareEncryptionResponse struct {
+	Entropy Entropy `json:"entropy"`
+}

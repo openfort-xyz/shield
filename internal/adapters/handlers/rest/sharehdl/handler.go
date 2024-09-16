@@ -220,3 +220,38 @@ func (h *Handler) GetShare(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(resp)
 }
+
+// GetShareEncryption gets the encryption of a share
+// @Summary Get share encryption
+// @Description Get the encryption of a share for the user
+// @Tags Share
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param Authorization header string true "Bearer token"
+// @Param X-Auth-Provider header string true "Auth Provider"
+// @Param X-Openfort-Provider header string false "Openfort Provider"
+// @Param X-Openfort-Token-Type header string false "Openfort Token Type"
+// @Success 200 {object} GetShareEncryptionResponse "Successful response"
+// @Failure 404 "Description: Not Found"
+// @Failure 500 "Description: Internal Server Error"
+// @Router /shares/encryption [get]
+func (h *Handler) GetShareEncryption(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "getting share")
+
+	shr, err := h.app.GetShareEncryption(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	resp, err := json.Marshal(GetShareEncryptionResponse{Entropy: h.parser.mapDomainEntropy[shr]})
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}
