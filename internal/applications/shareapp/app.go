@@ -122,6 +122,19 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, op
 	return shr, nil
 }
 
+func (a *ShareApplication) GetShareEncryption(ctx context.Context) (share.Entropy, error) {
+	a.logger.InfoContext(ctx, "getting share encryption")
+	usrID := contexter.GetUserID(ctx)
+
+	shr, err := a.shareRepo.GetByUserID(ctx, usrID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
+		return 0, fromDomainError(err)
+	}
+
+	return shr.Entropy, nil
+}
+
 func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share.Share, error) {
 	a.logger.InfoContext(ctx, "getting share")
 	usrID := contexter.GetUserID(ctx)
