@@ -19,6 +19,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
+	"go.openfort.xyz/shield/internal/applications/healthzapp"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
@@ -248,6 +249,15 @@ func ProvideIdentityFactory() (factories.IdentityFactory, error) {
 	return identityFactory, nil
 }
 
+func ProvideHealthzApplication() (*healthzapp.Application, error) {
+	client, err := ProvideSQL()
+	if err != nil {
+		return nil, err
+	}
+	application := healthzapp.New(client)
+	return application, nil
+}
+
 func ProvideRESTServer() (*rest.Server, error) {
 	config, err := rest.GetConfigFromEnv()
 	if err != nil {
@@ -273,6 +283,10 @@ func ProvideRESTServer() (*rest.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	server := rest.New(config, projectApplication, shareApplication, authenticationFactory, identityFactory, userService)
+	application, err := ProvideHealthzApplication()
+	if err != nil {
+		return nil, err
+	}
+	server := rest.New(config, projectApplication, shareApplication, authenticationFactory, identityFactory, userService, application)
 	return server, nil
 }

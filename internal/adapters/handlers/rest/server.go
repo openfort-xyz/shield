@@ -3,6 +3,8 @@ package rest
 import (
 	"context"
 	"fmt"
+	"go.openfort.xyz/shield/internal/adapters/handlers/rest/healthzhdl"
+	"go.openfort.xyz/shield/internal/applications/healthzapp"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -27,6 +29,7 @@ import (
 type Server struct {
 	projectApp            *projectapp.ProjectApplication
 	shareApp              *shareapp.ShareApplication
+	healthzApp            *healthzapp.Application
 	server                *http.Server
 	logger                *slog.Logger
 	config                *Config
@@ -36,10 +39,11 @@ type Server struct {
 }
 
 // New creates a new REST server
-func New(cfg *Config, projectApp *projectapp.ProjectApplication, shareApp *shareapp.ShareApplication, authenticationFactory factories.AuthenticationFactory, identityFactory factories.IdentityFactory, userService services.UserService) *Server {
+func New(cfg *Config, projectApp *projectapp.ProjectApplication, shareApp *shareapp.ShareApplication, authenticationFactory factories.AuthenticationFactory, identityFactory factories.IdentityFactory, userService services.UserService, healthzApp *healthzapp.Application) *Server {
 	return &Server{
 		projectApp:            projectApp,
 		shareApp:              shareApp,
+		healthzApp:            healthzApp,
 		server:                new(http.Server),
 		logger:                logger.New("rest_server"),
 		config:                cfg,
@@ -51,6 +55,7 @@ func New(cfg *Config, projectApp *projectapp.ProjectApplication, shareApp *share
 
 // Start starts the REST server
 func (s *Server) Start(ctx context.Context) error {
+	healthzHdl := healthzhdl.New(s.healthzApp)
 	projectHdl := projecthdl.New(s.projectApp)
 	shareHdl := sharehdl.New(s.shareApp)
 	authMdw := authmdw.New(s.authenticationFactory, s.identityFactory, s.userService)
@@ -60,6 +65,7 @@ func (s *Server) Start(ctx context.Context) error {
 	r.Use(rateLimiterMdw.RateLimitMiddleware)
 	r.Use(requestmdw.RequestIDMiddleware)
 	r.Use(responsemdw.ResponseMiddleware)
+	r.HandleFunc("/healthz", healthzHdl.Healthz).Methods(http.MethodGet)
 	r.HandleFunc("/register", projectHdl.CreateProject).Methods(http.MethodPost)
 	p := r.PathPrefix("/project").Subrouter()
 	p.Use(authMdw.AuthenticateAPISecret)
