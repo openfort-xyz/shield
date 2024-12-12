@@ -3,6 +3,7 @@ package rest
 import (
 	"context"
 	"fmt"
+	"go.openfort.xyz/shield/pkg/prometheus"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -64,6 +65,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	r := mux.NewRouter()
 	r.Use(rateLimiterMdw.RateLimitMiddleware)
+	r.Use(prometheus.Metrics)
 	r.Use(requestmdw.RequestIDMiddleware)
 	r.Use(responsemdw.ResponseMiddleware)
 	r.HandleFunc("/healthz", healthzHdl.Healthz).Methods(http.MethodGet)
