@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"strconv"
 	"sync"
@@ -38,6 +39,7 @@ func (w *statusResponseWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
+// Metrics is a middleware that collects metrics for HTTP requests and exposes them for Prometheus
 func Metrics(next http.Handler) http.Handler {
 	once.Do(func() {
 		prometheus.MustRegister(requestCount, requestDuration)
@@ -53,4 +55,9 @@ func Metrics(next http.Handler) http.Handler {
 		requestCount.WithLabelValues(r.Method, r.URL.Path, strconv.Itoa(srw.status)).Inc()
 		requestDuration.WithLabelValues(r.Method, r.URL.Path, strconv.Itoa(srw.status)).Observe(duration.Seconds())
 	})
+}
+
+// ExposeHTTP returns a http.Handler that exposes the metrics
+func ExposeHTTP() http.Handler {
+	return promhttp.Handler()
 }
