@@ -65,7 +65,10 @@ func (s *Server) Start(ctx context.Context) error {
 
 	r := mux.NewRouter()
 	r.Use(rateLimiterMdw.RateLimitMiddleware)
+
+	r.Handle("/metrics", prometheus.ExposeHTTP())
 	r.Use(prometheus.Metrics)
+
 	r.Use(requestmdw.RequestIDMiddleware)
 	r.Use(responsemdw.ResponseMiddleware)
 	r.HandleFunc("/healthz", healthzHdl.Healthz).Methods(http.MethodGet)
