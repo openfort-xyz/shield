@@ -3,11 +3,12 @@ package rest
 import (
 	"context"
 	"fmt"
-	"go.openfort.xyz/shield/internal/adapters/handlers/rest/healthzhdl"
-	"go.openfort.xyz/shield/internal/applications/healthzapp"
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"go.openfort.xyz/shield/internal/adapters/handlers/rest/healthzhdl"
+	"go.openfort.xyz/shield/internal/applications/healthzapp"
 
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/internal/core/ports/services"

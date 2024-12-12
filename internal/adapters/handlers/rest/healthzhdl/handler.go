@@ -3,10 +3,11 @@ package healthzhdl
 import (
 	"encoding/json"
 	"errors"
-	"go.openfort.xyz/shield/internal/applications/healthzapp"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"net/http"
 	"time"
+
+	"go.openfort.xyz/shield/internal/applications/healthzapp"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 )
 
 type Handler struct {

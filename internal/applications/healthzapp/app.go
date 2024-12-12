@@ -2,10 +2,11 @@ package healthzapp
 
 import (
 	"context"
+	"log/slog"
+
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
 	"go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/pkg/logger"
-	"log/slog"
 )
 
 type Application struct {
