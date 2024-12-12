@@ -17,6 +17,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
+	"go.openfort.xyz/shield/internal/applications/healthzapp"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
@@ -196,12 +197,22 @@ func ProvideIdentityFactory() (f factories.IdentityFactory, err error) {
 	return
 }
 
+func ProvideHealthzApplication() (a *healthzapp.Application, err error) {
+	wire.Build(
+		ProvideSQL,
+		healthzapp.New,
+	)
+
+	return
+}
+
 func ProvideRESTServer() (s *rest.Server, err error) {
 	wire.Build(
 		rest.New,
 		rest.GetConfigFromEnv,
 		ProvideShareApplication,
 		ProvideProjectApplication,
+		ProvideHealthzApplication,
 		ProvideUserService,
 		ProvideAuthenticationFactory,
 		ProvideIdentityFactory,
