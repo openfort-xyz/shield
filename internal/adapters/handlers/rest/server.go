@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"go.openfort.xyz/shield/pkg/prometheus"
+
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/healthzhdl"
 	"go.openfort.xyz/shield/internal/applications/healthzapp"
 
@@ -64,6 +66,10 @@ func (s *Server) Start(ctx context.Context) error {
 
 	r := mux.NewRouter()
 	r.Use(rateLimiterMdw.RateLimitMiddleware)
+
+	r.Handle("/metrics", prometheus.ExposeHTTP())
+	r.Use(prometheus.Metrics)
+
 	r.Use(requestmdw.RequestIDMiddleware)
 	r.Use(responsemdw.ResponseMiddleware)
 	r.HandleFunc("/healthz", healthzHdl.Healthz).Methods(http.MethodGet)
