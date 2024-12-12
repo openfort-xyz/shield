@@ -3,10 +3,11 @@ package rest
 import (
 	"context"
 	"fmt"
-	"go.openfort.xyz/shield/pkg/prometheus"
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"go.openfort.xyz/shield/pkg/prometheus"
 
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/healthzhdl"
 	"go.openfort.xyz/shield/internal/applications/healthzapp"
