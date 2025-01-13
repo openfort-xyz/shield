@@ -4,13 +4,50 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	"go.openfort.xyz/shield/pkg/contexter"
 )
 
+var handlerOpts = &slog.HandlerOptions{
+	ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+		switch a.Key {
+		case slog.LevelKey:
+			return slog.Attr{
+				Key:   "severity",
+				Value: slog.StringValue(levelToGCP(a.Value.String())),
+			}
+
+		case slog.MessageKey:
+			return slog.String("message", a.Value.String())
+
+		case slog.TimeKey:
+			return slog.String("time", a.Value.Time().Format(time.RFC3339Nano))
+
+		default:
+			return a
+		}
+	},
+}
+
+func levelToGCP(level string) string {
+	switch level {
+	case "DEBUG":
+		return "DEBUG"
+	case "INFO":
+		return "INFO"
+	case "WARN":
+		return "WARNING"
+	case "ERROR":
+		return "ERROR"
+	default:
+		return level
+	}
+}
+
 // New creates a new standard logger with a context handler.
 func New(name string) *slog.Logger {
-	return slog.New(NewContextHandler(name, slog.NewTextHandler(os.Stdout, nil)))
+	return slog.New(NewContextHandler(name, slog.NewJSONHandler(os.Stdout, handlerOpts)))
 }
 
 // Error returns an attribute for an error string value.
