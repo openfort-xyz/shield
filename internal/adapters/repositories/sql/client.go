@@ -1,12 +1,10 @@
 package sql
 
 import (
-	"database/sql"
 	"path/filepath"
 
 	"github.com/pressly/goose"
 	"gorm.io/driver/mysql"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -19,25 +17,15 @@ func New(cfg *Config) (*Client, error) {
 		return nil, ErrMissingConfig
 	}
 
-	if cfg.Driver == "" {
-		return nil, ErrMissingDriver
-	}
-
-	var dialector gorm.Dialector
-	var err error
-	switch cfg.Driver {
-	case DriverMySQL:
-		dialector, err = newMySQL(cfg)
-	case DriverCloudSQL:
-		dialector, err = newCloudSQL(cfg)
-	case DriverPostgres:
-		dialector = newPostgres(cfg)
-	default:
-		return nil, ErrDriverNotSupported
-	}
+	dsn, err := cfg.mysqlDSN()
 	if err != nil {
 		return nil, err
 	}
+
+	dialector := mysql.New(mysql.Config{
+		DriverName: "mysql",
+		DSN:        dsn,
+	})
 
 	db, err := gorm.Open(dialector, &gorm.Config{})
 	if err != nil {
@@ -45,41 +33,6 @@ func New(cfg *Config) (*Client, error) {
 	}
 
 	return &Client{db}, nil
-}
-
-func newMySQL(cfg *Config) (gorm.Dialector, error) {
-	sqlDB, err := sql.Open("mysql", cfg.MySQLDSN())
-	if err != nil {
-		return nil, err
-	}
-	sqlDB.SetConnMaxLifetime(cfg.MaxConnLifetime)
-	sqlDB.SetConnMaxIdleTime(cfg.MaxConnIdleTime)
-	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
-	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
-
-	return mysql.New(mysql.Config{
-		Conn: sqlDB,
-	}), nil
-}
-
-func newCloudSQL(cfg *Config) (gorm.Dialector, error) {
-	dsn := cfg.CloudSQLDSN()
-	sqlDB, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, err
-	}
-	sqlDB.SetConnMaxLifetime(cfg.MaxConnLifetime)
-	sqlDB.SetConnMaxIdleTime(cfg.MaxConnIdleTime)
-	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
-	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
-
-	return mysql.New(mysql.Config{
-		Conn: sqlDB,
-	}), nil
-}
-
-func newPostgres(cfg *Config) gorm.Dialector {
-	return postgres.Open(cfg.PostgresDSN())
 }
 
 func (c *Client) Migrate() error {
