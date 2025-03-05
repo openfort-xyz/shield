@@ -96,6 +96,7 @@ func TestCreateShare(t *testing.T) {
 				mockShareRepo.ExpectedCalls = nil
 				mockKeychainRepo.ExpectedCalls = nil
 				mockShareRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				mockKeychainRepo.On("GetByUserID", mock.Anything, testUserID).Return(testKeychain, nil)
 				mockShareRepo.On("Create", mock.Anything, mock.AnythingOfType("*share.Share")).Return(nil)
 			},
@@ -107,7 +108,7 @@ func TestCreateShare(t *testing.T) {
 			mock: func() {
 				mockShareRepo.ExpectedCalls = nil
 				mockKeychainRepo.ExpectedCalls = nil
-				mockShareRepo.On("GetByReference", mock.Anything, testKeychainID, testReference).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				mockKeychainRepo.On("Get", mock.Anything, testKeychainID).Return(testKeychain, nil)
 				mockShareRepo.On("Create", mock.Anything, mock.AnythingOfType("*share.Share")).Return(nil)
 			},
@@ -120,6 +121,7 @@ func TestCreateShare(t *testing.T) {
 				mockShareRepo.ExpectedCalls = nil
 				mockKeychainRepo.ExpectedCalls = nil
 				mockShareRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				mockKeychainRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrKeychainNotFound)
 				mockKeychainRepo.On("Create", mock.Anything, mock.AnythingOfType("*keychain.Keychain")).Return(nil).Run(func(args mock.Arguments) {
 					kc := args.Get(1).(*keychain.Keychain)
@@ -138,6 +140,7 @@ func TestCreateShare(t *testing.T) {
 				mockShareRepo.ExpectedCalls = nil
 				mockKeychainRepo.ExpectedCalls = nil
 				mockShareRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				mockKeychainRepo.On("GetByUserID", mock.Anything, testUserID).Return(testKeychain, nil)
 				mockShareRepo.On("Create", mock.Anything, mock.AnythingOfType("*share.Share")).Return(nil)
 			},
@@ -152,7 +155,9 @@ func TestCreateShare(t *testing.T) {
 			mock: func() {
 				mockShareRepo.ExpectedCalls = nil
 				mockKeychainRepo.ExpectedCalls = nil
-				mockShareRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockKeychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 			},
 			err: domainErrors.ErrEncryptionPartRequired,
 		},
@@ -164,6 +169,10 @@ func TestCreateShare(t *testing.T) {
 				mockShareRepo.ExpectedCalls = nil
 				mockKeychainRepo.ExpectedCalls = nil
 				mockShareRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockKeychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
+
 			},
 			opts: []services.ShareOption{
 				services.WithEncryptionKey("invalid-key"),
@@ -187,12 +196,15 @@ func TestCreateShare(t *testing.T) {
 			mock: func() {
 				mockShareRepo.ExpectedCalls = nil
 				mockKeychainRepo.ExpectedCalls = nil
-				mockShareRepo.On("GetByReference", mock.Anything, testKeychainID, testReference).Return(nil, domainErrors.ErrShareNotFound)
 				wrongUserKeychain := &keychain.Keychain{
 					ID:     testKeychainID,
 					UserID: "different-user-id",
 				}
 				mockKeychainRepo.On("Get", mock.Anything, testKeychainID).Return(wrongUserKeychain, nil)
+				mockShareRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockKeychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
+
 			},
 			err: domainErrors.ErrKeychainNotFound,
 		},
@@ -203,8 +215,11 @@ func TestCreateShare(t *testing.T) {
 			mock: func() {
 				mockShareRepo.ExpectedCalls = nil
 				mockKeychainRepo.ExpectedCalls = nil
-				mockShareRepo.On("GetByReference", mock.Anything, testKeychainID, testReference).Return(nil, domainErrors.ErrShareNotFound)
 				mockKeychainRepo.On("Get", mock.Anything, testKeychainID).Return(nil, errors.New("repository error"))
+				mockShareRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockKeychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
+
 			},
 		},
 		{
@@ -236,9 +251,11 @@ func TestCreateShare(t *testing.T) {
 			mock: func() {
 				mockShareRepo.ExpectedCalls = nil
 				mockKeychainRepo.ExpectedCalls = nil
-				mockShareRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
-				mockKeychainRepo.On("GetByUserID", mock.Anything, testUserID).Return(testKeychain, nil)
 				mockShareRepo.On("Create", mock.Anything, mock.AnythingOfType("*share.Share")).Return(errors.New("repository error"))
+				mockShareRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockKeychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
+
 			},
 		},
 	}
@@ -270,8 +287,11 @@ func TestFindShare(t *testing.T) {
 	ctx := context.Background()
 	testUserID := "test-user"
 	testKeychainID := uuid.NewString()
+	testKeychain := &keychain.Keychain{
+		ID:     testKeychainID,
+		UserID: testUserID,
+	}
 	testReference := "test-reference"
-	defaultRef := "default"
 
 	testShare := &share.Share{
 		UserID: testUserID,
@@ -309,7 +329,7 @@ func TestFindShare(t *testing.T) {
 			expected:   testShare,
 			mock: func() {
 				mockShareRepo.ExpectedCalls = nil
-				mockShareRepo.On("GetByReference", mock.Anything, testKeychainID, defaultRef).Return(testShare, nil)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(testShare, nil)
 			},
 		},
 		{
@@ -321,7 +341,7 @@ func TestFindShare(t *testing.T) {
 			expected:   testShare,
 			mock: func() {
 				mockShareRepo.ExpectedCalls = nil
-				mockShareRepo.On("GetByReference", mock.Anything, testKeychainID, testReference).Return(testShare, nil)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(testShare, nil)
 			},
 		},
 		{
@@ -333,7 +353,10 @@ func TestFindShare(t *testing.T) {
 			err:        domainErrors.ErrShareNotFound,
 			mock: func() {
 				mockShareRepo.ExpectedCalls = nil
-				mockShareRepo.On("GetByUserID", mock.Anything, testUserID).Return(nil, domainErrors.ErrShareNotFound)
+				mockKeychainRepo.ExpectedCalls = nil
+				mockShareRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockShareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				mockKeychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 			},
 		},
 		{

@@ -3,10 +3,11 @@ package shareapp
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	"github.com/google/uuid"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/domain/keychain"
-	"log/slog"
 
 	"go.openfort.xyz/shield/internal/applications/shamirjob"
 

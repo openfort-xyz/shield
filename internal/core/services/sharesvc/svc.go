@@ -3,9 +3,10 @@ package sharesvc
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain/keychain"
-	"log/slog"
 
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"

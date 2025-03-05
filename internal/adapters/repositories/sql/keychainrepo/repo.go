@@ -3,10 +3,11 @@ package keychainrepo
 import (
 	"context"
 	"errors"
+	"log/slog"
+
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/domain/keychain"
 	"gorm.io/gorm"
-	"log/slog"
 
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
