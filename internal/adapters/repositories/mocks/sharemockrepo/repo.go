@@ -27,6 +27,30 @@ func (m *MockShareRepository) GetByUserID(ctx context.Context, userID string) (*
 	return args.Get(0).(*share.Share), args.Error(1)
 }
 
+func (m *MockShareRepository) Get(ctx context.Context, shareID string) (*share.Share, error) {
+	args := m.Mock.Called(ctx, shareID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*share.Share), args.Error(1)
+}
+
+func (m *MockShareRepository) GetByReference(ctx context.Context, reference, keychainID string) (*share.Share, error) {
+	args := m.Mock.Called(ctx, reference, keychainID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*share.Share), args.Error(1)
+}
+
+func (m *MockShareRepository) ListByKeychainID(ctx context.Context, keychainID string) ([]*share.Share, error) {
+	args := m.Mock.Called(ctx, keychainID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*share.Share), args.Error(1)
+}
+
 func (m *MockShareRepository) Delete(ctx context.Context, shareID string) error {
 	args := m.Mock.Called(ctx, shareID)
 	return args.Error(0)

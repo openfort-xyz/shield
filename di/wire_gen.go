@@ -15,6 +15,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt"
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt/encryptionpartsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/keychainrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
@@ -81,6 +82,15 @@ func ProvideSQLProviderRepository() (repositories.ProviderRepository, error) {
 	return providerRepository, nil
 }
 
+func ProvideSQLKeychainRepository() (repositories.KeychainRepository, error) {
+	client, err := ProvideSQL()
+	if err != nil {
+		return nil, err
+	}
+	keychainRepository := keychainrepo.New(client)
+	return keychainRepository, nil
+}
+
 func ProvideSQLShareRepository() (repositories.ShareRepository, error) {
 	client, err := ProvideSQL()
 	if err != nil {
@@ -144,11 +154,15 @@ func ProvideShareService() (services.ShareService, error) {
 	if err != nil {
 		return nil, err
 	}
+	keychainRepository, err := ProvideSQLKeychainRepository()
+	if err != nil {
+		return nil, err
+	}
 	encryptionFactory, err := ProvideEncryptionFactory()
 	if err != nil {
 		return nil, err
 	}
-	shareService := sharesvc.New(shareRepository, encryptionFactory)
+	shareService := sharesvc.New(shareRepository, keychainRepository, encryptionFactory)
 	return shareService, nil
 }
 
@@ -178,6 +192,10 @@ func ProvideShareApplication() (*shareapp.ShareApplication, error) {
 	if err != nil {
 		return nil, err
 	}
+	keychainRepository, err := ProvideSQLKeychainRepository()
+	if err != nil {
+		return nil, err
+	}
 	encryptionFactory, err := ProvideEncryptionFactory()
 	if err != nil {
 		return nil, err
@@ -186,7 +204,7 @@ func ProvideShareApplication() (*shareapp.ShareApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	shareApplication := shareapp.New(shareService, shareRepository, projectRepository, encryptionFactory, job)
+	shareApplication := shareapp.New(shareService, shareRepository, projectRepository, keychainRepository, encryptionFactory, job)
 	return shareApplication, nil
 }
 

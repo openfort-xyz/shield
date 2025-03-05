@@ -12,6 +12,8 @@ type Share struct {
 	Digest            string  `json:"digest,omitempty"`
 	EncryptionPart    string  `json:"encryption_part,omitempty"`
 	EncryptionSession string  `json:"encryption_session,omitempty"`
+	Reference         string  `json:"reference,omitempty"`
+	KeychainID        string  `json:"keychain_id,omitempty"`
 }
 
 type RegisterShareRequest Share
@@ -29,4 +31,8 @@ const (
 
 type GetShareEncryptionResponse struct {
 	Entropy Entropy `json:"entropy"`
+}
+
+type KeychainResponse struct {
+	Shares []*Share `json:"shares"`
 }

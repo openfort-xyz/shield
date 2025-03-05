@@ -13,6 +13,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt"
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt/encryptionpartsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/keychainrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
@@ -68,6 +69,15 @@ func ProvideSQLProjectRepository() (r repositories.ProjectRepository, err error)
 func ProvideSQLProviderRepository() (r repositories.ProviderRepository, err error) {
 	wire.Build(
 		providerrepo.New,
+		ProvideSQL,
+	)
+
+	return
+}
+
+func ProvideSQLKeychainRepository() (r repositories.KeychainRepository, err error) {
+	wire.Build(
+		keychainrepo.New,
 		ProvideSQL,
 	)
 
@@ -133,6 +143,7 @@ func ProvideShareService() (s services.ShareService, err error) {
 	wire.Build(
 		sharesvc.New,
 		ProvideSQLShareRepository,
+		ProvideSQLKeychainRepository,
 		ProvideEncryptionFactory,
 	)
 
@@ -155,6 +166,7 @@ func ProvideShareApplication() (a *shareapp.ShareApplication, err error) {
 		ProvideShareService,
 		ProvideSQLShareRepository,
 		ProvideSQLProjectRepository,
+		ProvideSQLKeychainRepository,
 		ProvideEncryptionFactory,
 		ProvideShamirJob,
 	)

@@ -27,6 +27,50 @@ func New(app *shareapp.ShareApplication) *Handler {
 	}
 }
 
+// Keychain gets the keychain
+// @Summary Get keychain
+// @Description Get the keychain for the user
+// @Tags Share
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param Authorization header string true "
+// @Param X-Auth-Provider header string true "Auth Provider"
+// @Param reference query string false "Reference"
+// @Success 200 {object} KeychainResponse "Successful response"
+// @Failure 404 "Description: Not Found"
+// @Failure 500 "Description: Internal Server Error"
+// @Router /shares/keychain [get]
+func (h *Handler) Keychain(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "getting keychain")
+	referenceQuery := r.URL.Query().Get("reference")
+	var reference *string
+	if referenceQuery != "" {
+		reference = &referenceQuery
+	}
+
+	keychain, err := h.app.GetKeychainShares(ctx, reference)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	var response KeychainResponse
+	for _, share := range keychain {
+		response.Shares = append(response.Shares, h.parser.fromDomain(share))
+	}
+
+	resp, err := json.Marshal(response)
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}
+
 // RegisterShare registers a new share
 // @Summary Register new share
 // @Description Register a new share for the user

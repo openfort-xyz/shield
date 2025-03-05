@@ -2,6 +2,10 @@ package shareapp
 
 import (
 	"context"
+	"errors"
+	"github.com/google/uuid"
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	"go.openfort.xyz/shield/internal/core/domain/keychain"
 	"log/slog"
 
 	"go.openfort.xyz/shield/internal/applications/shamirjob"
@@ -16,22 +20,24 @@ import (
 )
 
 type ShareApplication struct {
-	shareSvc          services.ShareService
-	shareRepo         repositories.ShareRepository
-	projectRepo       repositories.ProjectRepository
-	logger            *slog.Logger
-	encryptionFactory factories.EncryptionFactory
-	shamirJob         *shamirjob.Job
+	shareSvc           services.ShareService
+	shareRepo          repositories.ShareRepository
+	keychainRepository repositories.KeychainRepository
+	projectRepo        repositories.ProjectRepository
+	logger             *slog.Logger
+	encryptionFactory  factories.EncryptionFactory
+	shamirJob          *shamirjob.Job
 }
 
-func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository, encryptionFactory factories.EncryptionFactory, shamirJob *shamirjob.Job) *ShareApplication {
+func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository, keychainRepository repositories.KeychainRepository, encryptionFactory factories.EncryptionFactory, shamirJob *shamirjob.Job) *ShareApplication {
 	return &ShareApplication{
-		shareSvc:          shareSvc,
-		shareRepo:         shareRepo,
-		projectRepo:       projectRepo,
-		logger:            logger.New("share_application"),
-		encryptionFactory: encryptionFactory,
-		shamirJob:         shamirJob,
+		shareSvc:           shareSvc,
+		shareRepo:          shareRepo,
+		keychainRepository: keychainRepository,
+		projectRepo:        projectRepo,
+		logger:             logger.New("share_application"),
+		encryptionFactory:  encryptionFactory,
+		shamirJob:          shamirJob,
 	}
 }
 
@@ -40,6 +46,12 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 	usrID := contexter.GetUserID(ctx)
 	projID := contexter.GetProjectID(ctx)
 	shr.UserID = usrID
+
+	_, err := a.migrateToKeychainIfRequired(ctx, usrID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to migrate keychain shares", logger.Error(err))
+		return fromDomainError(err)
+	}
 
 	var opt options
 	for _, o := range opts {
@@ -56,7 +68,7 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 		shrOpts = append(shrOpts, services.WithEncryptionKey(encryptionKey))
 	}
 
-	err := a.shareSvc.Create(ctx, shr, shrOpts...)
+	err = a.shareSvc.Create(ctx, shr, shrOpts...)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create share", logger.Error(err))
 		return fromDomainError(err)
@@ -70,7 +82,7 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, op
 	usrID := contexter.GetUserID(ctx)
 	projID := contexter.GetProjectID(ctx)
 
-	dbShare, err := a.shareRepo.GetByUserID(ctx, usrID)
+	dbShare, err := a.shareSvc.Find(ctx, usrID, nil, nil)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
 		return nil, fromDomainError(err)
@@ -126,7 +138,7 @@ func (a *ShareApplication) GetShareEncryption(ctx context.Context) (share.Entrop
 	a.logger.InfoContext(ctx, "getting share encryption")
 	usrID := contexter.GetUserID(ctx)
 
-	shr, err := a.shareRepo.GetByUserID(ctx, usrID)
+	shr, err := a.shareSvc.Find(ctx, usrID, nil, nil)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
 		return 0, fromDomainError(err)
@@ -135,12 +147,86 @@ func (a *ShareApplication) GetShareEncryption(ctx context.Context) (share.Entrop
 	return shr.Entropy, nil
 }
 
+func (a *ShareApplication) migrateToKeychainIfRequired(ctx context.Context, usrID string) (string, error) {
+	userKeychain, err := a.keychainRepository.GetByUserID(ctx, usrID)
+	if err != nil && !errors.Is(err, domainErrors.ErrKeychainNotFound) {
+		a.logger.ErrorContext(ctx, "failed to get keychain by user ID", logger.Error(err))
+		return "", err
+	}
+
+	if userKeychain == nil {
+		userKeychain = &keychain.Keychain{
+			ID:     uuid.NewString(),
+			UserID: usrID,
+		}
+
+		err = a.keychainRepository.Create(ctx, userKeychain)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to create keychain", logger.Error(err))
+			return "", err
+		}
+	}
+
+	usrShr, err := a.shareRepo.GetByUserID(ctx, usrID)
+	if err != nil && !errors.Is(err, domainErrors.ErrShareNotFound) {
+		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
+		return "", err
+	}
+
+	if usrShr != nil {
+		usrShr.KeychainID = &userKeychain.ID
+		ref := share.DefaultReference
+		usrShr.Reference = &ref
+
+		err = a.shareRepo.Update(ctx, usrShr)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to update share", logger.Error(err))
+			return "", err
+		}
+	}
+
+	return userKeychain.ID, nil
+}
+
+func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *string) ([]*share.Share, error) {
+	a.logger.InfoContext(ctx, "getting keychain shares")
+	usrID := contexter.GetUserID(ctx)
+
+	keychainID, err := a.migrateToKeychainIfRequired(ctx, usrID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to migrate keychain shares", logger.Error(err))
+		return nil, fromDomainError(err)
+	}
+
+	if reference != nil {
+		shr, err := a.shareRepo.GetByReference(ctx, *reference, keychainID)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to get share by reference", logger.Error(err))
+			return nil, fromDomainError(err)
+		}
+
+		if shr.UserID != usrID {
+			return nil, ErrShareNotFound
+		}
+
+		return []*share.Share{shr}, nil
+	}
+
+	shrs, err := a.shareRepo.ListByKeychainID(ctx, keychainID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to list shares by keychain ID", logger.Error(err))
+		return nil, fromDomainError(err)
+	}
+
+	return shrs, nil
+}
+
 func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share.Share, error) {
 	a.logger.InfoContext(ctx, "getting share")
 	usrID := contexter.GetUserID(ctx)
 	projID := contexter.GetProjectID(ctx)
 
-	shr, err := a.shareRepo.GetByUserID(ctx, usrID)
+	shr, err := a.shareSvc.Find(ctx, usrID, nil, nil)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
 		return nil, fromDomainError(err)
@@ -172,7 +258,7 @@ func (a *ShareApplication) DeleteShare(ctx context.Context) error {
 	a.logger.InfoContext(ctx, "deleting share")
 	usrID := contexter.GetUserID(ctx)
 
-	shr, err := a.shareRepo.GetByUserID(ctx, usrID)
+	shr, err := a.shareSvc.Find(ctx, usrID, nil, nil)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
 		return fromDomainError(err)
