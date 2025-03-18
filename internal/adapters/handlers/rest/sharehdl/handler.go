@@ -50,7 +50,18 @@ func (h *Handler) Keychain(w http.ResponseWriter, r *http.Request) {
 		reference = &referenceQuery
 	}
 
-	keychain, err := h.app.GetKeychainShares(ctx, reference)
+	var opts []shareapp.Option
+	encryptionPart := r.Header.Get(EncryptionPartHeader)
+	if encryptionPart != "" {
+		opts = append(opts, shareapp.WithEncryptionPart(encryptionPart))
+	}
+
+	encryptionSession := r.Header.Get(EncryptionSessionHeader)
+	if encryptionSession != "" {
+		opts = append(opts, shareapp.WithEncryptionSession(encryptionSession))
+	}
+
+	keychain, err := h.app.GetKeychainShares(ctx, reference, opts...)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return

@@ -189,9 +189,14 @@ func (a *ShareApplication) migrateToKeychainIfRequired(ctx context.Context, usrI
 	return userKeychain.ID, nil
 }
 
-func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *string) ([]*share.Share, error) {
+func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *string, opts ...Option) ([]*share.Share, error) {
 	a.logger.InfoContext(ctx, "getting keychain shares")
 	usrID := contexter.GetUserID(ctx)
+
+	var opt options
+	for _, o := range opts {
+		o(&opt)
+	}
 
 	keychainID, err := a.migrateToKeychainIfRequired(ctx, usrID)
 	if err != nil {
@@ -210,6 +215,20 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 			return nil, ErrShareNotFound
 		}
 
+		if shr.RequiresEncryption() {
+			encryptionKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
+			if err != nil {
+				return nil, err
+			}
+
+			cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
+			shr.Secret, err = cypher.Decrypt(shr.Secret)
+			if err != nil {
+				a.logger.ErrorContext(ctx, "failed to decrypt secret", logger.Error(err))
+				return nil, ErrInternal
+			}
+		}
+
 		return []*share.Share{shr}, nil
 	}
 
@@ -217,6 +236,26 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to list shares by keychain ID", logger.Error(err))
 		return nil, fromDomainError(err)
+	}
+
+	if len(shrs) == 0 {
+		return nil, nil
+	}
+
+	if shrs[0].RequiresEncryption() {
+		encryptionKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, shr := range shrs {
+			cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
+			shr.Secret, err = cypher.Decrypt(shr.Secret)
+			if err != nil {
+				a.logger.ErrorContext(ctx, "failed to decrypt secret", logger.Error(err))
+				return nil, ErrInternal
+			}
+		}
 	}
 
 	return shrs, nil
