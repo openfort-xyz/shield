@@ -48,11 +48,61 @@ func (r *repository) Create(ctx context.Context, shr *share.Share) error {
 	return nil
 }
 
+func (r *repository) Get(ctx context.Context, shareID string) (*share.Share, error) {
+	r.logger.InfoContext(ctx, "getting share", slog.String("id", shareID))
+
+	dbShr := &Share{}
+	err := r.db.Where("id = ?", shareID).First(dbShr).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainErrors.ErrShareNotFound
+		}
+		r.logger.ErrorContext(ctx, "error getting share", logger.Error(err))
+		return nil, err
+	}
+
+	return r.parser.toDomain(dbShr), nil
+}
+
+func (r *repository) ListByKeychainID(ctx context.Context, keychainID string) ([]*share.Share, error) {
+	r.logger.InfoContext(ctx, "listing shares", slog.String("keychain_id", keychainID))
+
+	var dbShares []*Share
+	err := r.db.Where("keychain_id = ?", keychainID).Find(&dbShares).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error listing shares", logger.Error(err))
+		return nil, err
+	}
+
+	var shares []*share.Share
+	for _, dbShr := range dbShares {
+		shares = append(shares, r.parser.toDomain(dbShr))
+	}
+
+	return shares, nil
+}
+
+func (r *repository) GetByReference(ctx context.Context, reference, keychainID string) (*share.Share, error) {
+	r.logger.InfoContext(ctx, "getting share", slog.String("reference", reference))
+
+	dbShr := &Share{}
+	err := r.db.Where("reference = ? AND keychain_id = ?", reference, keychainID).First(dbShr).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainErrors.ErrShareNotFound
+		}
+		r.logger.ErrorContext(ctx, "error getting share", logger.Error(err))
+		return nil, err
+	}
+
+	return r.parser.toDomain(dbShr), nil
+}
+
 func (r *repository) GetByUserID(ctx context.Context, userID string) (*share.Share, error) {
 	r.logger.InfoContext(ctx, "getting share", slog.String("user_id", userID))
 
 	dbShr := &Share{}
-	err := r.db.Where("user_id = ?", userID).First(dbShr).Error
+	err := r.db.Where("user_id = ? AND keychain_id is NULL", userID).First(dbShr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domainErrors.ErrShareNotFound

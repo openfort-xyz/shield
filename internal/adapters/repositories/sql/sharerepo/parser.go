@@ -50,21 +50,33 @@ func (p *parser) toDomain(s *Share) *share.Share {
 		encryptionParameters.Digest = s.Digest
 	}
 
+	usrID := ""
+	if s.UserID != nil {
+		usrID = *s.UserID
+	}
 	return &share.Share{
 		ID:                   s.ID,
 		Secret:               s.Data,
-		UserID:               s.UserID,
+		UserID:               usrID,
 		Entropy:              p.mapEntropyDomain[s.Entropy],
 		EncryptionParameters: encryptionParameters,
+		KeychainID:           s.KeyChainID,
+		Reference:            s.Reference,
 	}
 }
 
 func (p *parser) toDatabase(s *share.Share) *Share {
+	var usrID *string
+	if s.UserID != "" {
+		usrID = &s.UserID
+	}
 	shr := &Share{
-		ID:      s.ID,
-		Data:    s.Secret,
-		UserID:  s.UserID,
-		Entropy: p.mapDomainEntropy[s.Entropy],
+		ID:         s.ID,
+		Data:       s.Secret,
+		UserID:     usrID,
+		KeyChainID: s.KeychainID,
+		Reference:  s.Reference,
+		Entropy:    p.mapDomainEntropy[s.Entropy],
 	}
 
 	if s.EncryptionParameters != nil {
@@ -87,6 +99,14 @@ func (p *parser) toDatabase(s *share.Share) *Share {
 
 func (p *parser) toUpdates(s *share.Share) map[string]interface{} {
 	updates := make(map[string]interface{})
+
+	if s.KeychainID != nil {
+		updates["keychain_id"] = s.KeychainID
+	}
+
+	if s.Reference != nil {
+		updates["reference"] = s.Reference
+	}
 
 	if s.Secret != "" {
 		updates["data"] = s.Secret

@@ -8,6 +8,7 @@ import (
 
 type ShareService interface {
 	Create(ctx context.Context, share *share.Share, opts ...ShareOption) error
+	Find(ctx context.Context, userID string, keychainID, reference *string) (*share.Share, error)
 }
 
 type ShareOption func(*ShareOptions)

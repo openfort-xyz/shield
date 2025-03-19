@@ -94,6 +94,10 @@ func (s *Server) Start(ctx context.Context) error {
 	u.HandleFunc("", shareHdl.DeleteShare).Methods(http.MethodDelete)
 	u.HandleFunc("", shareHdl.UpdateShare).Methods(http.MethodPut)
 
+	k := r.PathPrefix("/keychain").Subrouter()
+	k.Use(authMdw.AuthenticateUser)
+	k.HandleFunc("", shareHdl.Keychain).Methods(http.MethodGet)
+
 	a := r.PathPrefix("/admin").Subrouter()
 	a.Use(authMdw.AuthenticateAPISecret)
 	a.Use(authMdw.PreRegisterUser)

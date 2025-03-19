@@ -3,14 +3,17 @@ package shareapp
 import (
 	"context"
 	"errors"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.openfort.xyz/shield/internal/adapters/encryption"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/keychainmockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
 	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	"go.openfort.xyz/shield/internal/core/domain/keychain"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/pkg/contexter"
@@ -25,8 +28,9 @@ func TestShareApplication_GetShare(t *testing.T) {
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory, &shamirjob.Job{})
+	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
+	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
 		t.Fatalf(key)
@@ -55,6 +59,12 @@ func TestShareApplication_GetShare(t *testing.T) {
 	decryptedShare := &share.Share{
 		Secret:  "secret",
 		Entropy: share.EntropyProject,
+	}
+
+	testKeychainID := uuid.NewString()
+	testKeychain := &keychain.Keychain{
+		ID:     testKeychainID,
+		UserID: "user_id",
 	}
 
 	tc := []struct {
@@ -172,6 +182,8 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 			},
 		},
 		{
@@ -233,8 +245,9 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory, &shamirjob.Job{})
+	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
+	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
 		t.Fatalf(key)
@@ -262,6 +275,12 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 		Entropy: share.EntropyProject,
 	}
 
+	testKeychainID := uuid.NewString()
+	testKeychain := &keychain.Keychain{
+		ID:     testKeychainID,
+		UserID: "user_id",
+	}
+
 	tc := []struct {
 		name    string
 		opts    []Option
@@ -275,6 +294,9 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			share:   plainShare,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
+				keychainRepo.ExpectedCalls = nil
+				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, plainShare).Return(nil)
 			},
@@ -286,6 +308,9 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
+				keychainRepo.ExpectedCalls = nil
+				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, encryptedShare).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
@@ -340,6 +365,10 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			share:   plainShare,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
+				keychainRepo.ExpectedCalls = nil
+				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
+				shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
 			},
 		},
@@ -371,8 +400,14 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory, &shamirjob.Job{})
+	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
+	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+
+	testKeychain := &keychain.Keychain{
+		ID:     "test_keychain",
+		UserID: "user_id",
+	}
 
 	tc := []struct {
 		name    string
@@ -393,6 +428,9 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 			wantErr: ErrShareNotFound,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
+				keychainRepo.ExpectedCalls = nil
+				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
 			},
 		},
@@ -432,13 +470,19 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	shareSvc := sharesvc.New(shareRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, encryptionFactory, &shamirjob.Job{})
+	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
+	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 	updates := &share.Share{
 		ID:                   "share-id",
 		Secret:               "secret",
 		UserID:               "user_id",
 		EncryptionParameters: nil,
+	}
+
+	testKeychain := &keychain.Keychain{
+		ID:     "test_keychain",
+		UserID: "user_id",
 	}
 
 	tc := []struct {
@@ -462,6 +506,9 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 			wantErr: ErrShareNotFound,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
+				keychainRepo.ExpectedCalls = nil
+				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
 			},
 		},

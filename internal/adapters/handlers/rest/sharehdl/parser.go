@@ -28,6 +28,14 @@ func (p *parser) toDomain(s *Share) *share.Share {
 		Entropy: p.mapEntropyDomain[s.Entropy],
 	}
 
+	if s.KeychainID != "" {
+		shr.KeychainID = &s.KeychainID
+	}
+
+	if s.Reference != "" {
+		shr.Reference = &s.Reference
+	}
+
 	if s.EncryptionPart != "" || s.EncryptionSession != "" {
 		shr.Entropy = share.EntropyProject
 	}
@@ -68,6 +76,14 @@ func (p *parser) fromDomain(s *share.Share) *Share {
 	shr := &Share{
 		Secret:  s.Secret,
 		Entropy: p.mapDomainEntropy[s.Entropy],
+	}
+
+	if s.KeychainID != nil {
+		shr.KeychainID = *s.KeychainID
+	}
+
+	if s.Reference != nil {
+		shr.Reference = *s.Reference
 	}
 
 	if s.EncryptionParameters != nil {
