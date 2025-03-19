@@ -93,14 +93,13 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, op
 		dbShare.Entropy = shr.Entropy
 	}
 
-	if shr.EncryptionParameters != nil {
-		dbShare.EncryptionParameters = shr.EncryptionParameters
+	if (shr.Entropy == share.EntropyNone || shr.Entropy == share.EntropyProject) && shr.EncryptionParameters != nil {
+		shr.EncryptionParameters = nil
+		dbShare.EncryptionParameters = nil
 	}
 
-	if dbShare.Entropy == share.EntropyNone || dbShare.Entropy == share.EntropyProject {
-		if dbShare.EncryptionParameters != nil {
-			dbShare.EncryptionParameters = nil
-		}
+	if shr.EncryptionParameters != nil {
+		dbShare.EncryptionParameters = shr.EncryptionParameters
 	}
 
 	if shr.Secret != "" {
