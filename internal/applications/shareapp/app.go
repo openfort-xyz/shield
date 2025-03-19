@@ -97,7 +97,7 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, op
 		dbShare.EncryptionParameters = shr.EncryptionParameters
 	}
 
-	if dbShare.Entropy == share.EntropyNone {
+	if dbShare.Entropy == share.EntropyNone || dbShare.Entropy == share.EntropyProject {
 		if dbShare.EncryptionParameters != nil {
 			dbShare.EncryptionParameters = nil
 		}
