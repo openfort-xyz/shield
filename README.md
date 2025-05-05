@@ -4,20 +4,16 @@
 
 <div align="center">
   <h4>
-    <a href="https://www.openfort.xyz/">
+    <a href="https://www.openfort.io/">
       Website
     </a>
     <span> | </span>
-    <a href="https://www.openfort.xyz/docs">
+    <a href="https://www.openfort.io/docs">
       Documentation
     </a>
     <span> | </span>
-    <a href="https://www.openfort.xyz/docs/reference/api/authentication">
+    <a href="https://www.openfort.io/docs/reference/api/authentication">
       API Docs
-    </a>
-    <span> | </span>
-    <a href="https://twitter.com/openfortxyz">
-      Twitter
     </a>
   </h4>
 </div>
