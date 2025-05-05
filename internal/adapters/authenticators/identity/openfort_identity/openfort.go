@@ -62,7 +62,7 @@ func (o *OpenfortIdentityFactory) accessToken(_ context.Context, token string) (
 }
 
 func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authenticationProvider, tokenType string) (string, error) {
-	url := fmt.Sprintf("%s/iam/v1/oauth/authenticate", o.baseURL)
+	url := fmt.Sprintf("%s/iam/v1/oauth/third_party", o.baseURL)
 
 	reqBody := authenticateOauthRequest{
 		Provider:  authenticationProvider,
@@ -105,7 +105,7 @@ func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authent
 		return "", err
 	}
 
-	return response.Player.ID, nil
+	return response.ID, nil
 }
 
 type authenticateOauthRequest struct {
@@ -115,12 +115,6 @@ type authenticateOauthRequest struct {
 }
 
 type authenticateOauthResponse struct {
-	Token        string `json:"token"`
-	RefreshToken string `json:"refreshToken"`
-	Player       player `json:"player"`
-}
-
-type player struct {
 	ID             string          `json:"id"`
 	Object         string          `json:"object"`
 	CreatedAt      int64           `json:"created_at"`
