@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS shld_keychains (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP DEFAULT NULL,
     INDEX idx_user_id (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+) ENGINE=InnoDB;
 
 ALTER TABLE shld_keychains ADD CONSTRAINT fk_keychain_user FOREIGN KEY (user_id) REFERENCES shld_users(id) ON DELETE CASCADE;
 ALTER TABLE shld_shares MODIFY COLUMN user_id VARCHAR(36) NULL;
