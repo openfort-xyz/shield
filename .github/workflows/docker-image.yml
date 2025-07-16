@@ -8,6 +8,12 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+      packages: write
+
     steps:
       - name: Check out code
         uses: actions/checkout@v2
