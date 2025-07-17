@@ -8,6 +8,12 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+      packages: write
+
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -35,6 +41,12 @@ jobs:
           file: Dockerfile
           push: true
           tags: openfort/shield:${{ github.event.release.tag_name }}
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: docker.io/openfort/shield
+          subject-digest: ${{ steps.build.outputs.digest }}
 
       - name: Set up yq
         uses: chrisdickinson/setup-yq@latest
