@@ -9,7 +9,7 @@ package di
 import (
 	"go.openfort.xyz/shield/internal/adapters/authenticators"
 	"go.openfort.xyz/shield/internal/adapters/authenticators/identity"
-	"go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
+	ofidty "go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
 	"go.openfort.xyz/shield/internal/adapters/encryption"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest"
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt"
