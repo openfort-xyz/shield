@@ -30,7 +30,11 @@ const (
 )
 
 type GetShareEncryptionResponse struct {
-	Entropy Entropy `json:"entropy"`
+	Entropy    Entropy `json:"entropy"`
+	Salt       *string `json:"salt,omitempty"`
+	Iterations *int    `json:"iterations,omitempty"`
+	Length     *int    `json:"length,omitempty"`
+	Digest     *string `json:"digest,omitempty"`
 }
 
 type KeychainResponse struct {

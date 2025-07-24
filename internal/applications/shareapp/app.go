@@ -134,17 +134,17 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, op
 	return shr, nil
 }
 
-func (a *ShareApplication) GetShareEncryption(ctx context.Context) (share.Entropy, error) {
-	a.logger.InfoContext(ctx, "getting share encryption")
+func (a *ShareApplication) GetShareEncryption(ctx context.Context) (share.Entropy, *share.EncryptionParameters, error) {
+	a.logger.InfoContext(ctx, "getting share encryption & encryption parameters")
 	usrID := contexter.GetUserID(ctx)
 
 	shr, err := a.shareSvc.Find(ctx, usrID, nil, nil)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
-		return 0, fromDomainError(err)
+		return 0, nil, fromDomainError(err)
 	}
 
-	return shr.Entropy, nil
+	return shr.Entropy, shr.EncryptionParameters, nil
 }
 
 func (a *ShareApplication) migrateToKeychainIfRequired(ctx context.Context, usrID string) (string, error) {
