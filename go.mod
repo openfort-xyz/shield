@@ -2,7 +2,7 @@ module go.openfort.xyz/shield
 
 go 1.23.0
 
-toolchain go1.24.4
+toolchain go1.24.5
 
 require (
 	github.com/MicahParks/keyfunc/v3 v3.3.3
