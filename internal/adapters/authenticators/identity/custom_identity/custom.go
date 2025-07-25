@@ -8,7 +8,7 @@ import (
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/pkg/jwk"
 
-	"github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v5"
 
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/pkg/logger"

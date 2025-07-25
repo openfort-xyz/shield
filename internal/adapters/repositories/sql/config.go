@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/caarlos0/env/v10"
+	env "github.com/caarlos0/env/v10"
 	"github.com/go-sql-driver/mysql"
 )
 

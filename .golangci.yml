@@ -1,3 +1,4 @@
+version: 1
 linters:
   disable-all: true
   enable:
@@ -32,6 +33,8 @@ linters:
 issues:
   exclude-files:
     - ".*_test\\.go"
+  exclude-dirs:
+    - "internal/adapters/repositories/mocks"
 
 run:
   timeout: 3m

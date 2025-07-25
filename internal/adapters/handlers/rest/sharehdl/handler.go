@@ -295,13 +295,25 @@ func (h *Handler) GetShareEncryption(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting share")
 
-	shr, err := h.app.GetShareEncryption(ctx)
+	shareEntropy, encryptionParameters, err := h.app.GetShareEncryption(ctx)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return
 	}
 
-	resp, err := json.Marshal(GetShareEncryptionResponse{Entropy: h.parser.mapDomainEntropy[shr]})
+	encryptionResponse := GetShareEncryptionResponse{Entropy: h.parser.mapDomainEntropy[shareEntropy]}
+
+	// EntropyUser -> include crypto info (digest, iterations, salt, length)
+	if encryptionResponse.Entropy == EntropyUser {
+		encryptionResponse.Digest = &encryptionParameters.Digest
+		encryptionResponse.Iterations = &encryptionParameters.Iterations
+		encryptionResponse.Length = &encryptionParameters.Length
+		encryptionResponse.Salt = &encryptionParameters.Salt
+	}
+	// Implicit "else-do-nothing", project entropy is self explanatory and NoneEntropy has no config fields
+	// to take into account
+
+	resp, err := json.Marshal(encryptionResponse)
 	if err != nil {
 		api.RespondWithError(w, api.ErrInternal)
 		return

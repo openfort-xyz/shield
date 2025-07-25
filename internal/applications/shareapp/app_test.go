@@ -3,6 +3,8 @@ package shareapp
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -18,7 +20,6 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/pkg/contexter"
 	"go.openfort.xyz/shield/pkg/random"
-	"testing"
 )
 
 func TestShareApplication_GetShare(t *testing.T) {
@@ -234,6 +235,99 @@ func TestShareApplication_GetShare(t *testing.T) {
 			s, err := app.GetShare(ctx, tt.opts...)
 			ass.ErrorIs(tt.wantErr, err)
 			ass.Equal(tt.want, s)
+		})
+	}
+}
+
+func TestShareApplication_GetShareEncryption(t *testing.T) {
+	ctx := contexter.WithProjectID(context.Background(), "project_id")
+	ctx = contexter.WithUserID(ctx, "user_id")
+
+	shareRepo := new(sharemockrepo.MockShareRepository)
+	projectRepo := new(projectmockrepo.MockProjectRepository)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
+	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf(key)
+	}
+
+	// Create a project-based share (no encryption details)
+	projectShare := &share.Share{
+		Secret:  "project-secret",
+		Entropy: share.EntropyProject,
+	}
+	// Create a user-based share (encryption details must include pbkdf2 config details)
+
+	encryptionInfo := share.EncryptionParameters{
+		Digest:     "sha256",
+		Length:     256,
+		Salt:       "ipebre",
+		Iterations: 1337,
+	}
+	userShare := &share.Share{
+		Secret:               "user-secret",
+		Entropy:              share.EntropyUser,
+		EncryptionParameters: &encryptionInfo,
+	}
+
+	// Create a none-entropy share
+	noneShare := &share.Share{
+		Secret:  "none-secret",
+		Entropy: share.EntropyNone,
+	}
+
+	tc := []struct {
+		name        string
+		wantErr     error
+		wantEntropy share.Entropy
+		wantDetails *share.EncryptionParameters
+		mock        func()
+	}{
+		{
+			name:        "Get project-based share",
+			wantErr:     nil,
+			wantEntropy: share.EntropyProject,
+			wantDetails: nil,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(projectShare, nil)
+			},
+		},
+		{
+			name:        "Get user-based share",
+			wantErr:     nil,
+			wantEntropy: share.EntropyUser,
+			wantDetails: &encryptionInfo,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(userShare, nil)
+			},
+		},
+		{
+			name:        "Get none-entropy share",
+			wantErr:     nil,
+			wantEntropy: share.EntropyNone,
+			wantDetails: nil,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(noneShare, nil)
+			},
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mock()
+			ass := assert.New(t)
+			ent, det, err := app.GetShareEncryption(ctx)
+			ass.ErrorIs(tt.wantErr, err)
+			ass.Equal(tt.wantEntropy, ent)
+			ass.Equal(tt.wantDetails, det)
 		})
 	}
 }
