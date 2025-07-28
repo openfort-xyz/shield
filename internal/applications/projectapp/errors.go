@@ -20,6 +20,7 @@ var (
 	ErrEncryptionPartAlreadyExists = errors.New("encryption part already exists")
 	ErrEncryptionNotConfigured     = errors.New("encryption not configured")
 	ErrJWKPemConflict              = errors.New("jwk and pem cannot be set at the same time")
+	ErrInvalidPemCertificate       = errors.New("invalid PEM certificate")
 	ErrInternal                    = errors.New("internal error")
 )
 

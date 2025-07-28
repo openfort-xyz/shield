@@ -54,29 +54,18 @@ func (c *CustomIdentityFactory) Identify(ctx context.Context, token string) (str
 }
 
 func (c *CustomIdentityFactory) validatePEM(token string) (string, error) {
-	var keyFunc jwt.Keyfunc
-	switch c.config.KeyType {
-	case provider.KeyTypeRSA:
-		keyFunc = func(*jwt.Token) (interface{}, error) {
-			return jwt.ParseRSAPublicKeyFromPEM([]byte(c.config.PEM))
-		}
-	case provider.KeyTypeECDSA:
-		keyFunc = func(*jwt.Token) (interface{}, error) {
-			return jwt.ParseECPublicKeyFromPEM([]byte(c.config.PEM))
-		}
-	case provider.KeyTypeEd25519:
-		keyFunc = func(*jwt.Token) (interface{}, error) {
-			return jwt.ParseEdPublicKeyFromPEM([]byte(c.config.PEM))
-		}
-	default:
-		return "", errors.ErrCertTypeNotSupported
+
+	keyFunc, err := getKeyFuncFromPEM([]byte(c.config.PEM), c.config.KeyType)
+
+	if err != nil {
+		c.logger.ErrorContext(context.Background(), "failed to parse PEM file", logger.Error(err))
+		return "", err
 	}
 
 	parsed, err := jwt.Parse(token, keyFunc)
 	if err != nil {
 		return "", err
 	}
-
 	claims := parsed.Claims.(jwt.MapClaims)
 	return claims["sub"].(string), nil
 }

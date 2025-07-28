@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
+	pem "go.openfort.xyz/shield/internal/adapters/authenticators/identity/custom_identity"
+
 	"github.com/google/uuid"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
@@ -130,6 +132,11 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 		if cfg.keyType == provider.KeyTypeUnknown {
 			return nil, ErrKeyTypeNotSpecified
 		}
+		err := pem.CheckPEM([]byte(*cfg.pem), cfg.keyType)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to validate PEM", logger.Error(err))
+			return nil, ErrInvalidPemCertificate
+		}
 		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
 		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
 			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
@@ -238,6 +245,12 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 
 		if prov.Config.(*provider.CustomConfig).KeyType == provider.KeyTypeUnknown && cfg.keyType == provider.KeyTypeUnknown {
 			return ErrKeyTypeNotSpecified
+		}
+
+		err := pem.CheckPEM([]byte(*cfg.pem), cfg.keyType)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to validate PEM", logger.Error(err))
+			return ErrInvalidPemCertificate
 		}
 
 		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, PEM: *cfg.pem, KeyType: cfg.keyType})

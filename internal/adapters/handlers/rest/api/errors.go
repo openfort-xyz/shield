@@ -43,6 +43,7 @@ var (
 	ErrEncryptionPartRequired      = &Error{"The requested share have project entropy and encryption part is required", "EC_MISSING", http.StatusConflict}
 	ErrEncryptionNotConfigured     = &Error{"Encryption not configured", "EC_MISSING", http.StatusConflict}
 	ErrJWKPemConflict              = &Error{"JWK and PEM cannot be set at the same time", "PV_CFG_INVALID", http.StatusConflict}
+	ErrInvalidPemCertificate       = &Error{"Invalid PEM certificate", "PV_CFG_INVALID", http.StatusBadRequest}
 	ErrInvalidEncryptionPart       = &Error{"Invalid encryption part", "EC_INVALID", http.StatusBadRequest}
 	ErrInvalidEncryptionSession    = &Error{"Invalid encryption session", "EC_INVALID", http.StatusBadRequest}
 	ErrEncryptionPartAlreadyExists = &Error{"Encryption part already exists", "EC_EXISTS", http.StatusConflict}
