@@ -38,6 +38,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrEncryptionNotConfigured
 	case errors.Is(err, projectapp.ErrJWKPemConflict):
 		return api.ErrJWKPemConflict
+	case errors.Is(err, projectapp.ErrInvalidPemCertificate):
+		return api.ErrInvalidPemCertificate
 	default:
 		return api.ErrInternal
 	}

@@ -3,6 +3,8 @@ package projectapp
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.openfort.xyz/shield/internal/adapters/encryption"
@@ -18,7 +20,6 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/pkg/contexter"
 	"go.openfort.xyz/shield/pkg/random"
-	"testing"
 )
 
 func TestProjectApplication_CreateProject(t *testing.T) {
@@ -203,6 +204,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	validPEM := "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1ljaGMp9BrY6KQtUIWhw\ng2weyyF65zzNFR9VCxyxk7M/NCTvash6nJO4HwZ+/51YO6kZFr0JDdIMrMmNu/pE\na4FfvmAQJ+vDdc8LSwS7IWAp9y04MZVVFLEQzbToQ3kqkaJV5KsbKuADjm3JCXng\nkeOvuS04AeO4W2lB5BqQ+wX5TjAZ9P7xusJUd2ovk1kWVKeJDTxpAImpVhK2nLZ3\nFV/TWWVYutYFU1wmoRRyOeypTP4ZSPhKB5s6PqQuyl9KPqiWz7ESL9zAW3/yxONb\nEPc9pB8w/qXcW++g6iCYN66xH4punt7KuismzQwGysgnMyK6UnNuOJyJznPzAvB+\nQwIDAQAB\n-----END PUBLIC KEY-----\n"
 
 	tc := []struct {
 		name          string
@@ -232,10 +234,25 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 		{
 			name: "success with pem",
 			options: []ProviderOption{
-				WithCustomPEM("pem", provider.KeyTypeECDSA),
+				WithCustomPEM(validPEM, provider.KeyTypeRSA),
 			},
 			wantErr:       nil,
 			wantProviders: 1,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(nil, domainErrors.ErrProviderNotFound)
+				providerRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(nil)
+				providerRepo.On("CreateCustom", mock.Anything, mock.AnythingOfType("*provider.CustomConfig")).Return(nil)
+			},
+		},
+		{
+			name: "error with bogus pem",
+			options: []ProviderOption{
+				WithCustomPEM("---BEGIN RACCOON KEY---\n0xTRASHCONTAINER\n---END RACCOON KEY---", provider.KeyTypeRSA),
+			},
+			wantErr:       ErrInvalidPemCertificate,
+			wantProviders: 0,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				providerRepo.ExpectedCalls = nil
@@ -279,7 +296,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 		{
 			name: "custom provider already exists",
 			options: []ProviderOption{
-				WithCustomPEM("pem", provider.KeyTypeECDSA),
+				WithCustomPEM(validPEM, provider.KeyTypeRSA),
 			},
 			wantErr: ErrProviderAlreadyExists,
 			mock: func() {
@@ -292,7 +309,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 			name: "custom provider conflict config",
 			options: []ProviderOption{
 				WithCustomJWK("ur"),
-				WithCustomPEM("pem", provider.KeyTypeECDSA),
+				WithCustomPEM(validPEM, provider.KeyTypeRSA),
 			},
 			wantErr: ErrJWKPemConflict,
 			mock: func() {
@@ -327,7 +344,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 		{
 			name: "error getting custom provider",
 			options: []ProviderOption{
-				WithCustomPEM("pem", provider.KeyTypeECDSA),
+				WithCustomPEM(validPEM, provider.KeyTypeRSA),
 			},
 			wantErr: ErrInternal,
 			mock: func() {
@@ -533,6 +550,7 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	validPEM := "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1ljaGMp9BrY6KQtUIWhw\ng2weyyF65zzNFR9VCxyxk7M/NCTvash6nJO4HwZ+/51YO6kZFr0JDdIMrMmNu/pE\na4FfvmAQJ+vDdc8LSwS7IWAp9y04MZVVFLEQzbToQ3kqkaJV5KsbKuADjm3JCXng\nkeOvuS04AeO4W2lB5BqQ+wX5TjAZ9P7xusJUd2ovk1kWVKeJDTxpAImpVhK2nLZ3\nFV/TWWVYutYFU1wmoRRyOeypTP4ZSPhKB5s6PqQuyl9KPqiWz7ESL9zAW3/yxONb\nEPc9pB8w/qXcW++g6iCYN66xH4punt7KuismzQwGysgnMyK6UnNuOJyJznPzAvB+\nQwIDAQAB\n-----END PUBLIC KEY-----\n"
 
 	openfortProvider := &provider.Provider{
 		ID:        "provider-id",
@@ -597,6 +615,9 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 				providerRepo.On("Get", mock.Anything, mock.Anything).Return(customProvider, nil)
 				providerRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 				providerRepo.On("UpdateCustom", mock.Anything, mock.Anything).Return(nil)
+			},
+			options: []ProviderOption{
+				WithCustomPEM(validPEM, provider.KeyTypeRSA),
 			},
 		},
 		{
@@ -676,7 +697,7 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 				providerRepo.On("Get", mock.Anything, mock.Anything).Return(&provider.Provider{ProjectID: "project_id", Type: provider.TypeCustom, Config: &provider.CustomConfig{}}, nil)
 			},
 			options: []ProviderOption{
-				WithCustomPEM("pem", provider.KeyTypeUnknown),
+				WithCustomPEM(validPEM, provider.KeyTypeUnknown),
 			},
 		},
 		{
@@ -710,9 +731,9 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 			},
 		},
 		{
-			name:       "error updating custom provider",
+			name:       "error updating custom provider (different key type)",
 			providerID: "provider-id",
-			wantErr:    ErrInternal,
+			wantErr:    ErrInvalidPemCertificate,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				providerRepo.ExpectedCalls = nil
@@ -721,7 +742,22 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 				providerRepo.On("UpdateCustom", mock.Anything, mock.Anything).Return(errors.New("repository error"))
 			},
 			options: []ProviderOption{
-				WithCustomPEM("pem", provider.KeyTypeECDSA),
+				WithCustomPEM(validPEM, provider.KeyTypeECDSA),
+			},
+		},
+		{
+			name:       "error updating custom provider (invalid PEM)",
+			providerID: "provider-id",
+			wantErr:    ErrInvalidPemCertificate,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				providerRepo.ExpectedCalls = nil
+				providerRepo.On("Get", mock.Anything, mock.Anything).Return(customProvider, nil)
+				providerRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+				providerRepo.On("UpdateCustom", mock.Anything, mock.Anything).Return(errors.New("repository error"))
+			},
+			options: []ProviderOption{
+				WithCustomPEM("---BEGIN RACCOON KEY---\n0xTRASHCONTAINER\n---END RACCOON KEY---\n", provider.KeyTypeRSA),
 			},
 		},
 	}
