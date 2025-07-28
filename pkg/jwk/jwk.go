@@ -1,8 +1,8 @@
 package jwk
 
 import (
-	"github.com/MicahParks/keyfunc/v3"
-	"github.com/golang-jwt/jwt/v5"
+	keyfunc "github.com/MicahParks/keyfunc/v3"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 func Validate(token, jwkURL string) (string, error) {

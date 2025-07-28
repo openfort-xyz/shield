@@ -3,7 +3,7 @@ package rest
 import (
 	"time"
 
-	"github.com/caarlos0/env/v10"
+	env "github.com/caarlos0/env/v10"
 )
 
 // Config holds the configuration for the REST server.
