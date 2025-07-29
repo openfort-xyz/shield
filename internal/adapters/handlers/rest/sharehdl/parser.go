@@ -3,8 +3,10 @@ package sharehdl
 import "go.openfort.xyz/shield/internal/core/domain/share"
 
 type parser struct {
-	mapEntropyDomain map[Entropy]share.Entropy
-	mapDomainEntropy map[share.Entropy]Entropy
+	mapEntropyDomain       map[Entropy]share.Entropy
+	mapDomainEntropy       map[share.Entropy]Entropy
+	mapStorageMethodDomain map[ShareStorageMethodID]share.ShareStorageMethodID
+	mapDomainStorageMethod map[share.ShareStorageMethodID]ShareStorageMethodID
 }
 
 func newParser() *parser {
@@ -19,13 +21,24 @@ func newParser() *parser {
 			share.EntropyUser:    EntropyUser,
 			share.EntropyProject: EntropyProject,
 		},
+		mapStorageMethodDomain: map[ShareStorageMethodID]share.ShareStorageMethodID{
+			StorageMethodShield:      share.StorageMethodShield,
+			StorageMethodGoogleDrive: share.StorageMethodGoogleDrive,
+			StorageMethodICloud:      share.StorageMethodICloud,
+		},
+		mapDomainStorageMethod: map[share.ShareStorageMethodID]ShareStorageMethodID{
+			share.StorageMethodShield:      StorageMethodShield,
+			share.StorageMethodGoogleDrive: StorageMethodGoogleDrive,
+			share.StorageMethodICloud:      StorageMethodICloud,
+		},
 	}
 }
 
 func (p *parser) toDomain(s *Share) *share.Share {
 	shr := &share.Share{
-		Secret:  s.Secret,
-		Entropy: p.mapEntropyDomain[s.Entropy],
+		Secret:               s.Secret,
+		Entropy:              p.mapEntropyDomain[s.Entropy],
+		ShareStorageMethodID: p.mapStorageMethodDomain[s.ShareStorageMethodID],
 	}
 
 	if s.KeychainID != "" {

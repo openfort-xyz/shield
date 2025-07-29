@@ -7,6 +7,7 @@ type Share struct {
 	KeychainID           *string
 	Reference            *string
 	Entropy              Entropy
+	ShareStorageMethodID ShareStorageMethodID
 	EncryptionParameters *EncryptionParameters
 }
 
