@@ -8,8 +8,8 @@ import (
 type parser struct {
 	mapEntropyDomain       map[Entropy]share.Entropy
 	mapDomainEntropy       map[share.Entropy]Entropy
-	mapDomainStorageMethod map[share.ShareStorageMethodID]ShareStorageMethodID
-	mapStorageMethodDomain map[ShareStorageMethodID]share.ShareStorageMethodID
+	mapDomainStorageMethod map[share.StorageMethodID]ShareStorageMethodID
+	mapStorageMethodDomain map[ShareStorageMethodID]share.StorageMethodID
 }
 
 func newParser() *parser {
@@ -24,12 +24,12 @@ func newParser() *parser {
 			share.EntropyUser:    EntropyUser,
 			share.EntropyProject: EntropyProject,
 		},
-		mapDomainStorageMethod: map[share.ShareStorageMethodID]ShareStorageMethodID{
+		mapDomainStorageMethod: map[share.StorageMethodID]ShareStorageMethodID{
 			share.StorageMethodShield:      StorageMethodShield,
 			share.StorageMethodGoogleDrive: StorageMethodGoogleDrive,
 			share.StorageMethodICloud:      StorageMethodICloud,
 		},
-		mapStorageMethodDomain: map[ShareStorageMethodID]share.ShareStorageMethodID{
+		mapStorageMethodDomain: map[ShareStorageMethodID]share.StorageMethodID{
 			StorageMethodShield:      share.StorageMethodShield,
 			StorageMethodGoogleDrive: share.StorageMethodGoogleDrive,
 			StorageMethodICloud:      share.StorageMethodICloud,
@@ -155,8 +155,8 @@ func (p *parser) toUpdates(s *share.Share) map[string]interface{} {
 	return updates
 }
 
-func (p *parser) toDomainShareStorageMethod(dbMethod *ShareStorageMethod) *share.ShareStorageMethod {
-	return &share.ShareStorageMethod{
+func (p *parser) toDomainShareStorageMethod(dbMethod *ShareStorageMethod) *share.StorageMethod {
+	return &share.StorageMethod{
 		ID:   dbMethod.ID,
 		Name: dbMethod.Name,
 	}

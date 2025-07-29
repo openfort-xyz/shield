@@ -195,7 +195,7 @@ func (r *repository) BulkUpdate(ctx context.Context, shrs []*share.Share) error 
 	})
 }
 
-func (r *repository) GetShareStorageMethods(ctx context.Context) ([]*share.ShareStorageMethod, error) {
+func (r *repository) GetShareStorageMethods(ctx context.Context) ([]*share.StorageMethod, error) {
 	r.logger.InfoContext(ctx, "getting share storage methods")
 
 	var dbMethods []ShareStorageMethod
@@ -205,7 +205,7 @@ func (r *repository) GetShareStorageMethods(ctx context.Context) ([]*share.Share
 		return nil, err
 	}
 
-	var methods []*share.ShareStorageMethod
+	var methods []*share.StorageMethod
 	for _, dbMethod := range dbMethods {
 		methods = append(methods, r.parser.toDomainShareStorageMethod(&dbMethod))
 	}

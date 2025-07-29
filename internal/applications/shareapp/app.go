@@ -369,7 +369,7 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 	return encryptionKey, nil
 }
 
-func (a *ShareApplication) GetShareStorageMethods(ctx context.Context) ([]*share.ShareStorageMethod, error) {
+func (a *ShareApplication) GetShareStorageMethods(ctx context.Context) ([]*share.StorageMethod, error) {
 	a.logger.InfoContext(ctx, "getting share storage methods")
 
 	storageMethods, err := a.shareRepo.GetShareStorageMethods(ctx)

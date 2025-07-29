@@ -1,14 +1,14 @@
 package share
 
-type ShareStorageMethodID int32
+type StorageMethodID int32
 
 const (
-	StorageMethodShield ShareStorageMethodID = iota
+	StorageMethodShield StorageMethodID = iota
 	StorageMethodGoogleDrive
 	StorageMethodICloud
 )
 
-type ShareStorageMethod struct {
+type StorageMethod struct {
 	ID   int32
 	Name string
 }
