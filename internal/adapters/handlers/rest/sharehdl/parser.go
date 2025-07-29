@@ -87,8 +87,9 @@ func (p *parser) toDomain(s *Share) *share.Share {
 
 func (p *parser) fromDomain(s *share.Share) *Share {
 	shr := &Share{
-		Secret:  s.Secret,
-		Entropy: p.mapDomainEntropy[s.Entropy],
+		Secret:               s.Secret,
+		Entropy:              p.mapDomainEntropy[s.Entropy],
+		ShareStorageMethodID: p.mapDomainStorageMethod[s.ShareStorageMethodID],
 	}
 
 	if s.KeychainID != nil {
