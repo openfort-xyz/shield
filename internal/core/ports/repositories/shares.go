@@ -17,4 +17,5 @@ type ShareRepository interface {
 	UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string) error
 	Update(ctx context.Context, shr *share.Share) error
 	BulkUpdate(ctx context.Context, shrs []*share.Share) error
+	GetShareStorageMethods(ctx context.Context) ([]*share.ShareStorageMethod, error)
 }

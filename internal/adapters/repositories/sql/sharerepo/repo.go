@@ -194,3 +194,21 @@ func (r *repository) BulkUpdate(ctx context.Context, shrs []*share.Share) error 
 		return nil
 	})
 }
+
+func (r *repository) GetShareStorageMethods(ctx context.Context) ([]*share.ShareStorageMethod, error) {
+	r.logger.InfoContext(ctx, "getting share storage methods")
+
+	var dbMethods []ShareStorageMethod
+	err := r.db.Find(&dbMethods).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error getting share storage methods", logger.Error(err))
+		return nil, err
+	}
+
+	var methods []*share.ShareStorageMethod
+	for _, dbMethod := range dbMethods {
+		methods = append(methods, r.parser.toDomainShareStorageMethod(&dbMethod))
+	}
+
+	return methods, nil
+}

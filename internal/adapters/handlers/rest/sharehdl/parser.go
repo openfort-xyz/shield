@@ -103,3 +103,10 @@ func (p *parser) fromDomain(s *share.Share) *Share {
 
 	return shr
 }
+
+func (p *parser) fromDomainShareStorageMethod(s *share.ShareStorageMethod) *ShareStorageMethod {
+	return &ShareStorageMethod{
+		ID:   s.ID,
+		Name: s.Name,
+	}
+}

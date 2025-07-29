@@ -40,3 +40,12 @@ type GetShareEncryptionResponse struct {
 type KeychainResponse struct {
 	Shares []*Share `json:"shares"`
 }
+
+type ShareStorageMethod struct {
+	ID   int32  `json:"id"`
+	Name string `json:"name"`
+}
+
+type GetShareStorageMethodsResponse struct {
+	Methods []*ShareStorageMethod `json:"methods"`
+}

@@ -140,3 +140,10 @@ func (p *parser) toUpdates(s *share.Share) map[string]interface{} {
 
 	return updates
 }
+
+func (p *parser) toDomainShareStorageMethod(dbMethod *ShareStorageMethod) *share.ShareStorageMethod {
+	return &share.ShareStorageMethod{
+		ID:   dbMethod.ID,
+		Name: dbMethod.Name,
+	}
+}
