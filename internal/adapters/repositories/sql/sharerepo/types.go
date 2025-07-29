@@ -33,3 +33,12 @@ const (
 	EntropyUser    Entropy = "user"
 	EntropyProject Entropy = "project"
 )
+
+type ShareStorageMethod struct {
+	ID   int32  `gorm:"column:id;primary_key"`
+	Name string `gorm:"column:name;not null"`
+}
+
+func (ShareStorageMethod) TableName() string {
+	return "shld_share_storage_methods"
+}
