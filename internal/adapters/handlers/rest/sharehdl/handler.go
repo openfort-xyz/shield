@@ -322,3 +322,39 @@ func (h *Handler) GetShareEncryption(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(resp)
 }
+
+// GetShareStorageMethods list the available share storage methods
+// @Summary Get share storage methods
+// @Description Get the available share storage methods
+// @Tags Share
+// @Produce json
+// @Success 200 {array} ShareStorageMethod "Successful response"
+// @Failure 500 "Description: Internal Server Error"
+// @Router /shares/storage-methods [get]
+func (h *Handler) GetShareStorageMethods(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "getting share storage methods")
+
+	storageMethods, err := h.app.GetShareStorageMethods(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	var shareStorageMethodJsons []*ShareStorageMethod
+	for _, method := range storageMethods {
+		shareStorageMethodJsons = append(shareStorageMethodJsons, h.parser.fromDomainShareStorageMethod(method))
+	}
+
+	response := GetShareStorageMethodsResponse{
+		Methods: shareStorageMethodJsons,
+	}
+
+	resp, err := json.Marshal(response)
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}

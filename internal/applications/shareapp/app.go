@@ -368,3 +368,15 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 
 	return encryptionKey, nil
 }
+
+func (a *ShareApplication) GetShareStorageMethods(ctx context.Context) ([]*share.StorageMethod, error) {
+	a.logger.InfoContext(ctx, "getting share storage methods")
+
+	storageMethods, err := a.shareRepo.GetShareStorageMethods(ctx)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get share storage methods", logger.Error(err))
+		return nil, fromDomainError(err)
+	}
+
+	return storageMethods, nil
+}

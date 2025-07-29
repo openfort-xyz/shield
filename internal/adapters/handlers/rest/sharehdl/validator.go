@@ -14,6 +14,10 @@ func (v *validator) validateShare(share *Share) *api.Error {
 		return api.ErrBadRequestWithMessage("secret is required")
 	}
 
+	if !share.ShareStorageMethodID.IsValid() {
+		return api.ErrBadRequestWithMessage("invalid storage method")
+	}
+
 	switch share.Entropy {
 	case "", EntropyNone:
 		if share.Salt != "" || share.Iterations != 0 || share.Length != 0 || share.Digest != "" || share.EncryptionPart != "" || share.EncryptionSession != "" {
@@ -35,6 +39,11 @@ func (v *validator) validateShare(share *Share) *api.Error {
 			return api.ErrBadRequestWithMessage("digest is required when entropy is user")
 		}
 	case EntropyProject:
+
+		if share.ShareStorageMethodID != StorageMethodShield {
+			return api.ErrBadRequestWithMessage("storage_method must be Shield if entropy is project")
+		}
+
 		if share.Salt != "" || share.Iterations != 0 || share.Length != 0 || share.Digest != "" {
 			return api.ErrBadRequestWithMessage("if user entropy is not set, encryption parameters should not be set")
 		}

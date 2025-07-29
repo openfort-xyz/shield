@@ -74,6 +74,8 @@ func (s *Server) Start(ctx context.Context) error {
 	r.Use(responsemdw.ResponseMiddleware)
 	r.HandleFunc("/healthz", healthzHdl.Healthz).Methods(http.MethodGet)
 	r.HandleFunc("/register", projectHdl.CreateProject).Methods(http.MethodPost)
+	// This endpoint only lists the available share storage methods, so it does not require authentication
+	r.HandleFunc("/storage-methods", shareHdl.GetShareStorageMethods).Methods(http.MethodGet)
 	p := r.PathPrefix("/project").Subrouter()
 	p.Use(authMdw.AuthenticateAPISecret)
 	p.HandleFunc("", projectHdl.GetProject).Methods(http.MethodGet)
@@ -93,7 +95,6 @@ func (s *Server) Start(ctx context.Context) error {
 	u.HandleFunc("", shareHdl.RegisterShare).Methods(http.MethodPost)
 	u.HandleFunc("", shareHdl.DeleteShare).Methods(http.MethodDelete)
 	u.HandleFunc("", shareHdl.UpdateShare).Methods(http.MethodPut)
-
 	k := r.PathPrefix("/keychain").Subrouter()
 	k.Use(authMdw.AuthenticateUser)
 	k.HandleFunc("", shareHdl.Keychain).Methods(http.MethodGet)

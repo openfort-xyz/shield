@@ -6,8 +6,10 @@ import (
 )
 
 type parser struct {
-	mapEntropyDomain map[Entropy]share.Entropy
-	mapDomainEntropy map[share.Entropy]Entropy
+	mapEntropyDomain       map[Entropy]share.Entropy
+	mapDomainEntropy       map[share.Entropy]Entropy
+	mapDomainStorageMethod map[share.StorageMethodID]ShareStorageMethodID
+	mapStorageMethodDomain map[ShareStorageMethodID]share.StorageMethodID
 }
 
 func newParser() *parser {
@@ -21,6 +23,16 @@ func newParser() *parser {
 			share.EntropyNone:    EntropyNone,
 			share.EntropyUser:    EntropyUser,
 			share.EntropyProject: EntropyProject,
+		},
+		mapDomainStorageMethod: map[share.StorageMethodID]ShareStorageMethodID{
+			share.StorageMethodShield:      StorageMethodShield,
+			share.StorageMethodGoogleDrive: StorageMethodGoogleDrive,
+			share.StorageMethodICloud:      StorageMethodICloud,
+		},
+		mapStorageMethodDomain: map[ShareStorageMethodID]share.StorageMethodID{
+			StorageMethodShield:      share.StorageMethodShield,
+			StorageMethodGoogleDrive: share.StorageMethodGoogleDrive,
+			StorageMethodICloud:      share.StorageMethodICloud,
 		},
 	}
 }
@@ -62,6 +74,7 @@ func (p *parser) toDomain(s *Share) *share.Share {
 		EncryptionParameters: encryptionParameters,
 		KeychainID:           s.KeyChainID,
 		Reference:            s.Reference,
+		ShareStorageMethodID: p.mapStorageMethodDomain[s.ShareStorageMethodID],
 	}
 }
 
@@ -71,12 +84,13 @@ func (p *parser) toDatabase(s *share.Share) *Share {
 		usrID = &s.UserID
 	}
 	shr := &Share{
-		ID:         s.ID,
-		Data:       s.Secret,
-		UserID:     usrID,
-		KeyChainID: s.KeychainID,
-		Reference:  s.Reference,
-		Entropy:    p.mapDomainEntropy[s.Entropy],
+		ID:                   s.ID,
+		Data:                 s.Secret,
+		UserID:               usrID,
+		KeyChainID:           s.KeychainID,
+		Reference:            s.Reference,
+		ShareStorageMethodID: p.mapDomainStorageMethod[s.ShareStorageMethodID],
+		Entropy:              p.mapDomainEntropy[s.Entropy],
 	}
 
 	if s.EncryptionParameters != nil {
@@ -139,4 +153,11 @@ func (p *parser) toUpdates(s *share.Share) map[string]interface{} {
 	}
 
 	return updates
+}
+
+func (p *parser) toDomainShareStorageMethod(dbMethod *ShareStorageMethod) *share.StorageMethod {
+	return &share.StorageMethod{
+		ID:   dbMethod.ID,
+		Name: dbMethod.Name,
+	}
 }

@@ -3,8 +3,10 @@ package sharehdl
 import "go.openfort.xyz/shield/internal/core/domain/share"
 
 type parser struct {
-	mapEntropyDomain map[Entropy]share.Entropy
-	mapDomainEntropy map[share.Entropy]Entropy
+	mapEntropyDomain       map[Entropy]share.Entropy
+	mapDomainEntropy       map[share.Entropy]Entropy
+	mapStorageMethodDomain map[ShareStorageMethodID]share.StorageMethodID
+	mapDomainStorageMethod map[share.StorageMethodID]ShareStorageMethodID
 }
 
 func newParser() *parser {
@@ -19,13 +21,24 @@ func newParser() *parser {
 			share.EntropyUser:    EntropyUser,
 			share.EntropyProject: EntropyProject,
 		},
+		mapStorageMethodDomain: map[ShareStorageMethodID]share.StorageMethodID{
+			StorageMethodShield:      share.StorageMethodShield,
+			StorageMethodGoogleDrive: share.StorageMethodGoogleDrive,
+			StorageMethodICloud:      share.StorageMethodICloud,
+		},
+		mapDomainStorageMethod: map[share.StorageMethodID]ShareStorageMethodID{
+			share.StorageMethodShield:      StorageMethodShield,
+			share.StorageMethodGoogleDrive: StorageMethodGoogleDrive,
+			share.StorageMethodICloud:      StorageMethodICloud,
+		},
 	}
 }
 
 func (p *parser) toDomain(s *Share) *share.Share {
 	shr := &share.Share{
-		Secret:  s.Secret,
-		Entropy: p.mapEntropyDomain[s.Entropy],
+		Secret:               s.Secret,
+		Entropy:              p.mapEntropyDomain[s.Entropy],
+		ShareStorageMethodID: p.mapStorageMethodDomain[s.ShareStorageMethodID],
 	}
 
 	if s.KeychainID != "" {
@@ -74,8 +87,9 @@ func (p *parser) toDomain(s *Share) *share.Share {
 
 func (p *parser) fromDomain(s *share.Share) *Share {
 	shr := &Share{
-		Secret:  s.Secret,
-		Entropy: p.mapDomainEntropy[s.Entropy],
+		Secret:               s.Secret,
+		Entropy:              p.mapDomainEntropy[s.Entropy],
+		ShareStorageMethodID: p.mapDomainStorageMethod[s.ShareStorageMethodID],
 	}
 
 	if s.KeychainID != nil {
@@ -102,4 +116,11 @@ func (p *parser) fromDomain(s *share.Share) *Share {
 	}
 
 	return shr
+}
+
+func (p *parser) fromDomainShareStorageMethod(s *share.StorageMethod) *ShareStorageMethod {
+	return &ShareStorageMethod{
+		ID:   s.ID,
+		Name: s.Name,
+	}
 }
