@@ -58,6 +58,10 @@ func (p *parser) fromAddProvidersRequest(req *AddProvidersRequest) []projectapp.
 		opts = append(opts, projectapp.WithCustomPEM(req.Providers.Custom.PEM, p.mapKeyTypeToDomain[req.Providers.Custom.KeyType]))
 	}
 
+	if req.Providers.Custom != nil && req.Providers.Custom.CookieFieldName != nil {
+		opts = append(opts, projectapp.WithCustomCookieFieldName(*req.Providers.Custom.CookieFieldName))
+	}
+
 	return opts
 }
 
@@ -103,6 +107,7 @@ func (p *parser) toGetProviderResponse(prov *provider.Provider) *GetProviderResp
 	case provider.TypeCustom:
 		resp.JWK = prov.Config.(*provider.CustomConfig).JWK
 		resp.PEM = prov.Config.(*provider.CustomConfig).PEM
+		resp.CookieFieldName = prov.Config.(*provider.CustomConfig).CookieFieldName
 		resp.KeyType = p.mapKeyTypeToResponse[prov.Config.(*provider.CustomConfig).KeyType]
 	case provider.TypeUnknown:
 	}

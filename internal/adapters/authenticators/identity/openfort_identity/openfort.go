@@ -57,6 +57,10 @@ func (o *OpenfortIdentityFactory) Identify(ctx context.Context, token string) (s
 	return o.accessToken(ctx, token)
 }
 
+func (a *OpenfortIdentityFactory) GetCookieFieldName() string {
+	return ""
+}
+
 func (o *OpenfortIdentityFactory) accessToken(_ context.Context, token string) (string, error) {
 	return jwk.Validate(token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey))
 }

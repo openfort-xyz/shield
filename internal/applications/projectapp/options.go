@@ -17,6 +17,12 @@ func WithCustomPEM(pem string, keyType provider.KeyType) ProviderOption {
 	}
 }
 
+func WithCustomCookieFieldName(cookieFieldName string) ProviderOption {
+	return func(c *providerConfig) {
+		c.cookieFieldName = &cookieFieldName
+	}
+}
+
 func WithOpenfort(openfortProjectID string) ProviderOption {
 	return func(c *providerConfig) {
 		c.openfortPublishableKey = &openfortProjectID
@@ -26,6 +32,7 @@ func WithOpenfort(openfortProjectID string) ProviderOption {
 type providerConfig struct {
 	jwkURL                 *string
 	pem                    *string
+	cookieFieldName        *string
 	keyType                provider.KeyType
 	openfortPublishableKey *string
 }

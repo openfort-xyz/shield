@@ -33,10 +33,11 @@ type OpenfortProvider struct {
 }
 
 type CustomProvider struct {
-	ProviderID string  `json:"provider_id,omitempty"`
-	JWK        string  `json:"jwk,omitempty"`
-	PEM        string  `json:"pem,omitempty"`
-	KeyType    KeyType `json:"key_type,omitempty"`
+	ProviderID      string  `json:"provider_id,omitempty"`
+	JWK             string  `json:"jwk,omitempty"`
+	PEM             string  `json:"pem,omitempty"`
+	CookieFieldName *string `json:"cookie_field_name,omitempty"`
+	KeyType         KeyType `json:"key_type,omitempty"`
 }
 
 type KeyType string
@@ -61,19 +62,21 @@ type GetProvidersResponse struct {
 }
 
 type GetProviderResponse struct {
-	ProviderID     string  `json:"provider_id"`
-	Type           string  `json:"type"`
-	PublishableKey string  `json:"publishable_key,omitempty"`
-	JWK            string  `json:"jwk,omitempty"`
-	PEM            string  `json:"pem,omitempty"`
-	KeyType        KeyType `json:"key_type,omitempty"`
+	ProviderID      string  `json:"provider_id"`
+	Type            string  `json:"type"`
+	PublishableKey  string  `json:"publishable_key,omitempty"`
+	JWK             string  `json:"jwk,omitempty"`
+	PEM             string  `json:"pem,omitempty"`
+	CookieFieldName *string `json:"cookie_field_name,omitempty"`
+	KeyType         KeyType `json:"key_type,omitempty"`
 }
 
 type UpdateProviderRequest struct {
-	PublishableKey string  `json:"publishable_key,omitempty"`
-	JWK            string  `json:"jwk,omitempty"`
-	PEM            string  `json:"pem,omitempty"`
-	KeyType        KeyType `json:"key_type,omitempty"`
+	PublishableKey  string  `json:"publishable_key,omitempty"`
+	JWK             string  `json:"jwk,omitempty"`
+	PEM             string  `json:"pem,omitempty"`
+	CookieFieldName *string `json:"cookie_field_name,omitempty"`
+	KeyType         KeyType `json:"key_type,omitempty"`
 }
 
 type EncryptBodyRequest struct {

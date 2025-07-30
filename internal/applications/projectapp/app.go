@@ -125,7 +125,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 		if err == nil && prov != nil {
 			return nil, ErrProviderAlreadyExists
 		}
-		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: &provider.CustomConfig{JWK: *cfg.jwkURL}})
+		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: &provider.CustomConfig{JWK: *cfg.jwkURL, CookieFieldName: cfg.cookieFieldName}})
 	}
 
 	if cfg.pem != nil {
@@ -145,7 +145,7 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 		if err == nil && prov != nil {
 			return nil, ErrProviderAlreadyExists
 		}
-		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: &provider.CustomConfig{PEM: *cfg.pem, KeyType: cfg.keyType}})
+		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: &provider.CustomConfig{PEM: *cfg.pem, KeyType: cfg.keyType, CookieFieldName: cfg.cookieFieldName}})
 	}
 
 	if len(providers) == 0 {
@@ -214,12 +214,17 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 		opt(cfg)
 	}
 
+	if cfg.cookieFieldName != nil && prov.Type != provider.TypeCustom {
+		a.logger.ErrorContext(ctx, "cookie field name can only be set for custom providers")
+		return ErrProviderMismatch
+	}
+
 	if cfg.jwkURL != nil {
 		if prov.Type != provider.TypeCustom {
 			return ErrProviderMismatch
 		}
 
-		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, JWK: *cfg.jwkURL})
+		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, JWK: *cfg.jwkURL, CookieFieldName: cfg.cookieFieldName})
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to update custom provider", logger.Error(err))
 			return fromDomainError(err)
@@ -253,10 +258,16 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 			return ErrInvalidPemCertificate
 		}
 
-		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, PEM: *cfg.pem, KeyType: cfg.keyType})
+		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, PEM: *cfg.pem, KeyType: cfg.keyType, CookieFieldName: cfg.cookieFieldName})
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to update custom provider", logger.Error(err))
 			return fromDomainError(err)
+		}
+	}
+
+	if cfg.cookieFieldName != nil {
+		if prov.Type != provider.TypeCustom {
+			return ErrProviderMismatch
 		}
 	}
 	return nil

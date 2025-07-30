@@ -271,6 +271,10 @@ func (h *Handler) UpdateProvider(w http.ResponseWriter, r *http.Request) {
 		opts = append(opts, projectapp.WithCustomPEM(req.PEM, h.parser.mapKeyTypeToDomain[req.KeyType]))
 	}
 
+	if req.CookieFieldName != nil {
+		opts = append(opts, projectapp.WithCustomCookieFieldName(*req.CookieFieldName))
+	}
+
 	err = h.app.UpdateProvider(ctx, providerID, opts...)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))

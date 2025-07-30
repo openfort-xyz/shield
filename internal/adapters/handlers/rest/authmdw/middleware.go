@@ -112,6 +112,40 @@ func (m *Middleware) PreRegisterUser(next http.Handler) http.Handler {
 	})
 }
 
+func getTokenFromHeader(header string) (string, error) {
+	if header == "" {
+		return "", api.ErrMissingToken
+	}
+
+	splittedToken := strings.Split(header, " ")
+
+	// TODO: Are we supporting other token types than Bearer? e.g. Basic, Digest, etc.
+	if len(splittedToken) != 2 {
+		return "", api.ErrInvalidToken
+	}
+
+	return splittedToken[1], nil
+}
+
+// This is a bit weird, but there's no standard name for the cookie field
+// RFC 6265 specifies at most the name of the cookie header, but nothing for this particular field
+func getTokenFromCookie(r *http.Request, cookieFieldName string) (string, error) {
+	cookie, err := r.Cookie(cookieFieldName)
+	if err != nil {
+		if err == http.ErrNoCookie {
+			return "", api.ErrMissingToken
+		}
+		return "", api.ErrInvalidToken
+	}
+
+	token := cookie.Value
+	if token == "" {
+		return "", api.ErrMissingToken
+	}
+
+	return token, nil
+}
+
 func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get(APIKeyHeader)
@@ -119,20 +153,6 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 			api.RespondWithError(w, api.ErrMissingAPIKey)
 			return
 		}
-
-		token := r.Header.Get(TokenHeader)
-		if token == "" {
-			api.RespondWithError(w, api.ErrMissingToken)
-			return
-		}
-
-		splittedToken := strings.Split(token, " ")
-		if len(splittedToken) != 2 {
-			api.RespondWithError(w, api.ErrInvalidToken)
-			return
-		}
-
-		token = splittedToken[1]
 
 		providerStr := r.Header.Get(AuthProviderHeader)
 		if providerStr == "" {
@@ -164,6 +184,28 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 		}
 		if err != nil {
 			api.RespondWithError(w, api.ErrInvalidAuthProvider)
+			return
+		}
+
+		// Determine the token source based on the identity type
+		var token string
+		if identity.GetCookieFieldName() == "" {
+			// Also default path for Openfort identity (which does not use cookies)
+			token, err = getTokenFromHeader(r.Header.Get(TokenHeader))
+		} else {
+			// Cookie vs header ARE mutually exclusive, otherwise it's not clear which one we should obey
+			if r.Header.Get(TokenHeader) != "" {
+				api.RespondWithError(w, api.ErrInvalidToken)
+				return
+			}
+			token, err = getTokenFromCookie(r, identity.GetCookieFieldName())
+			// We could potentially recover from the previous error and fall back to the header,
+			// but again it would be a bit weird to have both a cookie and a header for the same identity type.
+			// So we just return an error if the cookie is not present
+		}
+
+		if err != nil {
+			api.RespondWithError(w, api.ErrInvalidToken)
 			return
 		}
 
