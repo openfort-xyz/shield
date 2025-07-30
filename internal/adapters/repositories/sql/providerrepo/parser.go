@@ -83,20 +83,31 @@ func (p *parser) toDatabaseCustomProvider(prov *provider.CustomConfig) *Provider
 		pem = &prov.PEM
 	}
 
+	var cookieFieldName *string
+	if prov.CookieFieldName != nil {
+		cookieFieldName = prov.CookieFieldName
+	}
+
 	var keyType *KeyType
 	if keyTypeStr := p.mapKeyTypeToDatabase[prov.KeyType]; keyTypeStr != "" {
 		keyType = &keyTypeStr
 	}
 	return &ProviderCustom{
-		ProviderID: prov.ProviderID,
-		JWKUrl:     jwkURL,
-		PEM:        pem,
-		KeyType:    keyType,
+		ProviderID:      prov.ProviderID,
+		JWKUrl:          jwkURL,
+		PEM:             pem,
+		KeyType:         keyType,
+		CookieFieldName: cookieFieldName,
 	}
 }
 
 func (p *parser) toUpdateCustomProviderMap(prov *provider.CustomConfig) map[string]interface{} {
 	updates := make(map[string]interface{})
+
+	if prov.CookieFieldName != nil {
+		updates["cookie_field_name"] = *prov.CookieFieldName
+	}
+
 	if prov.JWK != "" {
 		updates["jwk_url"] = prov.JWK
 		updates["pem_cert"] = nil
@@ -122,14 +133,20 @@ func (p *parser) toDomainCustomProvider(prov *ProviderCustom) *provider.CustomCo
 		pem = *prov.PEM
 	}
 
+	cookieFieldName := ""
+	if prov.CookieFieldName != nil {
+		cookieFieldName = *prov.CookieFieldName
+	}
+
 	keyType := provider.KeyTypeUnknown
 	if prov.KeyType != nil {
 		keyType = p.mapKeyTypeToDomain[*prov.KeyType]
 	}
 	return &provider.CustomConfig{
-		ProviderID: prov.ProviderID,
-		JWK:        jwk,
-		PEM:        pem,
-		KeyType:    keyType,
+		ProviderID:      prov.ProviderID,
+		JWK:             jwk,
+		PEM:             pem,
+		KeyType:         keyType,
+		CookieFieldName: &cookieFieldName,
 	}
 }
