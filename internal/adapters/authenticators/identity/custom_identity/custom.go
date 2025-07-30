@@ -53,6 +53,13 @@ func (c *CustomIdentityFactory) Identify(ctx context.Context, token string) (str
 	return externalUserID, nil
 }
 
+func (c *CustomIdentityFactory) GetCookieFieldName() string {
+	if c.config.CookieFieldName == nil {
+		return ""
+	}
+	return *c.config.CookieFieldName
+}
+
 func (c *CustomIdentityFactory) validatePEM(token string) (string, error) {
 
 	keyFunc, err := getKeyFuncFromPEM([]byte(c.config.PEM), c.config.KeyType)

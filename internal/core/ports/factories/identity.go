@@ -11,5 +11,6 @@ type IdentityFactory interface {
 
 type Identity interface {
 	GetProviderID() string
+	GetCookieFieldName() string
 	Identify(ctx context.Context, token string) (string, error)
 }
