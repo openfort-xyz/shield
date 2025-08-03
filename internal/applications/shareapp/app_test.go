@@ -551,7 +551,7 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
 			ass := assert.New(t)
-			err := app.DeleteShare(ctx)
+			err := app.DeleteShare(ctx, nil)
 			ass.ErrorIs(tt.wantErr, err)
 		})
 	}

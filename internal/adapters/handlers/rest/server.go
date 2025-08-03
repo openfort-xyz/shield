@@ -94,6 +94,7 @@ func (s *Server) Start(ctx context.Context) error {
 	u.HandleFunc("/encryption", shareHdl.GetShareEncryption).Methods(http.MethodGet)
 	u.HandleFunc("", shareHdl.RegisterShare).Methods(http.MethodPost)
 	u.HandleFunc("", shareHdl.DeleteShare).Methods(http.MethodDelete)
+	u.HandleFunc("/{reference}", shareHdl.DeleteShare).Methods(http.MethodDelete)
 	u.HandleFunc("", shareHdl.UpdateShare).Methods(http.MethodPut)
 	k := r.PathPrefix("/keychain").Subrouter()
 	k.Use(authMdw.AuthenticateUser)
