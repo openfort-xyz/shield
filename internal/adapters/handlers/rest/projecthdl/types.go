@@ -22,6 +22,10 @@ type AddProvidersRequest struct {
 	Providers ProvidersRequest `json:"providers"`
 }
 
+type AddProviderV2Request struct {
+	Provider CustomProvider `json:"provider"`
+}
+
 type ProvidersRequest struct {
 	Openfort *OpenfortProvider `json:"openfort,omitempty"`
 	Custom   *CustomProvider   `json:"custom,omitempty"`
@@ -50,6 +54,10 @@ const (
 
 type AddProvidersResponse struct {
 	Providers []*ProviderResponse `json:"providers"`
+}
+
+type AddProviderV2Response struct {
+	ProviderID string `json:"provider_id"`
 }
 
 type ProviderResponse struct {

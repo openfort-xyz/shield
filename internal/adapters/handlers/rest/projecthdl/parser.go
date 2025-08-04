@@ -65,6 +65,24 @@ func (p *parser) fromAddProvidersRequest(req *AddProvidersRequest) []projectapp.
 	return opts
 }
 
+func (p *parser) fromAddProviderV2Request(req *AddProviderV2Request) []projectapp.ProviderOption {
+	opts := make([]projectapp.ProviderOption, 0)
+
+	if req.Provider.JWK != "" {
+		opts = append(opts, projectapp.WithCustomJWK(req.Provider.JWK))
+	}
+
+	if req.Provider.PEM != "" {
+		opts = append(opts, projectapp.WithCustomPEM(req.Provider.PEM, p.mapKeyTypeToDomain[req.Provider.KeyType]))
+	}
+
+	if req.Provider.CookieFieldName != nil {
+		opts = append(opts, projectapp.WithCustomCookieFieldName(*req.Provider.CookieFieldName))
+	}
+
+	return opts
+}
+
 func (p *parser) toAddProvidersResponse(providers []*provider.Provider) *AddProvidersResponse {
 	resp := &AddProvidersResponse{
 		Providers: make([]*ProviderResponse, 0, len(providers)),
@@ -77,6 +95,13 @@ func (p *parser) toAddProvidersResponse(providers []*provider.Provider) *AddProv
 		})
 	}
 
+	return resp
+}
+
+func (p *parser) toAddProviderV2Response(provider *provider.Provider) *AddProviderV2Response {
+	resp := &AddProviderV2Response{
+		ProviderID: provider.ID,
+	}
 	return resp
 }
 

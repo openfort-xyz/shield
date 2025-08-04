@@ -430,8 +430,58 @@ func (h *Handler) RegisterEncryptionKey(w http.ResponseWriter, r *http.Request) 
 
 // TODO: Add documentation as soon as we have requests and responses specified
 
+// AddProvider adds provider to a project
+// @Summary Add provider
+// @Description Add authentication provider to a prject
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param addProviderV2Request body AddProviderV2Request true "Add Provider v2 Request"
+// @Success 200 {object} AddProviderV2Response "Provider added successfully"
+// @Failure 400 "Bad Request"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/v2/providers [post]
 func (h *Handler) AddProviderV2(w http.ResponseWriter, r *http.Request) {
-	api.RespondWithError(w, api.ErrNotImplemented)
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "adding provider")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+		return
+	}
+
+	var req AddProviderV2Request
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+
+	// fromAddProviderV2Request returns an option set identical to that of v1
+	providers, err := h.app.AddProviders(ctx, h.parser.fromAddProviderV2Request(&req)...)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	if len(providers) != 1 {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	// Return the provider's ID
+	// V2 only allows the user to register a single provider
+	resp, err := json.Marshal(h.parser.toAddProviderV2Response(providers[0]))
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
 }
 
 func (h *Handler) GetProviderV2(w http.ResponseWriter, r *http.Request) {
