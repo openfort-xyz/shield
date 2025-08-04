@@ -428,8 +428,6 @@ func (h *Handler) RegisterEncryptionKey(w http.ResponseWriter, r *http.Request) 
 	_, _ = w.Write(resp)
 }
 
-// TODO: Add documentation as soon as we have requests and responses specified
-
 // AddProvider adds provider to a project
 // @Summary Add provider
 // @Description Add authentication provider to a prject
