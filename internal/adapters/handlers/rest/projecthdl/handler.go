@@ -539,7 +539,57 @@ func (h *Handler) GetProviderV2(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateProviderV2(w http.ResponseWriter, r *http.Request) {
-	api.RespondWithError(w, api.ErrNotImplemented)
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "updating provider")
+
+	providers, err := h.app.GetProviders(ctx)
+
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+	}
+
+	if len(providers) == 0 {
+		// Here it's different: this endpoint UPDATES (doesn't UPSERT) auth providers
+		// and we cannot update what doesn't exist in the first place
+		api.RespondWithError(w, api.ErrMissingAuthProvider)
+		return
+	}
+
+	providerID := providers[0].ID
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+		return
+	}
+
+	var req UpdateProviderV2Request
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+
+	var opts []projectapp.ProviderOption
+	if req.JWK != "" {
+		opts = append(opts, projectapp.WithCustomJWK(req.JWK))
+	}
+
+	if req.PEM != "" {
+		opts = append(opts, projectapp.WithCustomPEM(req.PEM, h.parser.mapKeyTypeToDomain[req.KeyType]))
+	}
+
+	if req.CookieFieldName != nil {
+		opts = append(opts, projectapp.WithCustomCookieFieldName(*req.CookieFieldName))
+	}
+
+	err = h.app.UpdateProvider(ctx, providerID, opts...)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) DeleteProviderV2(w http.ResponseWriter, r *http.Request) {

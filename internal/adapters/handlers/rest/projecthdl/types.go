@@ -95,6 +95,13 @@ type UpdateProviderRequest struct {
 	KeyType         KeyType `json:"key_type,omitempty"`
 }
 
+type UpdateProviderV2Request struct {
+	JWK             string  `json:"jwk,omitempty"`
+	PEM             string  `json:"pem,omitempty"`
+	CookieFieldName *string `json:"cookie_field_name,omitempty"`
+	KeyType         KeyType `json:"key_type,omitempty"`
+}
+
 type EncryptBodyRequest struct {
 	EncryptionPart string `json:"encryption_part"`
 }
