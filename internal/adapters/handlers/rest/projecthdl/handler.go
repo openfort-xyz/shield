@@ -427,3 +427,21 @@ func (h *Handler) RegisterEncryptionKey(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(resp)
 }
+
+// TODO: Add documentation as soon as we have requests and responses specified
+
+func (h *Handler) AddProviderV2(w http.ResponseWriter, r *http.Request) {
+	api.RespondWithError(w, api.ErrNotImplemented)
+}
+
+func (h *Handler) GetProviderV2(w http.ResponseWriter, r *http.Request) {
+	api.RespondWithError(w, api.ErrNotImplemented)
+}
+
+func (h *Handler) UpdateProviderV2(w http.ResponseWriter, r *http.Request) {
+	api.RespondWithError(w, api.ErrNotImplemented)
+}
+
+func (h *Handler) DeleteProviderV2(w http.ResponseWriter, r *http.Request) {
+	api.RespondWithError(w, api.ErrNotImplemented)
+}

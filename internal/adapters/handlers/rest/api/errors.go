@@ -56,6 +56,8 @@ var (
 	ErrMissingAuthProvider   = &Error{"Missing auth provider", "A_MISSING", http.StatusUnauthorized}
 	ErrInvalidAuthProvider   = &Error{"Invalid auth provider", "A_INVALID", http.StatusUnauthorized}
 
+	ErrNotImplemented = &Error{"Not implemented yet", "A_INVALID", http.StatusNotImplemented}
+
 	ErrInternal = &Error{"Internal error", "INTERNAL", http.StatusInternalServerError}
 )
 
