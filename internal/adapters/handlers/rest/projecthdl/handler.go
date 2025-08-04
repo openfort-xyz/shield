@@ -491,11 +491,10 @@ func (h *Handler) AddProviderV2(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Param X-API-Key header string true "API Key"
 // @Param X-API-Secret header string true "API Secret"
-// @Param provider path string true "Provider ID"
 // @Success 200 {object} GetProviderV2Response "Successful response"
 // @Failure 404 "Provider not found"
 // @Failure 500 {object} api.Error "Internal Server Error"
-// @Router /project/v2/providers/{provider} [get]
+// @Router /project/v2/providers [get]
 func (h *Handler) GetProviderV2(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting provider")
@@ -545,12 +544,11 @@ func (h *Handler) GetProviderV2(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Param X-API-Key header string true "API Key"
 // @Param X-API-Secret header string true "API Secret"
-// @Param provider path string true "Provider ID"
 // @Param updateProviderV2Request body UpdateProviderV2Request true "Update Provider v2 Request"
 // @Success 200 "Provider updated successfully"
 // @Failure 400 "Bad Request"
 // @Failure 500 {object} api.Error "Internal Server Error"
-// @Router /project/v2/providers/{provider} [put]
+// @Router /project/v2/providers [put]
 func (h *Handler) UpdateProviderV2(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "updating provider")
@@ -605,6 +603,39 @@ func (h *Handler) UpdateProviderV2(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// DeleteProviderV2 removes the project's provider
+// @Summary Delete the project's provider
+// @Description Remove the project's provider
+// @Tags Project
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 200 "Provider deleted successfully"
+// @Failure 404 "Provider not found"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/v2/providers [delete]
 func (h *Handler) DeleteProviderV2(w http.ResponseWriter, r *http.Request) {
-	api.RespondWithError(w, api.ErrNotImplemented)
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "deleting provider")
+
+	providers, err := h.app.GetProviders(ctx)
+
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+	}
+
+	if len(providers) == 0 {
+		// Same goes here: we cannot delete what doesn't exist in the first place
+		api.RespondWithError(w, api.ErrMissingAuthProvider)
+		return
+	}
+
+	providerID := providers[0].ID
+
+	err = h.app.RemoveProvider(ctx, providerID)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
