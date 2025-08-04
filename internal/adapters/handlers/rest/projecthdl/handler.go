@@ -545,6 +545,7 @@ func (h *Handler) GetProviderV2(w http.ResponseWriter, r *http.Request) {
 // @Param updateProviderV2Request body UpdateProviderV2Request true "Update Provider v2 Request"
 // @Success 200 "Provider updated successfully"
 // @Failure 400 "Bad Request"
+// @Failure 404 "Not Found"
 // @Failure 500 {object} api.Error "Internal Server Error"
 // @Router /project/v2/providers [put]
 func (h *Handler) UpdateProviderV2(w http.ResponseWriter, r *http.Request) {
