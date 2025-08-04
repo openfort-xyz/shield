@@ -85,8 +85,9 @@ func (s *Server) Start(ctx context.Context) error {
 	p.HandleFunc("/providers/{provider}", projectHdl.UpdateProvider).Methods(http.MethodPut)
 	p.HandleFunc("/providers/{provider}", projectHdl.DeleteProvider).Methods(http.MethodDelete)
 
-	// V2 is meant for users not related to Openfort running their OF Keys in their own envs
+	// V2 is meant for users and projects not related to Openfort and running their Keys in their own envs
 	// Under this scenario, providers are pretty much 1to1 w.r.t. projects
+	// Hence why the lack of path params when CRUDing the (only) provider: it can be inferred via project headers
 	p.HandleFunc("/v2/providers", projectHdl.AddProviderV2).Methods(http.MethodPost)
 	p.HandleFunc("/v2/providers", projectHdl.GetProviderV2).Methods(http.MethodGet)
 	p.HandleFunc("/v2/providers", projectHdl.UpdateProviderV2).Methods(http.MethodPut)
