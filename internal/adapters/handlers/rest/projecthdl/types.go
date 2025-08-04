@@ -69,6 +69,14 @@ type GetProvidersResponse struct {
 	Providers []*ProviderResponse `json:"providers"`
 }
 
+type GetProviderV2Response struct {
+	ProviderID      string  `json:"provider_id"`
+	JWK             string  `json:"jwk,omitempty"`
+	PEM             string  `json:"pem,omitempty"`
+	CookieFieldName *string `json:"cookie_field_name,omitempty"`
+	KeyType         KeyType `json:"key_type,omitempty"`
+}
+
 type GetProviderResponse struct {
 	ProviderID      string  `json:"provider_id"`
 	Type            string  `json:"type"`

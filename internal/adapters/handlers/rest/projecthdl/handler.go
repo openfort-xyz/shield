@@ -484,8 +484,58 @@ func (h *Handler) AddProviderV2(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// GetProvider retrieves the project's auth provider
+// @Summary Get the project's auth provider
+// @Description Get details of the project's auth provider
+// @Tags Project
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param provider path string true "Provider ID"
+// @Success 200 {object} GetProviderV2Response "Successful response"
+// @Failure 404 "Provider not found"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/v2/providers/{provider} [get]
 func (h *Handler) GetProviderV2(w http.ResponseWriter, r *http.Request) {
-	api.RespondWithError(w, api.ErrNotImplemented)
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "getting provider")
+
+	providers, err := h.app.GetProviders(ctx)
+
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+	}
+
+	if len(providers) == 0 {
+		// This requires some justification I feel:
+		// if we're here it means that the project hasn't set its auth provider yet
+		// 404 could be misleading (couldn't we find the already existing provider?
+		// is the project what's missing?)
+		// And similar arguments could be held for other http codes
+		// 200 OK + empty response translates quite well: everything went OK but there's
+		// nothing for us to return
+		return
+	}
+
+	providerID := providers[0].ID
+
+	// Same as in v1 in terms of domain layer
+	prov, err := h.app.GetProviderDetail(ctx, providerID)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	// V2Response returns the same as a Custom Auth response but omitting the auth type
+	// (the whole point of V2 providers is hiding the existence of Openfort AP to users)
+	resp, err := json.Marshal(h.parser.toGetProviderV2Response(prov))
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
 }
 
 func (h *Handler) UpdateProviderV2(w http.ResponseWriter, r *http.Request) {

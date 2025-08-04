@@ -139,3 +139,13 @@ func (p *parser) toGetProviderResponse(prov *provider.Provider) *GetProviderResp
 
 	return resp
 }
+
+func (p *parser) toGetProviderV2Response(prov *provider.Provider) *GetProviderV2Response {
+	return &GetProviderV2Response{
+		ProviderID:      prov.ID,
+		JWK:             prov.Config.(*provider.CustomConfig).JWK,
+		PEM:             prov.Config.(*provider.CustomConfig).PEM,
+		CookieFieldName: prov.Config.(*provider.CustomConfig).CookieFieldName,
+		KeyType:         p.mapKeyTypeToResponse[prov.Config.(*provider.CustomConfig).KeyType],
+	}
+}
