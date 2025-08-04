@@ -538,6 +538,19 @@ func (h *Handler) GetProviderV2(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// UpdateProviderV2 updates the project's provider
+// @Summary Update the project's provider
+// @Description Update the configuration of the project
+// @Tags Project
+// @Accept json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param provider path string true "Provider ID"
+// @Param updateProviderV2Request body UpdateProviderV2Request true "Update Provider v2 Request"
+// @Success 200 "Provider updated successfully"
+// @Failure 400 "Bad Request"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/v2/providers/{provider} [put]
 func (h *Handler) UpdateProviderV2(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "updating provider")
