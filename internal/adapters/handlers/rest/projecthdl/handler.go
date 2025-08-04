@@ -562,7 +562,7 @@ func (h *Handler) UpdateProviderV2(w http.ResponseWriter, r *http.Request) {
 	if len(providers) == 0 {
 		// Here it's different: this endpoint UPDATES (doesn't UPSERT) auth providers
 		// and we cannot update what doesn't exist in the first place
-		api.RespondWithError(w, api.ErrMissingAuthProvider)
+		api.RespondWithError(w, api.ErrAuthProviderNotSet)
 		return
 	}
 
@@ -625,7 +625,7 @@ func (h *Handler) DeleteProviderV2(w http.ResponseWriter, r *http.Request) {
 
 	if len(providers) == 0 {
 		// Same goes here: we cannot delete what doesn't exist in the first place
-		api.RespondWithError(w, api.ErrMissingAuthProvider)
+		api.RespondWithError(w, api.ErrAuthProviderNotSet)
 		return
 	}
 

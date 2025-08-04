@@ -55,6 +55,7 @@ var (
 	ErrInvalidToken          = &Error{"Invalid token", "A_INVALID", http.StatusUnauthorized}
 	ErrMissingAuthProvider   = &Error{"Missing auth provider", "A_MISSING", http.StatusUnauthorized}
 	ErrInvalidAuthProvider   = &Error{"Invalid auth provider", "A_INVALID", http.StatusUnauthorized}
+	ErrAuthProviderNotSet    = &Error{"Auth provider has not been set for project", "A_MISSING", http.StatusNotFound}
 
 	ErrNotImplemented = &Error{"Not implemented yet", "A_INVALID", http.StatusNotImplemented}
 
