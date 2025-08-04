@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/pkg/logger"
@@ -220,7 +221,14 @@ func (h *Handler) DeleteShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "deleting share")
 
-	err := h.app.DeleteShare(ctx)
+	var reference *string
+
+	arg := mux.Vars(r)["reference"]
+	if arg != "" {
+		reference = &arg
+	}
+
+	err := h.app.DeleteShare(ctx, reference)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return

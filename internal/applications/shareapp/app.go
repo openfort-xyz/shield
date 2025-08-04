@@ -293,11 +293,11 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 	return shr, nil
 }
 
-func (a *ShareApplication) DeleteShare(ctx context.Context) error {
+func (a *ShareApplication) DeleteShare(ctx context.Context, reference *string) error {
 	a.logger.InfoContext(ctx, "deleting share")
 	usrID := contexter.GetUserID(ctx)
 
-	shr, err := a.shareSvc.Find(ctx, usrID, nil, nil)
+	shr, err := a.shareSvc.Find(ctx, usrID, nil, reference)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
 		return fromDomainError(err)

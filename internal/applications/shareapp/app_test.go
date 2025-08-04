@@ -503,10 +503,13 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 		UserID: "user_id",
 	}
 
+	reference := "some-reference"
+
 	tc := []struct {
-		name    string
-		wantErr error
-		mock    func()
+		name      string
+		wantErr   error
+		mock      func()
+		reference *string
 	}{
 		{
 			name:    "success",
@@ -518,6 +521,17 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 			},
 		},
 		{
+			name:    "success (by reference)",
+			wantErr: nil,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id", KeychainID: new(string)}, nil)
+				shareRepo.On("GetByReference", mock.Anything, reference, mock.Anything).Return(&share.Share{ID: "share-id"}, nil)
+				shareRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
+			},
+			reference: &reference,
+		},
+		{
 			name:    "share not found",
 			wantErr: ErrShareNotFound,
 			mock: func() {
@@ -527,6 +541,18 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
 			},
+		},
+		{
+			name:    "share not found (by reference)",
+			wantErr: ErrShareNotFound,
+			mock: func() {
+				shareRepo.ExpectedCalls = nil
+				keychainRepo.ExpectedCalls = nil
+				shareRepo.On("GetByReference", mock.Anything, reference, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
+			},
+			reference: &reference,
 		},
 		{
 			name:    "repository error",
@@ -550,9 +576,8 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			ass := assert.New(t)
-			err := app.DeleteShare(ctx)
-			ass.ErrorIs(tt.wantErr, err)
+			err := app.DeleteShare(ctx, tt.reference)
+			assert.ErrorIs(t, tt.wantErr, err)
 		})
 	}
 }
