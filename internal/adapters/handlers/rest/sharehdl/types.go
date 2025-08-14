@@ -28,6 +28,7 @@ const (
 	EntropyNone    Entropy = "none"
 	EntropyUser    Entropy = "user"
 	EntropyProject Entropy = "project"
+	EntropyPasskey Entropy = "passkey"
 )
 
 type ShareStorageMethodID int32

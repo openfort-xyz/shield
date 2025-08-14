@@ -6,4 +6,5 @@ const (
 	EntropyNone Entropy = iota + 1
 	EntropyUser
 	EntropyProject
+	EntropyPasskey
 )
