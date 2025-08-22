@@ -78,12 +78,12 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 	return nil
 }
 
-func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, opts ...Option) (*share.Share, error) {
+func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, reference string, opts ...Option) (*share.Share, error) {
 	a.logger.InfoContext(ctx, "updating share")
 	usrID := contexter.GetUserID(ctx)
 	projID := contexter.GetProjectID(ctx)
 
-	dbShare, err := a.shareSvc.Find(ctx, usrID, nil, nil)
+	dbShare, err := a.shareSvc.Find(ctx, usrID, nil, &reference)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get share by user ID", logger.Error(err))
 		return nil, fromDomainError(err)

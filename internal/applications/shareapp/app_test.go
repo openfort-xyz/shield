@@ -655,7 +655,7 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
 			ass := assert.New(t)
-			_, err := app.UpdateShare(ctx, tt.updates)
+			_, err := app.UpdateShare(ctx, tt.updates, "default")
 			ass.ErrorIs(tt.wantErr, err)
 		})
 	}
