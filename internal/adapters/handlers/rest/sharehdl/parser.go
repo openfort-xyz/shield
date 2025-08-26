@@ -15,11 +15,13 @@ func newParser() *parser {
 			EntropyNone:    share.EntropyNone,
 			EntropyUser:    share.EntropyUser,
 			EntropyProject: share.EntropyProject,
+			EntropyPasskey: share.EntropyPasskey,
 		},
 		mapDomainEntropy: map[share.Entropy]Entropy{
 			share.EntropyNone:    EntropyNone,
 			share.EntropyUser:    EntropyUser,
 			share.EntropyProject: EntropyProject,
+			share.EntropyPasskey: EntropyPasskey,
 		},
 		mapStorageMethodDomain: map[ShareStorageMethodID]share.StorageMethodID{
 			StorageMethodShield:      share.StorageMethodShield,
