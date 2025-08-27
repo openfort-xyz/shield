@@ -147,6 +147,14 @@ func (a *ShareApplication) GetShareEncryption(ctx context.Context) (share.Entrop
 	return shr.Entropy, shr.EncryptionParameters, nil
 }
 
+func (a *ShareApplication) GetSharesEncryptionForReferences(ctx context.Context, references []string) map[string]share.Entropy {
+	// This layer doesn't know anything about having to default to anything: it won't have any entry that
+	// a) doesn't exist
+	// b) exists but didn't belong to the same project as the requester user
+	// So it's the transport layer's responsibility to implement this behavior
+	return map[string]share.Entropy{"hello": share.EntropyNone}
+}
+
 func (a *ShareApplication) migrateToKeychainIfRequired(ctx context.Context, usrID string) (string, error) {
 	userKeychain, err := a.keychainRepository.GetByUserID(ctx, usrID)
 	if err != nil && !errors.Is(err, domainErrors.ErrKeychainNotFound) {

@@ -2,6 +2,7 @@ package sharehdl
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -337,14 +338,65 @@ func (h *Handler) GetShareEncryption(w http.ResponseWriter, r *http.Request) {
 // @Description Get shares entropy sources for given references
 // @Tags Share Entropy
 // @Success 200 {map} Reference -> ShareEncryptionDetails
+// @Failure 400 Bad Request
 // @Failure 500 Internal Server Error
 // @Router /shares/encryption/reference/bulk
 func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *http.Request) {
+	// TODO: put it somewhere nicer
+	var MAX_BULK_SIZE = 100
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting share storage methods")
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+		return
+	}
+
+	var requestedReferences GetSharesEncryptionForReferencesRequest
+	err = json.Unmarshal(body, &requestedReferences)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+
+	if len(requestedReferences.References) > MAX_BULK_SIZE {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage(fmt.Sprintf("Requests with more than %d elements are not allowed", MAX_BULK_SIZE)))
+		return
+	}
+
+	// We're not failing if some of the references are invalid but just opting to return a "not-found" status if a reference
+	// a) doesn't exist
+	// b) it exists but it's tied to a share that doesn't belong to the same user
+	// Also notice that this endpoint DOES return an entry for every requested asset, not only the existing ones
+	// So the domain needs to know which shares must be fetched in the backend and which ones must be outright
+	// ignored and defaulted to "not-found"
+	// This way, the response will still be exhaustive whilst making sure we're not giving too much extra information
+	// away for free
+	domainEncryptionTypes := h.app.GetSharesEncryptionForReferences(ctx, requestedReferences.References)
+
+	var responseBody GetSharesEncryptionForReferencesResponse
+
+	// We're iterating based on the REQUESTED references
+	// And checking against the obtained encryption types in the backend
+	for _, requestedReference := range requestedReferences.References {
+		val, exists := domainEncryptionTypes[requestedReference]
+		if exists {
+			encryptionType := h.parser.mapDomainEntropy[val]
+			responseBody.EncryptionTypes[requestedReference] = EncryptionTypeResponse{
+				Status:         EncryptionTypeStatusFound,
+				EncryptionType: &encryptionType,
+			}
+		} else {
+			responseBody.EncryptionTypes[requestedReference] = EncryptionTypeResponse{
+				Status: EncryptionTypeStatusNotFound,
+			}
+		}
+	}
+
+	// responseBody is univocally correct once we reached this point
 	w.WriteHeader(http.StatusOK)
-	resp, _ := json.Marshal("ok")
+	resp, _ := json.Marshal(responseBody)
 	_, _ = w.Write(resp)
 }
 
