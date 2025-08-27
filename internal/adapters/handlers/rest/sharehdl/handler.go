@@ -374,6 +374,7 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 	if err != nil {
 		// Any error here must be the server's fault (the request is well-formed)
 		api.RespondWithError(w, api.ErrInternal)
+		return
 	}
 
 	var responseBody GetSharesEncryptionForReferencesResponse
