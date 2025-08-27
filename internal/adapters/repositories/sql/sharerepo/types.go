@@ -58,3 +58,8 @@ type EntropyAndReference struct {
 	Entropy   Entropy
 	Reference string
 }
+
+type EntropyAndUserID struct {
+	Entropy Entropy
+	UserID  string
+}

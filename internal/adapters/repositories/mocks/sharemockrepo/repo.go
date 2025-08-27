@@ -88,3 +88,8 @@ func (m *MockShareRepository) GetSharesEncryptionForProjectAndReferences(ctx con
 	args := m.Mock.Called(ctx)
 	return args.Get(0).(map[string]share.Entropy), args.Error(1)
 }
+
+func (m *MockShareRepository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context.Context, projectID string, userIDs []string) (map[string]share.Entropy, error) {
+	args := m.Mock.Called(ctx)
+	return args.Get(0).(map[string]share.Entropy), args.Error(1)
+}
