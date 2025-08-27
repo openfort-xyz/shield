@@ -147,12 +147,22 @@ func (a *ShareApplication) GetShareEncryption(ctx context.Context) (share.Entrop
 	return shr.Entropy, shr.EncryptionParameters, nil
 }
 
-func (a *ShareApplication) GetSharesEncryptionForReferences(ctx context.Context, references []string) map[string]share.Entropy {
+func (a *ShareApplication) GetSharesEncryptionForReferences(ctx context.Context, references []string) (map[string]share.Entropy, error) {
 	// This layer doesn't know anything about having to default to anything: it won't have any entry that
 	// a) doesn't exist
 	// b) exists but didn't belong to the same project as the requester user
 	// So it's the transport layer's responsibility to implement this behavior
-	return map[string]share.Entropy{"hello": share.EntropyNone}
+	projectID := contexter.GetProjectID(ctx)
+	// We introduce the notion of project inside Shield and it'll stay within it: the user doesn't need to know
+	// that if an existing account is marked as missing it's because it doesn't match projectID
+	returnValue, err := a.shareRepo.GetSharesEncryptionForProjectAndReferences(ctx, projectID, references)
+
+	if err != nil {
+		a.logger.ErrorContext(ctx, "Failed to retrieve encryption method for shares")
+		return nil, fromDomainError(err)
+	}
+
+	return returnValue, nil
 }
 
 func (a *ShareApplication) migrateToKeychainIfRequired(ctx context.Context, usrID string) (string, error) {

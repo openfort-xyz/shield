@@ -212,3 +212,10 @@ func (r *repository) GetShareStorageMethods(ctx context.Context) ([]*share.Stora
 
 	return methods, nil
 }
+
+func (r *repository) GetSharesEncryptionForProjectAndReferences(ctx context.Context, projectID string, references []string) (map[string]share.Entropy, error) {
+	// Fetch the shares that
+	// reference = any(given references)
+	// associated project = ctx.projectID
+	return map[string]share.Entropy{"perico": share.EntropyPasskey}, nil
+}

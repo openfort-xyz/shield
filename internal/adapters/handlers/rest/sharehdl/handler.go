@@ -358,6 +358,8 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 		return
 	}
 
+	h.logger.InfoContext(ctx, fmt.Sprintf("getting share enc. methods for references %+v", requestedReferences.References))
+
 	if len(requestedReferences.References) > MaxBulkSize {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage(fmt.Sprintf("Requests with more than %d elements are not allowed", MaxBulkSize)))
 		return
@@ -367,16 +369,22 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 	// a) doesn't exist
 	// b) it exists but it's tied to a share that doesn't belong to the same user
 	// Also notice that this endpoint DOES return an entry for every requested asset, not only the existing ones
-	// So the domain needs to know which shares must be fetched in the backend and which ones must be outright
-	// ignored and defaulted to "not-found"
 	// This way, the response will still be exhaustive whilst making sure we're not giving too much extra information
 	// away for free
-	domainEncryptionTypes := h.app.GetSharesEncryptionForReferences(ctx, requestedReferences.References)
+	domainEncryptionTypes, err := h.app.GetSharesEncryptionForReferences(ctx, requestedReferences.References)
+
+	if err != nil {
+		// Any error here must be the server's fault (the request is well-formed)
+		api.RespondWithError(w, api.ErrInternal)
+	}
 
 	var responseBody GetSharesEncryptionForReferencesResponse
+	responseBody.EncryptionTypes = map[string]EncryptionTypeResponse{}
 
 	// We're iterating based on the REQUESTED references
 	// And checking against the obtained encryption types in the backend
+	// As we mentioned before, the domain doesn't know about response/size limit requirements
+	// Those belong to the transport/presentation layer
 	for _, requestedReference := range requestedReferences.References {
 		val, exists := domainEncryptionTypes[requestedReference]
 		if exists {
