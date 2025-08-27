@@ -358,8 +358,6 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 		return
 	}
 
-	h.logger.InfoContext(ctx, fmt.Sprintf("getting share enc. methods for references %+v", requestedReferences.References))
-
 	if len(requestedReferences.References) > MaxBulkSize {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage(fmt.Sprintf("Requests with more than %d elements are not allowed", MaxBulkSize)))
 		return

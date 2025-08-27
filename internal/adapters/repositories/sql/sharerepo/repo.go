@@ -214,8 +214,24 @@ func (r *repository) GetShareStorageMethods(ctx context.Context) ([]*share.Stora
 }
 
 func (r *repository) GetSharesEncryptionForProjectAndReferences(ctx context.Context, projectID string, references []string) (map[string]share.Entropy, error) {
-	// Fetch the shares that
-	// reference = any(given references)
-	// associated project = ctx.projectID
-	return map[string]share.Entropy{"perico": share.EntropyPasskey}, nil
+	var queryResult []EntropyAndReference
+	err := r.db.Table("shld_shares").
+		Select("shld_shares.reference AS Reference, shld_shares.entropy AS Entropy").
+		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
+		Where("shld_shares.reference IN ?", references).
+		Where("shld_users.project_id = ?", projectID).
+		Find(&queryResult).Error
+
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error getting encryption methods from references", logger.Error(err))
+		return nil, err
+	}
+
+	result := map[string]share.Entropy{}
+
+	for _, row := range queryResult {
+		result[row.Reference] = r.parser.mapEntropyDomain[row.Entropy]
+	}
+
+	return result, nil
 }
