@@ -103,6 +103,7 @@ func (s *Server) Start(ctx context.Context) error {
 	e := u.PathPrefix("/encryption").Subrouter()
 	e.HandleFunc("", shareHdl.GetShareEncryption).Methods(http.MethodGet)
 	e.HandleFunc("/reference/bulk", shareHdl.GetSharesEncryptionForReferences).Methods(http.MethodPost)
+	e.HandleFunc("/user/bulk", shareHdl.GetSharesEncryptionForUsers).Methods(http.MethodPost)
 
 	a := r.PathPrefix("/admin").Subrouter()
 	a.Use(authMdw.AuthenticateAPISecret)

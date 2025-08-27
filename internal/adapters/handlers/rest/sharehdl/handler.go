@@ -365,7 +365,7 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 
 	// We're not failing if some of the references are invalid but just opting to return a "not-found" status if a reference
 	// a) doesn't exist
-	// b) it exists but it's tied to a share that doesn't belong to the same user
+	// b) it exists but it's tied to a share that doesn't belong to the same project
 	// Also notice that this endpoint DOES return an entry for every requested asset, not only the existing ones
 	// This way, the response will still be exhaustive whilst making sure we're not giving too much extra information
 	// away for free
@@ -394,6 +394,82 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 			}
 		} else {
 			responseBody.EncryptionTypes[requestedReference] = EncryptionTypeResponse{
+				Status: EncryptionTypeStatusNotFound,
+			}
+		}
+	}
+
+	// responseBody is univocally correct once we reached this point
+	w.WriteHeader(http.StatusOK)
+	resp, _ := json.Marshal(responseBody)
+	_, _ = w.Write(resp)
+}
+
+// GetSharesEncryptionForUsers pairs all the given users to their corresponding
+// source of entropy (i.e. none|user|project|passkey)
+// ⚠️ This endpoint only makes sense if the requested accounts are LEGACY so their share reference is default
+// ⚠️ Otherwise the requester will get an arbitrary share since newly created accounts can hold multiple shares
+// and it's guaranteed that the share-userID mapping will be 1on1
+// @Summary Get shares entropy sources
+// @Description Get shares entropy sources for given (external) user IDs
+// @Tags Share Entropy
+// @Success 200 {map} UserID -> ShareEncryptionDetails
+// @Failure 400 Bad Request
+// @Failure 500 Internal Server Error
+// @Router /shares/encryption/user/bulk
+func (h *Handler) GetSharesEncryptionForUsers(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "getting share storage methods")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+		return
+	}
+
+	var requestedUsers GetSharesEncryptionForUsersRequest
+	err = json.Unmarshal(body, &requestedUsers)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+
+	if len(requestedUsers.UserIDs) > MaxBulkSize {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage(fmt.Sprintf("Requests with more than %d elements are not allowed", MaxBulkSize)))
+		return
+	}
+
+	// We're not failing if some of the users are invalid but just opting to return a "not-found" status if a user
+	// a) doesn't exist
+	// b) it exists but it's tied to a share that doesn't belong to the same project
+	// Also notice that this endpoint DOES return an entry for every requested asset, not only the existing ones
+	// This way, the response will still be exhaustive whilst making sure we're not giving too much extra information
+	// away for free
+	domainEncryptionTypes, err := h.app.GetSharesEncryptionForUsers(ctx, requestedUsers.UserIDs)
+
+	if err != nil {
+		// Any error here must be the server's fault (the request is well-formed)
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	var responseBody GetSharesEncryptionForUsersResponse
+	responseBody.EncryptionTypes = map[string]EncryptionTypeResponse{}
+
+	// We're iterating based on the REQUESTED users
+	// And checking against the obtained encryption types in the backend
+	// As we mentioned before, the domain doesn't know about response/size limit requirements
+	// Those belong to the transport/presentation layer
+	for _, requestedUser := range requestedUsers.UserIDs {
+		val, exists := domainEncryptionTypes[requestedUser]
+		if exists {
+			encryptionType := h.parser.mapDomainEntropy[val]
+			responseBody.EncryptionTypes[requestedUser] = EncryptionTypeResponse{
+				Status:         EncryptionTypeStatusFound,
+				EncryptionType: &encryptionType,
+			}
+		} else {
+			responseBody.EncryptionTypes[requestedUser] = EncryptionTypeResponse{
 				Status: EncryptionTypeStatusNotFound,
 			}
 		}

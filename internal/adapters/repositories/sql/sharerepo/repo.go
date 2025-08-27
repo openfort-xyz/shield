@@ -235,3 +235,28 @@ func (r *repository) GetSharesEncryptionForProjectAndReferences(ctx context.Cont
 
 	return result, nil
 }
+
+func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context.Context, projectID string, userIDs []string) (map[string]share.Entropy, error) {
+	var queryResult []EntropyAndUserID
+	err := r.db.Table("shld_shares").
+		Select("shld_external_users.external_user_id AS UserID, shld_shares.entropy AS Entropy").
+		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
+		Joins("JOIN shld_external_users ON shld_external_users.user_id = shld_users.id").
+		Where("shld_external_users.external_user_id IN ?", userIDs).
+		Where("shld_users.project_id = ?", projectID).
+		Limit(len(userIDs)). // Prevent misuse: non-legacy users might have multiple accounts
+		Find(&queryResult).Error
+
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error getting encryption methods from users", logger.Error(err))
+		return nil, err
+	}
+
+	result := map[string]share.Entropy{}
+
+	for _, row := range queryResult {
+		result[row.UserID] = r.parser.mapEntropyDomain[row.Entropy]
+	}
+
+	return result, nil
+}

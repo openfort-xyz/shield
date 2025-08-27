@@ -83,3 +83,11 @@ type EncryptionTypeResponse struct {
 type GetSharesEncryptionForReferencesResponse struct {
 	EncryptionTypes map[string]EncryptionTypeResponse `json:"encryption_types"`
 }
+
+type GetSharesEncryptionForUsersRequest struct {
+	UserIDs []string `json:"user_ids"`
+}
+
+type GetSharesEncryptionForUsersResponse struct {
+	EncryptionTypes map[string]EncryptionTypeResponse `json:"encryption_types"`
+}
