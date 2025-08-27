@@ -342,8 +342,6 @@ func (h *Handler) GetShareEncryption(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 Internal Server Error
 // @Router /shares/encryption/reference/bulk
 func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *http.Request) {
-	// TODO: put it somewhere nicer
-	var MAX_BULK_SIZE = 100
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting share storage methods")
 
@@ -360,8 +358,8 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if len(requestedReferences.References) > MAX_BULK_SIZE {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage(fmt.Sprintf("Requests with more than %d elements are not allowed", MAX_BULK_SIZE)))
+	if len(requestedReferences.References) > MaxBulkSize {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage(fmt.Sprintf("Requests with more than %d elements are not allowed", MaxBulkSize)))
 		return
 	}
 
