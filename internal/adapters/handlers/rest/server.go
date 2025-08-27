@@ -91,7 +91,7 @@ func (s *Server) Start(ctx context.Context) error {
 	u := r.PathPrefix("/shares").Subrouter()
 	u.Use(authMdw.AuthenticateUser)
 	u.HandleFunc("", shareHdl.GetShare).Methods(http.MethodGet)
-	u.HandleFunc("/encryption", shareHdl.GetShareEncryption).Methods(http.MethodGet)
+
 	u.HandleFunc("", shareHdl.RegisterShare).Methods(http.MethodPost)
 	u.HandleFunc("", shareHdl.DeleteShare).Methods(http.MethodDelete)
 	u.HandleFunc("/{reference}", shareHdl.DeleteShare).Methods(http.MethodDelete)
@@ -99,6 +99,10 @@ func (s *Server) Start(ctx context.Context) error {
 	k := r.PathPrefix("/keychain").Subrouter()
 	k.Use(authMdw.AuthenticateUser)
 	k.HandleFunc("", shareHdl.Keychain).Methods(http.MethodGet)
+
+	e := u.PathPrefix("/encryption").Subrouter()
+	e.HandleFunc("", shareHdl.GetShareEncryption).Methods(http.MethodGet)
+	e.HandleFunc("/reference/bulk", shareHdl.GetSharesEncryptionForReferences).Methods(http.MethodPost)
 
 	a := r.PathPrefix("/admin").Subrouter()
 	a.Use(authMdw.AuthenticateAPISecret)

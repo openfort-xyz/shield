@@ -53,3 +53,8 @@ type ShareStorageMethod struct {
 func (ShareStorageMethod) TableName() string {
 	return "shld_share_storage_methods"
 }
+
+type EntropyAndReference struct {
+	Entropy   Entropy
+	Reference string
+}

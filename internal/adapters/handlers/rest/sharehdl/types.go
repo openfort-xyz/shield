@@ -63,3 +63,23 @@ type ShareStorageMethod struct {
 type GetShareStorageMethodsResponse struct {
 	Methods []*ShareStorageMethod `json:"methods"`
 }
+
+type GetSharesEncryptionForReferencesRequest struct {
+	References []string `json:"references"`
+}
+
+type EncryptionTypeStatus string
+
+const (
+	EncryptionTypeStatusNotFound EncryptionTypeStatus = "not-found"
+	EncryptionTypeStatusFound    EncryptionTypeStatus = "found"
+)
+
+type EncryptionTypeResponse struct {
+	Status         EncryptionTypeStatus `json:"status"`
+	EncryptionType *Entropy             `json:"encryption_type"`
+}
+
+type GetSharesEncryptionForReferencesResponse struct {
+	EncryptionTypes map[string]EncryptionTypeResponse `json:"encryption_types"`
+}
