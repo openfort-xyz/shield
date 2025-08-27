@@ -331,6 +331,23 @@ func (h *Handler) GetShareEncryption(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// GetSharesEncryptionForReferences pairs all the given references to their corresponding
+// source of entropy (i.e. none|user|project|passkey)
+// @Summary Get shares entropy sources
+// @Description Get shares entropy sources for given references
+// @Tags Share Entropy
+// @Success 200 {map} Reference -> ShareEncryptionDetails
+// @Failure 500 Internal Server Error
+// @Router /shares/encryption/reference/bulk
+func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "getting share storage methods")
+
+	w.WriteHeader(http.StatusOK)
+	resp, _ := json.Marshal("ok")
+	_, _ = w.Write(resp)
+}
+
 // GetShareStorageMethods list the available share storage methods
 // @Summary Get share storage methods
 // @Description Get the available share storage methods
