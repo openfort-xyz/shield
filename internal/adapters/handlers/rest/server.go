@@ -100,7 +100,8 @@ func (s *Server) Start(ctx context.Context) error {
 	k.Use(authMdw.AuthenticateUser)
 	k.HandleFunc("", shareHdl.Keychain).Methods(http.MethodGet)
 
-	e := u.PathPrefix("/encryption").Subrouter()
+	e := r.PathPrefix("/shares/encryption").Subrouter()
+	e.Use(authMdw.AuthenticateAPISecret)
 	e.HandleFunc("", shareHdl.GetShareEncryption).Methods(http.MethodGet)
 	e.HandleFunc("/reference/bulk", shareHdl.GetSharesEncryptionForReferences).Methods(http.MethodPost)
 	e.HandleFunc("/user/bulk", shareHdl.GetSharesEncryptionForUsers).Methods(http.MethodPost)
