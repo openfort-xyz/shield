@@ -44,7 +44,7 @@ A **share** is a crucial part of a user's private key. Shares can be stored in d
 
 #### **2. Projects**
 
-A **project** serves as a container for a group of users and its shares and authentication methids. Projects are identified by an `API Key` and secured by an `API Secret`. The project handles encryption in a consistent manner for all its shares:
+A **project** serves as a container for a group of users and its shares and authentication methods. Projects are identified by an `API Key` and secured by an `API Secret`. The project handles encryption in a consistent manner for all its shares:
 
 - **Project Encryption Key:** Projects can generate an encryption key in two ways:
   - **During Creation:** Using the `GenerateEncryptionKey` field in the `CreateProject` request.
