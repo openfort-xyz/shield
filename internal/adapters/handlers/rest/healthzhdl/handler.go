@@ -47,7 +47,7 @@ func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
 				Status: "unhealthy",
 			})
 		}
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusServiceUnavailable)
 	} else {
 		status.Checks = append(status.Checks, Check{
 			Name:   "database",
