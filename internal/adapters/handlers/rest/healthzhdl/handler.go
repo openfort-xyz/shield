@@ -47,14 +47,15 @@ func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
 				Status: "unhealthy",
 			})
 		}
+		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		status.Checks = append(status.Checks, Check{
 			Name:   "database",
 			Status: "healthy",
 		})
+		w.WriteHeader(http.StatusOK)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(status)
 }
