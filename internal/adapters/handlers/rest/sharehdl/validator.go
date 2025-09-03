@@ -60,7 +60,7 @@ func (v *validator) validateShare(share *Share) *api.Error {
 		}
 
 		if share.Reference == "" || share.Reference == "default" {
-			return api.ErrBadRequestWithMessage("share needs a valid signer reference if entropy is passkey")
+			return api.ErrBadRequestWithMessage("share needs a valid share reference if entropy is passkey")
 		}
 
 		if share.PasskeyReference == nil {
@@ -69,10 +69,6 @@ func (v *validator) validateShare(share *Share) *api.Error {
 
 		if share.PasskeyReference.PasskeyId == nil {
 			return api.ErrBadRequestWithMessage("passkey_reference must contain passkey_id if entropy is passkey")
-		}
-
-		if share.PasskeyReference.PasskeyEnv == nil {
-			return api.ErrBadRequestWithMessage("passkey_reference must contain passkey_env if entropy is passkey")
 		}
 
 		// User entroy parameters should not be set for passkey entropy

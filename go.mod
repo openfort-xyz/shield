@@ -13,6 +13,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.6.0
 	github.com/gorilla/mux v1.8.1
+	github.com/mileusna/useragent v1.3.5
 	github.com/pressly/goose v2.7.0+incompatible
 	github.com/prometheus/client_golang v1.20.5
 	github.com/rs/cors v1.11.0

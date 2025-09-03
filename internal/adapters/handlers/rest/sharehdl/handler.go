@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	ua "github.com/mileusna/useragent"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/pkg/logger"
@@ -27,6 +28,18 @@ func New(app *shareapp.ShareApplication) *Handler {
 		parser:    newParser(),
 		validator: newValidator(),
 	}
+}
+
+func parseUserAgent(r *http.Request) (string, *api.Error) {
+	uaHeaders := r.Header["User-Agent"]
+	if len(uaHeaders) != 1 {
+		return "", api.ErrBadRequestWithMessage("header User-Agent needs to be defined exactly once")
+	}
+	uaHeader := uaHeaders[0]
+
+	userAgent := ua.Parse(uaHeader).String
+
+	return userAgent, nil
 }
 
 // Keychain gets the keychain
@@ -123,6 +136,15 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.PasskeyReference != nil && req.PasskeyReference.PasskeyEnv == nil {
+		sourceEnv, apiErr := parseUserAgent(r)
+		if apiErr != nil {
+			api.RespondWithError(w, apiErr)
+			return
+		}
+		req.PasskeyReference.PasskeyEnv = &sourceEnv
+	}
+
 	share := h.parser.toDomain((*Share)(&req))
 	var opts []shareapp.Option
 	if req.EncryptionPart != "" {
@@ -177,6 +199,15 @@ func (h *Handler) UpdateShare(w http.ResponseWriter, r *http.Request) {
 	if errV := h.validator.validateShare((*Share)(&req)); errV != nil {
 		api.RespondWithError(w, errV)
 		return
+	}
+
+	if req.PasskeyReference != nil && req.PasskeyReference.PasskeyEnv == nil {
+		sourceEnv, apiErr := parseUserAgent(r)
+		if apiErr != nil {
+			api.RespondWithError(w, apiErr)
+			return
+		}
+		req.PasskeyReference.PasskeyEnv = &sourceEnv
 	}
 
 	share := h.parser.toDomain((*Share)(&req))
