@@ -147,7 +147,7 @@ func (a *ShareApplication) GetShareEncryption(ctx context.Context) (share.Entrop
 	return shr.Entropy, shr.EncryptionParameters, nil
 }
 
-func (a *ShareApplication) GetSharesEncryptionForReferences(ctx context.Context, references []string) (map[string]share.Entropy, error) {
+func (a *ShareApplication) GetSharesEncryptionForReferences(ctx context.Context, references []string) (map[string]share.RecoveryInfo, error) {
 	// This layer doesn't know anything about having to default to anything: it won't have any entry that
 	// a) doesn't exist
 	// b) exists but didn't belong to the same project as the requester user
@@ -165,7 +165,7 @@ func (a *ShareApplication) GetSharesEncryptionForReferences(ctx context.Context,
 	return returnValue, nil
 }
 
-func (a *ShareApplication) GetSharesEncryptionForUsers(ctx context.Context, userIDs []string) (map[string]share.Entropy, error) {
+func (a *ShareApplication) GetSharesEncryptionForUsers(ctx context.Context, userIDs []string) (map[string]share.RecoveryInfo, error) {
 	// Same as in GetSharesEncryptionForReferences (right above this one)
 	projectID := contexter.GetProjectID(ctx)
 	// Small clarification: by userID we mean external userID here

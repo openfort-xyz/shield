@@ -66,12 +66,16 @@ func (PasskeyReference) TableName() string {
 	return "shld_passkey_references"
 }
 
-type EntropyAndReference struct {
-	Entropy   Entropy
-	Reference string
+type InfoByReference struct {
+	Reference  string
+	Entropy    Entropy
+	PasskeyID  *string
+	PasskeyEnv *string
 }
 
-type EntropyAndUserID struct {
-	Entropy Entropy
-	UserID  string
+type InfoByUserID struct {
+	UserID     string
+	Entropy    Entropy
+	PasskeyID  *string
+	PasskeyEnv *string
 }

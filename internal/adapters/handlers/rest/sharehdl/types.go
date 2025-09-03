@@ -83,7 +83,9 @@ const (
 
 type EncryptionTypeResponse struct {
 	Status         EncryptionTypeStatus `json:"status"`
-	EncryptionType *Entropy             `json:"encryption_type"`
+	EncryptionType *Entropy             `json:"encryption_type,omitempty"`
+	PasskeyID      *string              `json:"passkey_id,omitempty"`
+	PasskeyEnv     *string              `json:"passkey_env,omitempty"`
 }
 
 type GetSharesEncryptionForReferencesResponse struct {

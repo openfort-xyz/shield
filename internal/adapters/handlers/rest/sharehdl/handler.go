@@ -418,10 +418,12 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 	for _, requestedReference := range requestedReferences.References {
 		val, exists := domainEncryptionTypes[requestedReference]
 		if exists {
-			encryptionType := h.parser.mapDomainEntropy[val]
+			encryptionType := h.parser.mapDomainEntropy[val.Entropy]
 			responseBody.EncryptionTypes[requestedReference] = EncryptionTypeResponse{
 				Status:         EncryptionTypeStatusFound,
 				EncryptionType: &encryptionType,
+				PasskeyID:      val.PasskeyID,
+				PasskeyEnv:     val.PasskeyEnv,
 			}
 		} else {
 			responseBody.EncryptionTypes[requestedReference] = EncryptionTypeResponse{
@@ -494,10 +496,12 @@ func (h *Handler) GetSharesEncryptionForUsers(w http.ResponseWriter, r *http.Req
 	for _, requestedUser := range requestedUsers.UserIDs {
 		val, exists := domainEncryptionTypes[requestedUser]
 		if exists {
-			encryptionType := h.parser.mapDomainEntropy[val]
+			encryptionType := h.parser.mapDomainEntropy[val.Entropy]
 			responseBody.EncryptionTypes[requestedUser] = EncryptionTypeResponse{
 				Status:         EncryptionTypeStatusFound,
 				EncryptionType: &encryptionType,
+				PasskeyID:      val.PasskeyID,
+				PasskeyEnv:     val.PasskeyEnv,
 			}
 		} else {
 			responseBody.EncryptionTypes[requestedUser] = EncryptionTypeResponse{

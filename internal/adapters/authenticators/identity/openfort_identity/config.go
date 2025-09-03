@@ -3,7 +3,7 @@ package ofidty
 import env "github.com/caarlos0/env/v10"
 
 type Config struct {
-	OpenfortBaseURL string `env:"OPENFORT_BASE_URL" envDefault:"http://localhost:3000"`
+	OpenfortBaseURL string `env:"OPENFORT_BASE_URL" envDefault:"https://api.openfort.xyz"`
 }
 
 func GetConfigFromEnv() (*Config, error) {
