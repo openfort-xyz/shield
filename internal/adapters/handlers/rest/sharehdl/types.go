@@ -14,6 +14,7 @@ type Share struct {
 	EncryptionSession    string               `json:"encryption_session,omitempty"`
 	Reference            string               `json:"reference,omitempty"`
 	ShareStorageMethodID ShareStorageMethodID `json:"storage_method_id,omitempty"`
+	PasskeyReference     *PasskeyReference    `json:"passkey_reference,omitempty"`
 	KeychainID           string               `json:"keychain_id,omitempty"`
 }
 
@@ -41,6 +42,11 @@ const (
 
 func (s ShareStorageMethodID) IsValid() bool {
 	return s == StorageMethodShield || s == StorageMethodGoogleDrive || s == StorageMethodICloud
+}
+
+type PasskeyReference struct {
+	PasskeyId  *string `json:"passkey_id"`
+	PasskeyEnv *string `json:"passkey_env"`
 }
 
 type GetShareEncryptionResponse struct {

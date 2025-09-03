@@ -59,6 +59,22 @@ func (v *validator) validateShare(share *Share) *api.Error {
 			return api.ErrBadRequestWithMessage("storage_method must be Shield if entropy is passkey")
 		}
 
+		if share.Reference == "" || share.Reference == "default" {
+			return api.ErrBadRequestWithMessage("share needs a valid signer reference if entropy is passkey")
+		}
+
+		if share.PasskeyReference == nil {
+			return api.ErrBadRequestWithMessage("passkey_reference must be set if entropy is passkey")
+		}
+
+		if share.PasskeyReference.PasskeyId == nil {
+			return api.ErrBadRequestWithMessage("passkey_reference must contain passkey_id if entropy is passkey")
+		}
+
+		if share.PasskeyReference.PasskeyEnv == nil {
+			return api.ErrBadRequestWithMessage("passkey_reference must contain passkey_env if entropy is passkey")
+		}
+
 		// User entroy parameters should not be set for passkey entropy
 		if shareHasUserEntropyParams(share) {
 			return api.ErrBadRequestWithMessage("if user entropy is not set, encryption parameters should not be set")
