@@ -61,18 +61,21 @@ func (p *parser) toDomain(s *Share) *share.Share {
 		}
 		shr.EncryptionParameters.Salt = s.Salt
 	}
+
 	if s.Iterations != 0 {
 		if shr.EncryptionParameters == nil {
 			shr.EncryptionParameters = new(share.EncryptionParameters)
 		}
 		shr.EncryptionParameters.Iterations = s.Iterations
 	}
+
 	if s.Length != 0 {
 		if shr.EncryptionParameters == nil {
 			shr.EncryptionParameters = new(share.EncryptionParameters)
 		}
 		shr.EncryptionParameters.Length = s.Length
 	}
+
 	if s.Digest != "" {
 		if shr.EncryptionParameters == nil {
 			shr.EncryptionParameters = new(share.EncryptionParameters)
@@ -82,6 +85,13 @@ func (p *parser) toDomain(s *Share) *share.Share {
 
 	if shr.EncryptionParameters != nil {
 		shr.Entropy = share.EntropyUser
+	}
+
+	if s.PasskeyReference != nil {
+		shr.PasskeyReference = &share.PasskeyReference{
+			PasskeyId:  *s.PasskeyReference.PasskeyId,
+			PasskeyEnv: *s.PasskeyReference.PasskeyEnv,
+		}
 	}
 
 	return shr
@@ -114,6 +124,13 @@ func (p *parser) fromDomain(s *share.Share) *Share {
 		}
 		if s.EncryptionParameters.Digest != "" {
 			shr.Digest = s.EncryptionParameters.Digest
+		}
+	}
+
+	if s.PasskeyReference != nil {
+		shr.PasskeyReference = &PasskeyReference{
+			PasskeyId:  &s.PasskeyReference.PasskeyId,
+			PasskeyEnv: &s.PasskeyReference.PasskeyEnv,
 		}
 	}
 
