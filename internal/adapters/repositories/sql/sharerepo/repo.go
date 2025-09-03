@@ -220,6 +220,7 @@ func (r *repository) GetSharesEncryptionForProjectAndReferences(ctx context.Cont
 		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
 		Where("shld_shares.reference IN ?", references).
 		Where("shld_users.project_id = ?", projectID).
+		Where("shld_shares.deleted_at IS NULL").
 		Find(&queryResult).Error
 
 	if err != nil {
@@ -244,6 +245,7 @@ func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context
 		Joins("JOIN shld_external_users ON shld_external_users.user_id = shld_users.id").
 		Where("shld_external_users.external_user_id IN ?", userIDs).
 		Where("shld_users.project_id = ?", projectID).
+		Where("shld_shares.deleted_at IS NULL").
 		Limit(len(userIDs)). // Prevent misuse: non-legacy users might have multiple accounts
 		Find(&queryResult).Error
 
