@@ -52,7 +52,7 @@ func (r *repository) Get(ctx context.Context, shareID string) (*share.Share, err
 	r.logger.InfoContext(ctx, "getting share", slog.String("id", shareID))
 
 	dbShr := &Share{}
-	err := r.db.Where("id = ?", shareID).First(dbShr).Error
+	err := r.db.Preload("PasskeyReference").Where("id = ?", shareID).First(dbShr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domainErrors.ErrShareNotFound
@@ -68,7 +68,7 @@ func (r *repository) ListByKeychainID(ctx context.Context, keychainID string) ([
 	r.logger.InfoContext(ctx, "listing shares", slog.String("keychain_id", keychainID))
 
 	var dbShares []*Share
-	err := r.db.Where("keychain_id = ?", keychainID).Find(&dbShares).Error
+	err := r.db.Preload("PasskeyReference").Where("keychain_id = ?", keychainID).Find(&dbShares).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error listing shares", logger.Error(err))
 		return nil, err
@@ -86,7 +86,7 @@ func (r *repository) GetByReference(ctx context.Context, reference, keychainID s
 	r.logger.InfoContext(ctx, "getting share", slog.String("reference", reference))
 
 	dbShr := &Share{}
-	err := r.db.Where("reference = ? AND keychain_id = ?", reference, keychainID).First(dbShr).Error
+	err := r.db.Preload("PasskeyReference").Where("reference = ? AND keychain_id = ?", reference, keychainID).First(dbShr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domainErrors.ErrShareNotFound
@@ -102,7 +102,7 @@ func (r *repository) GetByUserID(ctx context.Context, userID string) (*share.Sha
 	r.logger.InfoContext(ctx, "getting share", slog.String("user_id", userID))
 
 	dbShr := &Share{}
-	err := r.db.Where("user_id = ? AND keychain_id is NULL", userID).First(dbShr).Error
+	err := r.db.Preload("PasskeyReference").Where("user_id = ? AND keychain_id is NULL", userID).First(dbShr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domainErrors.ErrShareNotFound
@@ -130,7 +130,7 @@ func (r *repository) ListProjectIDAndEntropy(ctx context.Context, projectID stri
 	r.logger.InfoContext(ctx, "listing shares", slog.String("project_id", projectID))
 
 	var dbShares []*Share
-	err := r.db.Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
+	err := r.db.Preload("PasskeyReference").Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
 		Joins("JOIN shld_projects ON shld_users.project_id = shld_projects.id").
 		Where("shld_projects.id = ?", projectID).
 		Where("shld_shares.entropy = ?", r.parser.mapDomainEntropy[entropy]).

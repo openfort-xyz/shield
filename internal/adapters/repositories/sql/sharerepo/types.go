@@ -19,6 +19,7 @@ type Share struct {
 	Reference            *string              `gorm:"column:reference;default:null"`
 	ShareStorageMethodID ShareStorageMethodID `gorm:"column:storage_method_id;not null"`
 	ShareStorageMethod   *ShareStorageMethod  `gorm:"foreignKey:ShareStorageMethodID"`
+	PasskeyReference     *PasskeyReference    `gorm:"foreignKey:ShareReference;references:ID"`
 	CreatedAt            time.Time            `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt            time.Time            `gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt            gorm.DeletedAt       `gorm:"column:deleted_at"`
@@ -52,6 +53,17 @@ type ShareStorageMethod struct {
 
 func (ShareStorageMethod) TableName() string {
 	return "shld_share_storage_methods"
+}
+
+type PasskeyReference struct {
+	PasskeyID      string `gorm:"column:passkey_id; primary_key"`
+	PasskeyEnv     string `gorm:"column:passkey_env; not null"`
+	ShareReference string `gorm:"column:share_reference; not null"`
+	Share          Share  `gorm:"foreignKey:ShareReference;references:ID"`
+}
+
+func (PasskeyReference) TableName() string {
+	return "shld_passkey_references"
 }
 
 type EntropyAndReference struct {

@@ -41,27 +41,39 @@ func newParser() *parser {
 
 func (p *parser) toDomain(s *Share) *share.Share {
 	var encryptionParameters *share.EncryptionParameters
+
 	if s.Salt != "" {
 		encryptionParameters = new(share.EncryptionParameters)
 		encryptionParameters.Salt = s.Salt
 	}
+
 	if s.Iterations != 0 {
 		if encryptionParameters == nil {
 			encryptionParameters = new(share.EncryptionParameters)
 		}
 		encryptionParameters.Iterations = s.Iterations
 	}
+
 	if s.Length != 0 {
 		if encryptionParameters == nil {
 			encryptionParameters = new(share.EncryptionParameters)
 		}
 		encryptionParameters.Length = s.Length
 	}
+
 	if s.Digest != "" {
 		if encryptionParameters == nil {
 			encryptionParameters = new(share.EncryptionParameters)
 		}
 		encryptionParameters.Digest = s.Digest
+	}
+
+	var passkeyReference *share.PasskeyReference
+	if s.PasskeyReference != nil {
+		passkeyReference = &share.PasskeyReference{
+			PasskeyId:  s.PasskeyReference.PasskeyID,
+			PasskeyEnv: s.PasskeyReference.PasskeyEnv,
+		}
 	}
 
 	usrID := ""
@@ -77,6 +89,7 @@ func (p *parser) toDomain(s *Share) *share.Share {
 		KeychainID:           s.KeyChainID,
 		Reference:            s.Reference,
 		ShareStorageMethodID: p.mapStorageMethodDomain[s.ShareStorageMethodID],
+		PasskeyReference:     passkeyReference,
 	}
 }
 
@@ -107,6 +120,13 @@ func (p *parser) toDatabase(s *share.Share) *Share {
 		}
 		if s.EncryptionParameters.Digest != "" {
 			shr.Digest = s.EncryptionParameters.Digest
+		}
+	}
+
+	if s.PasskeyReference != nil {
+		shr.PasskeyReference = &PasskeyReference{
+			PasskeyID:  s.PasskeyReference.PasskeyId,
+			PasskeyEnv: s.PasskeyReference.PasskeyEnv,
 		}
 	}
 
