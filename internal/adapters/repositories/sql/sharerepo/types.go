@@ -56,10 +56,10 @@ func (ShareStorageMethod) TableName() string {
 }
 
 type PasskeyReference struct {
-	PasskeyID      string `gorm:"column:passkey_id; primary_key"`
-	PasskeyEnv     string `gorm:"column:passkey_env; not null"`
-	ShareReference string `gorm:"column:share_reference; not null"`
-	Share          Share  `gorm:"foreignKey:ShareReference;references:ID"`
+	PasskeyID      string  `gorm:"column:passkey_id; primary_key"`
+	PasskeyEnv     *string `gorm:"column:passkey_env;"`
+	ShareReference string  `gorm:"column:share_reference; not null"`
+	Share          Share   `gorm:"foreignKey:ShareReference;references:ID"`
 }
 
 func (PasskeyReference) TableName() string {

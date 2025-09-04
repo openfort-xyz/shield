@@ -30,16 +30,41 @@ func New(app *shareapp.ShareApplication) *Handler {
 	}
 }
 
-func parseUserAgent(r *http.Request) (string, *api.Error) {
-	uaHeaders := r.Header["User-Agent"]
-	if len(uaHeaders) != 1 {
-		return "", api.ErrBadRequestWithMessage("header User-Agent needs to be defined exactly once")
+func getDetailedDeviceName(userAgent ua.UserAgent) string {
+	if len(userAgent.Device) == 0 {
+		if userAgent.Mobile {
+			return "Mobile"
+		}
+		if userAgent.Desktop {
+			return "Desktop"
+		}
+		if userAgent.Tablet {
+			return "Tablet"
+		}
+		return "unknown"
 	}
-	uaHeader := uaHeaders[0]
+	return userAgent.Device
+}
 
-	userAgent := ua.Parse(uaHeader).String
+func parseUserAgent(r *http.Request) (*PasskeyEnv, *api.Error) {
+	uaHeaders := r.Header["User-Agent"]
+	if len(uaHeaders) > 1 {
+		return nil, api.ErrBadRequestWithMessage("header User-Agent needs to be defined exactly once")
+	}
 
-	return userAgent, nil
+	if len(uaHeaders) == 1 {
+		parsedUaHeader := ua.Parse(uaHeaders[0])
+		deviceName := getDetailedDeviceName(parsedUaHeader)
+		ret := PasskeyEnv{
+			Name:      &parsedUaHeader.Name,
+			OS:        &parsedUaHeader.OS,
+			OSVersion: &parsedUaHeader.OSVersion,
+			Device:    &deviceName,
+		}
+		return &ret, nil
+	}
+
+	return nil, nil
 }
 
 // Keychain gets the keychain
@@ -142,7 +167,7 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 			api.RespondWithError(w, apiErr)
 			return
 		}
-		req.PasskeyReference.PasskeyEnv = &sourceEnv
+		req.PasskeyReference.PasskeyEnv = sourceEnv
 	}
 
 	share := h.parser.toDomain((*Share)(&req))
@@ -207,7 +232,7 @@ func (h *Handler) UpdateShare(w http.ResponseWriter, r *http.Request) {
 			api.RespondWithError(w, apiErr)
 			return
 		}
-		req.PasskeyReference.PasskeyEnv = &sourceEnv
+		req.PasskeyReference.PasskeyEnv = sourceEnv
 	}
 
 	share := h.parser.toDomain((*Share)(&req))
@@ -423,7 +448,7 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 				Status:         EncryptionTypeStatusFound,
 				EncryptionType: &encryptionType,
 				PasskeyID:      val.PasskeyID,
-				PasskeyEnv:     val.PasskeyEnv,
+				PasskeyEnv:     h.parser.toPasskeyEnv(val.PasskeyEnv),
 			}
 		} else {
 			responseBody.EncryptionTypes[requestedReference] = EncryptionTypeResponse{
@@ -501,7 +526,7 @@ func (h *Handler) GetSharesEncryptionForUsers(w http.ResponseWriter, r *http.Req
 				Status:         EncryptionTypeStatusFound,
 				EncryptionType: &encryptionType,
 				PasskeyID:      val.PasskeyID,
-				PasskeyEnv:     val.PasskeyEnv,
+				PasskeyEnv:     h.parser.toPasskeyEnv(val.PasskeyEnv),
 			}
 		} else {
 			responseBody.EncryptionTypes[requestedUser] = EncryptionTypeResponse{

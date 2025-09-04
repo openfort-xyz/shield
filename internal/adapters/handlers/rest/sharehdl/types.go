@@ -44,9 +44,16 @@ func (s ShareStorageMethodID) IsValid() bool {
 	return s == StorageMethodShield || s == StorageMethodGoogleDrive || s == StorageMethodICloud
 }
 
+type PasskeyEnv struct {
+	Name      *string `json:"name"`
+	OS        *string `json:"os"`
+	OSVersion *string `json:"osVersion"`
+	Device    *string `json:"device"`
+}
+
 type PasskeyReference struct {
 	PasskeyId  *string `json:"passkey_id"`
-	PasskeyEnv *string `json:"passkey_env"`
+	PasskeyEnv *PasskeyEnv
 }
 
 type GetShareEncryptionResponse struct {
@@ -85,7 +92,7 @@ type EncryptionTypeResponse struct {
 	Status         EncryptionTypeStatus `json:"status"`
 	EncryptionType *Entropy             `json:"encryption_type,omitempty"`
 	PasskeyID      *string              `json:"passkey_id,omitempty"`
-	PasskeyEnv     *string              `json:"passkey_env,omitempty"`
+	PasskeyEnv     *PasskeyEnv          `json:"passkey_env,omitempty"`
 }
 
 type GetSharesEncryptionForReferencesResponse struct {

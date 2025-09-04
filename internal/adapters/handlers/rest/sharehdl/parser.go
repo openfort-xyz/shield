@@ -1,6 +1,8 @@
 package sharehdl
 
-import "go.openfort.xyz/shield/internal/core/domain/share"
+import (
+	"go.openfort.xyz/shield/internal/core/domain/share"
+)
 
 type parser struct {
 	mapEntropyDomain       map[Entropy]share.Entropy
@@ -34,6 +36,22 @@ func newParser() *parser {
 			share.StorageMethodICloud:      StorageMethodICloud,
 		},
 	}
+}
+
+func (p *parser) toPasskeyEnv(s *string) *PasskeyEnv {
+	if s != nil {
+		matches := share.PasskeyEnvPattern.FindStringSubmatch(*s)
+		if matches != nil {
+			return &PasskeyEnv{
+				Name:      &matches[1],
+				OS:        &matches[2],
+				OSVersion: &matches[3],
+				Device:    &matches[4],
+			}
+		}
+		return nil
+	}
+	return nil
 }
 
 func (p *parser) toDomain(s *Share) *share.Share {
@@ -89,8 +107,15 @@ func (p *parser) toDomain(s *Share) *share.Share {
 
 	if s.PasskeyReference != nil {
 		shr.PasskeyReference = &share.PasskeyReference{
-			PasskeyID:  *s.PasskeyReference.PasskeyId,
-			PasskeyEnv: *s.PasskeyReference.PasskeyEnv,
+			PasskeyID: *s.PasskeyReference.PasskeyId,
+		}
+		if s.PasskeyReference.PasskeyEnv != nil {
+			shr.PasskeyReference.PasskeyEnv = &share.PasskeyEnv{
+				Name:      s.PasskeyReference.PasskeyEnv.Name,
+				OS:        s.PasskeyReference.PasskeyEnv.OS,
+				OSVersion: s.PasskeyReference.PasskeyEnv.OSVersion,
+				Device:    s.PasskeyReference.PasskeyEnv.Device,
+			}
 		}
 	}
 
@@ -129,8 +154,15 @@ func (p *parser) fromDomain(s *share.Share) *Share {
 
 	if s.PasskeyReference != nil {
 		shr.PasskeyReference = &PasskeyReference{
-			PasskeyId:  &s.PasskeyReference.PasskeyID,
-			PasskeyEnv: &s.PasskeyReference.PasskeyEnv,
+			PasskeyId: &s.PasskeyReference.PasskeyID,
+		}
+		if s.PasskeyReference.PasskeyEnv != nil {
+			shr.PasskeyReference.PasskeyEnv = &PasskeyEnv{
+				Name:      s.PasskeyReference.PasskeyEnv.Name,
+				OS:        s.PasskeyReference.PasskeyEnv.OS,
+				OSVersion: s.PasskeyReference.PasskeyEnv.OSVersion,
+				Device:    s.PasskeyReference.PasskeyEnv.Device,
+			}
 		}
 	}
 

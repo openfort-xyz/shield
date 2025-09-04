@@ -1,6 +1,8 @@
 package sharerepo
 
 import (
+	"fmt"
+
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"gorm.io/gorm"
 )
@@ -39,6 +41,22 @@ func newParser() *parser {
 	}
 }
 
+func databaseToEnv(s *string) *share.PasskeyEnv {
+	if s != nil {
+		matches := share.PasskeyEnvPattern.FindStringSubmatch(*s)
+		if matches != nil {
+			return &share.PasskeyEnv{
+				Name:      &matches[1],
+				OS:        &matches[2],
+				OSVersion: &matches[3],
+				Device:    &matches[4],
+			}
+		}
+		return nil
+	}
+	return nil
+}
+
 func (p *parser) toDomain(s *Share) *share.Share {
 	var encryptionParameters *share.EncryptionParameters
 
@@ -72,7 +90,7 @@ func (p *parser) toDomain(s *Share) *share.Share {
 	if s.PasskeyReference != nil {
 		passkeyReference = &share.PasskeyReference{
 			PasskeyID:  s.PasskeyReference.PasskeyID,
-			PasskeyEnv: s.PasskeyReference.PasskeyEnv,
+			PasskeyEnv: databaseToEnv(s.PasskeyReference.PasskeyEnv),
 		}
 	}
 
@@ -91,6 +109,27 @@ func (p *parser) toDomain(s *Share) *share.Share {
 		ShareStorageMethodID: p.mapStorageMethodDomain[s.ShareStorageMethodID],
 		PasskeyReference:     passkeyReference,
 	}
+}
+
+func coalesceToUnknown(s *string) string {
+	if s == nil {
+		return "unknown"
+	}
+	return *s
+}
+
+func envToDatabase(p *share.PasskeyEnv) *string {
+	if p != nil {
+		ret := fmt.Sprintf(
+			"name=%s;os=%s;osVersion=%s;device=%s",
+			coalesceToUnknown(p.Name),
+			coalesceToUnknown(p.OS),
+			coalesceToUnknown(p.OSVersion),
+			coalesceToUnknown(p.Device),
+		)
+		return &ret
+	}
+	return nil
 }
 
 func (p *parser) toDatabase(s *share.Share) *Share {
@@ -126,7 +165,7 @@ func (p *parser) toDatabase(s *share.Share) *Share {
 	if s.PasskeyReference != nil {
 		shr.PasskeyReference = &PasskeyReference{
 			PasskeyID:  s.PasskeyReference.PasskeyID,
-			PasskeyEnv: s.PasskeyReference.PasskeyEnv,
+			PasskeyEnv: envToDatabase(s.PasskeyReference.PasskeyEnv),
 		}
 	}
 
