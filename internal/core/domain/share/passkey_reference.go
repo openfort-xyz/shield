@@ -1,6 +1,6 @@
 package share
 
 type PasskeyReference struct {
-	PasskeyId  string
+	PasskeyID  string
 	PasskeyEnv string
 }

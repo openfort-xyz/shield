@@ -71,7 +71,7 @@ func (p *parser) toDomain(s *Share) *share.Share {
 	var passkeyReference *share.PasskeyReference
 	if s.PasskeyReference != nil {
 		passkeyReference = &share.PasskeyReference{
-			PasskeyId:  s.PasskeyReference.PasskeyID,
+			PasskeyID:  s.PasskeyReference.PasskeyID,
 			PasskeyEnv: s.PasskeyReference.PasskeyEnv,
 		}
 	}
@@ -125,7 +125,7 @@ func (p *parser) toDatabase(s *share.Share) *Share {
 
 	if s.PasskeyReference != nil {
 		shr.PasskeyReference = &PasskeyReference{
-			PasskeyID:  s.PasskeyReference.PasskeyId,
+			PasskeyID:  s.PasskeyReference.PasskeyID,
 			PasskeyEnv: s.PasskeyReference.PasskeyEnv,
 		}
 	}
