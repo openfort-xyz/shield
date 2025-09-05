@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	ua "github.com/mileusna/useragent"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/pkg/logger"
@@ -27,6 +28,43 @@ func New(app *shareapp.ShareApplication) *Handler {
 		parser:    newParser(),
 		validator: newValidator(),
 	}
+}
+
+func getDetailedDeviceName(userAgent ua.UserAgent) string {
+	if len(userAgent.Device) == 0 {
+		if userAgent.Mobile {
+			return "Mobile"
+		}
+		if userAgent.Desktop {
+			return "Desktop"
+		}
+		if userAgent.Tablet {
+			return "Tablet"
+		}
+		return "unknown"
+	}
+	return userAgent.Device
+}
+
+func parseUserAgent(r *http.Request) (*PasskeyEnv, *api.Error) {
+	uaHeaders := r.Header["User-Agent"]
+	if len(uaHeaders) > 1 {
+		return nil, api.ErrBadRequestWithMessage("header User-Agent needs to be defined exactly once")
+	}
+
+	if len(uaHeaders) == 1 {
+		parsedUaHeader := ua.Parse(uaHeaders[0])
+		deviceName := getDetailedDeviceName(parsedUaHeader)
+		ret := PasskeyEnv{
+			Name:      &parsedUaHeader.Name,
+			OS:        &parsedUaHeader.OS,
+			OSVersion: &parsedUaHeader.OSVersion,
+			Device:    &deviceName,
+		}
+		return &ret, nil
+	}
+
+	return nil, nil
 }
 
 // Keychain gets the keychain
@@ -123,6 +161,15 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.PasskeyReference != nil && req.PasskeyReference.PasskeyEnv == nil {
+		sourceEnv, apiErr := parseUserAgent(r)
+		if apiErr != nil {
+			api.RespondWithError(w, apiErr)
+			return
+		}
+		req.PasskeyReference.PasskeyEnv = sourceEnv
+	}
+
 	share := h.parser.toDomain((*Share)(&req))
 	var opts []shareapp.Option
 	if req.EncryptionPart != "" {
@@ -177,6 +224,15 @@ func (h *Handler) UpdateShare(w http.ResponseWriter, r *http.Request) {
 	if errV := h.validator.validateShare((*Share)(&req)); errV != nil {
 		api.RespondWithError(w, errV)
 		return
+	}
+
+	if req.PasskeyReference != nil && req.PasskeyReference.PasskeyEnv == nil {
+		sourceEnv, apiErr := parseUserAgent(r)
+		if apiErr != nil {
+			api.RespondWithError(w, apiErr)
+			return
+		}
+		req.PasskeyReference.PasskeyEnv = sourceEnv
 	}
 
 	share := h.parser.toDomain((*Share)(&req))
@@ -387,10 +443,12 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 	for _, requestedReference := range requestedReferences.References {
 		val, exists := domainEncryptionTypes[requestedReference]
 		if exists {
-			encryptionType := h.parser.mapDomainEntropy[val]
+			encryptionType := h.parser.mapDomainEntropy[val.Entropy]
 			responseBody.EncryptionTypes[requestedReference] = EncryptionTypeResponse{
 				Status:         EncryptionTypeStatusFound,
 				EncryptionType: &encryptionType,
+				PasskeyID:      val.PasskeyID,
+				PasskeyEnv:     h.parser.toPasskeyEnv(val.PasskeyEnv),
 			}
 		} else {
 			responseBody.EncryptionTypes[requestedReference] = EncryptionTypeResponse{
@@ -463,10 +521,12 @@ func (h *Handler) GetSharesEncryptionForUsers(w http.ResponseWriter, r *http.Req
 	for _, requestedUser := range requestedUsers.UserIDs {
 		val, exists := domainEncryptionTypes[requestedUser]
 		if exists {
-			encryptionType := h.parser.mapDomainEntropy[val]
+			encryptionType := h.parser.mapDomainEntropy[val.Entropy]
 			responseBody.EncryptionTypes[requestedUser] = EncryptionTypeResponse{
 				Status:         EncryptionTypeStatusFound,
 				EncryptionType: &encryptionType,
+				PasskeyID:      val.PasskeyID,
+				PasskeyEnv:     h.parser.toPasskeyEnv(val.PasskeyEnv),
 			}
 		} else {
 			responseBody.EncryptionTypes[requestedUser] = EncryptionTypeResponse{

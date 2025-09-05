@@ -84,12 +84,12 @@ func (m *MockShareRepository) GetShareStorageMethods(ctx context.Context) ([]*sh
 	return args.Get(0).([]*share.StorageMethod), args.Error(1)
 }
 
-func (m *MockShareRepository) GetSharesEncryptionForProjectAndReferences(ctx context.Context, projectID string, references []string) (map[string]share.Entropy, error) {
+func (m *MockShareRepository) GetSharesEncryptionForProjectAndReferences(ctx context.Context, projectID string, references []string) (map[string]share.RecoveryInfo, error) {
 	args := m.Mock.Called(ctx)
-	return args.Get(0).(map[string]share.Entropy), args.Error(1)
+	return args.Get(0).(map[string]share.RecoveryInfo), args.Error(1)
 }
 
-func (m *MockShareRepository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context.Context, projectID string, userIDs []string) (map[string]share.Entropy, error) {
+func (m *MockShareRepository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context.Context, projectID string, userIDs []string) (map[string]share.RecoveryInfo, error) {
 	args := m.Mock.Called(ctx)
-	return args.Get(0).(map[string]share.Entropy), args.Error(1)
+	return args.Get(0).(map[string]share.RecoveryInfo), args.Error(1)
 }

@@ -1,6 +1,8 @@
 package sharehdl
 
-import "go.openfort.xyz/shield/internal/core/domain/share"
+import (
+	"go.openfort.xyz/shield/internal/core/domain/share"
+)
 
 type parser struct {
 	mapEntropyDomain       map[Entropy]share.Entropy
@@ -36,6 +38,22 @@ func newParser() *parser {
 	}
 }
 
+func (p *parser) toPasskeyEnv(s *string) *PasskeyEnv {
+	if s != nil {
+		matches := share.PasskeyEnvPattern.FindStringSubmatch(*s)
+		if matches != nil {
+			return &PasskeyEnv{
+				Name:      &matches[1],
+				OS:        &matches[2],
+				OSVersion: &matches[3],
+				Device:    &matches[4],
+			}
+		}
+		return nil
+	}
+	return nil
+}
+
 func (p *parser) toDomain(s *Share) *share.Share {
 	shr := &share.Share{
 		Secret:               s.Secret,
@@ -61,18 +79,21 @@ func (p *parser) toDomain(s *Share) *share.Share {
 		}
 		shr.EncryptionParameters.Salt = s.Salt
 	}
+
 	if s.Iterations != 0 {
 		if shr.EncryptionParameters == nil {
 			shr.EncryptionParameters = new(share.EncryptionParameters)
 		}
 		shr.EncryptionParameters.Iterations = s.Iterations
 	}
+
 	if s.Length != 0 {
 		if shr.EncryptionParameters == nil {
 			shr.EncryptionParameters = new(share.EncryptionParameters)
 		}
 		shr.EncryptionParameters.Length = s.Length
 	}
+
 	if s.Digest != "" {
 		if shr.EncryptionParameters == nil {
 			shr.EncryptionParameters = new(share.EncryptionParameters)
@@ -82,6 +103,20 @@ func (p *parser) toDomain(s *Share) *share.Share {
 
 	if shr.EncryptionParameters != nil {
 		shr.Entropy = share.EntropyUser
+	}
+
+	if s.PasskeyReference != nil {
+		shr.PasskeyReference = &share.PasskeyReference{
+			PasskeyID: *s.PasskeyReference.PasskeyId,
+		}
+		if s.PasskeyReference.PasskeyEnv != nil {
+			shr.PasskeyReference.PasskeyEnv = &share.PasskeyEnv{
+				Name:      s.PasskeyReference.PasskeyEnv.Name,
+				OS:        s.PasskeyReference.PasskeyEnv.OS,
+				OSVersion: s.PasskeyReference.PasskeyEnv.OSVersion,
+				Device:    s.PasskeyReference.PasskeyEnv.Device,
+			}
+		}
 	}
 
 	return shr
@@ -114,6 +149,20 @@ func (p *parser) fromDomain(s *share.Share) *Share {
 		}
 		if s.EncryptionParameters.Digest != "" {
 			shr.Digest = s.EncryptionParameters.Digest
+		}
+	}
+
+	if s.PasskeyReference != nil {
+		shr.PasskeyReference = &PasskeyReference{
+			PasskeyId: &s.PasskeyReference.PasskeyID,
+		}
+		if s.PasskeyReference.PasskeyEnv != nil {
+			shr.PasskeyReference.PasskeyEnv = &PasskeyEnv{
+				Name:      s.PasskeyReference.PasskeyEnv.Name,
+				OS:        s.PasskeyReference.PasskeyEnv.OS,
+				OSVersion: s.PasskeyReference.PasskeyEnv.OSVersion,
+				Device:    s.PasskeyReference.PasskeyEnv.Device,
+			}
 		}
 	}
 

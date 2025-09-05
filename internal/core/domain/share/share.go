@@ -9,6 +9,7 @@ type Share struct {
 	Entropy              Entropy
 	ShareStorageMethodID StorageMethodID
 	EncryptionParameters *EncryptionParameters
+	PasskeyReference     *PasskeyReference
 }
 
 func (s *Share) RequiresEncryption() bool {

@@ -1,6 +1,8 @@
 package sharerepo
 
 import (
+	"fmt"
+
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"gorm.io/gorm"
 )
@@ -39,29 +41,57 @@ func newParser() *parser {
 	}
 }
 
+func databaseToEnv(s *string) *share.PasskeyEnv {
+	if s != nil {
+		matches := share.PasskeyEnvPattern.FindStringSubmatch(*s)
+		if matches != nil {
+			return &share.PasskeyEnv{
+				Name:      &matches[1],
+				OS:        &matches[2],
+				OSVersion: &matches[3],
+				Device:    &matches[4],
+			}
+		}
+		return nil
+	}
+	return nil
+}
+
 func (p *parser) toDomain(s *Share) *share.Share {
 	var encryptionParameters *share.EncryptionParameters
+
 	if s.Salt != "" {
 		encryptionParameters = new(share.EncryptionParameters)
 		encryptionParameters.Salt = s.Salt
 	}
+
 	if s.Iterations != 0 {
 		if encryptionParameters == nil {
 			encryptionParameters = new(share.EncryptionParameters)
 		}
 		encryptionParameters.Iterations = s.Iterations
 	}
+
 	if s.Length != 0 {
 		if encryptionParameters == nil {
 			encryptionParameters = new(share.EncryptionParameters)
 		}
 		encryptionParameters.Length = s.Length
 	}
+
 	if s.Digest != "" {
 		if encryptionParameters == nil {
 			encryptionParameters = new(share.EncryptionParameters)
 		}
 		encryptionParameters.Digest = s.Digest
+	}
+
+	var passkeyReference *share.PasskeyReference
+	if s.PasskeyReference != nil {
+		passkeyReference = &share.PasskeyReference{
+			PasskeyID:  s.PasskeyReference.PasskeyID,
+			PasskeyEnv: databaseToEnv(s.PasskeyReference.PasskeyEnv),
+		}
 	}
 
 	usrID := ""
@@ -77,7 +107,29 @@ func (p *parser) toDomain(s *Share) *share.Share {
 		KeychainID:           s.KeyChainID,
 		Reference:            s.Reference,
 		ShareStorageMethodID: p.mapStorageMethodDomain[s.ShareStorageMethodID],
+		PasskeyReference:     passkeyReference,
 	}
+}
+
+func coalesceToUnknown(s *string) string {
+	if s == nil {
+		return "unknown"
+	}
+	return *s
+}
+
+func envToDatabase(p *share.PasskeyEnv) *string {
+	if p != nil {
+		ret := fmt.Sprintf(
+			"name=%s;os=%s;osVersion=%s;device=%s",
+			coalesceToUnknown(p.Name),
+			coalesceToUnknown(p.OS),
+			coalesceToUnknown(p.OSVersion),
+			coalesceToUnknown(p.Device),
+		)
+		return &ret
+	}
+	return nil
 }
 
 func (p *parser) toDatabase(s *share.Share) *Share {
@@ -107,6 +159,13 @@ func (p *parser) toDatabase(s *share.Share) *Share {
 		}
 		if s.EncryptionParameters.Digest != "" {
 			shr.Digest = s.EncryptionParameters.Digest
+		}
+	}
+
+	if s.PasskeyReference != nil {
+		shr.PasskeyReference = &PasskeyReference{
+			PasskeyID:  s.PasskeyReference.PasskeyID,
+			PasskeyEnv: envToDatabase(s.PasskeyReference.PasskeyEnv),
 		}
 	}
 
