@@ -275,14 +275,19 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 		return nil, nil
 	}
 
-	if shrs[0].RequiresEncryption() {
-		encryptionKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
-		if err != nil {
-			return nil, err
-		}
+	var encryptionKey *string
 
-		for _, shr := range shrs {
-			cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
+	for _, shr := range shrs {
+		if shr.RequiresEncryption() {
+			// Reconstruct encryption key just once
+			if encryptionKey == nil {
+				retrievedKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
+				encryptionKey = &retrievedKey
+				if err != nil {
+					return nil, err
+				}
+			}
+			cypher := a.encryptionFactory.CreateEncryptionStrategy(*encryptionKey)
 			shr.Secret, err = cypher.Decrypt(shr.Secret)
 			if err != nil {
 				a.logger.ErrorContext(ctx, "failed to decrypt secret", logger.Error(err))
