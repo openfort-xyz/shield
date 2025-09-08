@@ -162,7 +162,24 @@ func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID string
 
 // Intentionally left out of ShareRepository interface
 // since usage is only internal
+func updatePasskeyReference(r *repository, passkeyReference *PasskeyReference) error {
+	if passkeyReference != nil {
+		// WHERE clause is necessary for GORM >= v2 (it won't figure out which field to change even if PK is provided otherwise)
+		return r.db.Model(&PasskeyReference{}).Where("share_reference = ?", passkeyReference.ShareReference).Save(passkeyReference).Error
+	}
+	return nil
+}
+
+// Intentionally left out of ShareRepository interface
+// since usage is only internal
 func updateShare(r *repository, dbShr *Share) error {
+
+	err := updatePasskeyReference(r, dbShr.PasskeyReference)
+
+	if err != nil {
+		return err
+	}
+
 	return r.db.
 		Session(&gorm.Session{FullSaveAssociations: true}).
 		Model(&Share{}).

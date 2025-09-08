@@ -86,7 +86,7 @@ func (p *parser) toDomain(s *Share) *share.Share {
 	}
 
 	var passkeyReference *share.PasskeyReference
-	if s.PasskeyReference != nil {
+	if s.Entropy == EntropyPasskey && s.PasskeyReference != nil {
 		passkeyReference = &share.PasskeyReference{
 			PasskeyID:  s.PasskeyReference.PasskeyID,
 			PasskeyEnv: databaseToEnv(s.PasskeyReference.PasskeyEnv),
@@ -161,10 +161,11 @@ func (p *parser) toDatabase(s *share.Share) *Share {
 		}
 	}
 
-	if s.PasskeyReference != nil {
+	if s.Entropy == share.EntropyPasskey && s.PasskeyReference != nil {
 		shr.PasskeyReference = &PasskeyReference{
-			PasskeyID:  s.PasskeyReference.PasskeyID,
-			PasskeyEnv: envToDatabase(s.PasskeyReference.PasskeyEnv),
+			PasskeyID:      s.PasskeyReference.PasskeyID,
+			PasskeyEnv:     envToDatabase(s.PasskeyReference.PasskeyEnv),
+			ShareReference: s.ID,
 		}
 	}
 
