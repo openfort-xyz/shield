@@ -98,6 +98,13 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, re
 		dbShare.EncryptionParameters = nil
 	}
 
+	if shr.Entropy == share.EntropyPasskey {
+		dbShare.PasskeyReference = &share.PasskeyReference{
+			PasskeyID:  shr.PasskeyReference.PasskeyID,
+			PasskeyEnv: shr.PasskeyReference.PasskeyEnv,
+		}
+	}
+
 	if shr.EncryptionParameters != nil {
 		dbShare.EncryptionParameters = shr.EncryptionParameters
 	}
