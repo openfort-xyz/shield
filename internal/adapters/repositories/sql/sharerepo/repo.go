@@ -160,11 +160,21 @@ func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID string
 	return nil
 }
 
+// Intentionally left out of ShareRepository interface
+// since usage is only internal
+func updateShare(r *repository, dbShr *Share) error {
+	return r.db.
+		Session(&gorm.Session{FullSaveAssociations: true}).
+		Model(&Share{}).
+		Where("id = ?", dbShr.ID).
+		Updates(dbShr).Error
+}
+
 func (r *repository) Update(ctx context.Context, shr *share.Share) error {
 	r.logger.InfoContext(ctx, "updating share", slog.String("id", shr.ID))
 
-	dbShr := r.parser.toUpdates(shr)
-	err := r.db.Model(&Share{}).Where("id = ?", shr.ID).Updates(dbShr).Error
+	dbShr := r.parser.toDatabase(shr)
+	err := updateShare(r, dbShr)
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
 		return err
@@ -183,7 +193,7 @@ func (r *repository) BulkUpdate(ctx context.Context, shrs []*share.Share) error 
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		for _, dbShr := range dbShares {
-			err := tx.Model(&Share{}).Where("id = ?", dbShr.ID).Updates(dbShr).Error
+			err := updateShare(r, dbShr)
 			if err != nil {
 				r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
 				return err
