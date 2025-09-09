@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"go.openfort.xyz/shield/internal/core/domain/share"
-	"gorm.io/gorm"
 )
 
 type parser struct {
@@ -87,7 +86,7 @@ func (p *parser) toDomain(s *Share) *share.Share {
 	}
 
 	var passkeyReference *share.PasskeyReference
-	if s.PasskeyReference != nil {
+	if s.Entropy == EntropyPasskey && s.PasskeyReference != nil {
 		passkeyReference = &share.PasskeyReference{
 			PasskeyID:  s.PasskeyReference.PasskeyID,
 			PasskeyEnv: databaseToEnv(s.PasskeyReference.PasskeyEnv),
@@ -162,58 +161,15 @@ func (p *parser) toDatabase(s *share.Share) *Share {
 		}
 	}
 
-	if s.PasskeyReference != nil {
+	if s.Entropy == share.EntropyPasskey && s.PasskeyReference != nil {
 		shr.PasskeyReference = &PasskeyReference{
-			PasskeyID:  s.PasskeyReference.PasskeyID,
-			PasskeyEnv: envToDatabase(s.PasskeyReference.PasskeyEnv),
+			PasskeyID:      s.PasskeyReference.PasskeyID,
+			PasskeyEnv:     envToDatabase(s.PasskeyReference.PasskeyEnv),
+			ShareReference: s.ID,
 		}
 	}
 
 	return shr
-}
-
-func (p *parser) toUpdates(s *share.Share) map[string]interface{} {
-	updates := make(map[string]interface{})
-
-	if s.KeychainID != nil {
-		updates["keychain_id"] = s.KeychainID
-	}
-
-	if s.Reference != nil {
-		updates["reference"] = s.Reference
-	}
-
-	if s.Secret != "" {
-		updates["data"] = s.Secret
-	}
-
-	if s.Entropy != 0 {
-		updates["entropy"] = p.mapDomainEntropy[s.Entropy]
-	}
-
-	if s.Entropy != share.EntropyUser {
-		updates["salt"] = gorm.Expr("NULL")
-		updates["iterations"] = gorm.Expr("NULL")
-		updates["length"] = gorm.Expr("NULL")
-		updates["digest"] = gorm.Expr("NULL")
-	}
-
-	if s.EncryptionParameters != nil && s.Entropy == share.EntropyUser {
-		if s.EncryptionParameters.Salt != "" {
-			updates["salt"] = s.EncryptionParameters.Salt
-		}
-		if s.EncryptionParameters.Iterations != 0 {
-			updates["iterations"] = s.EncryptionParameters.Iterations
-		}
-		if s.EncryptionParameters.Length != 0 {
-			updates["length"] = s.EncryptionParameters.Length
-		}
-		if s.EncryptionParameters.Digest != "" {
-			updates["digest"] = s.EncryptionParameters.Digest
-		}
-	}
-
-	return updates
 }
 
 func (p *parser) toDomainShareStorageMethod(dbMethod *ShareStorageMethod) *share.StorageMethod {

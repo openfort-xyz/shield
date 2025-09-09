@@ -105,7 +105,7 @@ func (p *parser) toDomain(s *Share) *share.Share {
 		shr.Entropy = share.EntropyUser
 	}
 
-	if s.PasskeyReference != nil {
+	if s.Entropy == EntropyPasskey && s.PasskeyReference != nil {
 		shr.PasskeyReference = &share.PasskeyReference{
 			PasskeyID: *s.PasskeyReference.PasskeyId,
 		}
