@@ -156,8 +156,10 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 
 		providerStr := r.Header.Get(AuthProviderHeader)
 		if providerStr == "" {
-			api.RespondWithError(w, api.ErrMissingAuthProvider)
-			return
+			// Backwards compatible-change: all legacy users will still be sending their X-Auth-Provider header
+			// New users won't but they'll expect auth middleware using their custom auth provider
+			// (which they won't know it's even called custom if using providers V2 API)
+			providerStr = AuthenticationTypeCustom
 		}
 
 		var identity factories.Identity
