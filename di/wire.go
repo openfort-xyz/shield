@@ -29,6 +29,8 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
+	"go.openfort.xyz/shield/pkg/otp"
+	"go.openfort.xyz/shield/pkg/twilio"
 )
 
 func ProvideSQL() (c *sql.Client, err error) {
@@ -184,6 +186,8 @@ func ProvideProjectApplication() (a *projectapp.ProjectApplication, err error) {
 		ProvideSQLShareRepository,
 		ProvideEncryptionFactory,
 		ProvideInMemoryEncryptionPartsRepository,
+		ProvideOTPService,
+		ProvideNotificationService,
 	)
 
 	return
@@ -213,6 +217,36 @@ func ProvideHealthzApplication() (a *healthzapp.Application, err error) {
 	wire.Build(
 		ProvideSQL,
 		healthzapp.New,
+	)
+
+	return
+}
+
+func ProvideOnboardingTracker() (t *otp.OnboardingTracker, err error) {
+	wire.Build(
+		otp.NewOnboardingTracker,
+		wire.Value(otp.DefaultSecurityConfig.DeviceOnboardingWindowMS),
+		wire.Value(otp.DefaultSecurityConfig.MaxDeviceOnboardAttempts),
+	)
+
+	return
+}
+
+func ProvideOTPService() (s *otp.InMemoryOTPService, err error) {
+	wire.Build(
+		otp.NewInMemoryOTPService,
+		ProvideInMemoryEncryptionPartsRepository,
+		ProvideOnboardingTracker,
+		wire.Value(otp.DefaultSecurityConfig),
+	)
+
+	return
+}
+
+func ProvideNotificationService() (c *twilio.Client, err error) {
+	wire.Build(
+		twilio.NewClient,
+		twilio.GetConfigFromEnv,
 	)
 
 	return

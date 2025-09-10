@@ -9,7 +9,7 @@ package di
 import (
 	"go.openfort.xyz/shield/internal/adapters/authenticators"
 	"go.openfort.xyz/shield/internal/adapters/authenticators/identity"
-	ofidty "go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
+	"go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
 	"go.openfort.xyz/shield/internal/adapters/encryption"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest"
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt"
@@ -31,6 +31,8 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
+	"go.openfort.xyz/shield/pkg/otp"
+	"go.openfort.xyz/shield/pkg/twilio"
 )
 
 // Injectors from wire.go:
@@ -237,7 +239,15 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, encryptionFactory, encryptionPartsRepository)
+	inMemoryOTPService, err := ProvideOTPService()
+	if err != nil {
+		return nil, err
+	}
+	client, err := ProvideNotificationService()
+	if err != nil {
+		return nil, err
+	}
+	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, client)
 	return projectApplication, nil
 }
 
@@ -274,6 +284,50 @@ func ProvideHealthzApplication() (*healthzapp.Application, error) {
 	}
 	application := healthzapp.New(client)
 	return application, nil
+}
+
+func ProvideOnboardingTracker() (*otp.OnboardingTracker, error) {
+	int64_2 := _wireInt64Value
+	int2 := _wireIntValue
+	onboardingTracker := otp.NewOnboardingTracker(int64_2, int2)
+	return onboardingTracker, nil
+}
+
+var (
+	_wireInt64Value = otp.DefaultSecurityConfig.
+			DeviceOnboardingWindowMS
+	_wireIntValue = otp.DefaultSecurityConfig.
+			MaxDeviceOnboardAttempts
+)
+
+func ProvideOTPService() (*otp.InMemoryOTPService, error) {
+	encryptionPartsRepository, err := ProvideInMemoryEncryptionPartsRepository()
+	if err != nil {
+		return nil, err
+	}
+	onboardingTracker, err := ProvideOnboardingTracker()
+	if err != nil {
+		return nil, err
+	}
+	securityConfig := _wireSecurityConfigValue
+	inMemoryOTPService, err := otp.NewInMemoryOTPService(encryptionPartsRepository, onboardingTracker, securityConfig)
+	if err != nil {
+		return nil, err
+	}
+	return inMemoryOTPService, nil
+}
+
+var (
+	_wireSecurityConfigValue = otp.DefaultSecurityConfig
+)
+
+func ProvideNotificationService() (*twilio.Client, error) {
+	config := twilio.GetConfigFromEnv()
+	client, err := twilio.NewClient(config)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
 }
 
 func ProvideRESTServer() (*rest.Server, error) {
