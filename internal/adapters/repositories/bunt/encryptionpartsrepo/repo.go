@@ -26,36 +26,50 @@ func New(db *bunt.Client) repositories.EncryptionPartsRepository {
 	}
 }
 
-func (r *repository) Get(ctx context.Context, sessionID string) (string, error) {
-	var part string
+func (r *repository) Get(ctx context.Context, key string) (string, error) {
+	var data string
 	err := r.db.View(func(tx *buntdb.Tx) error {
 		var err error
-		part, err = tx.Get(sessionID)
+		data, err = tx.Get(key)
 		return err
 	})
 	if err != nil {
 		if errors.Is(err, buntdb.ErrNotFound) {
-			return "", domainErrors.ErrEncryptionPartNotFound
+			return "", domainErrors.ErrDataInDBNotFound
 		}
-		r.logger.ErrorContext(ctx, "error getting encryption part", logger.Error(err))
+		r.logger.ErrorContext(ctx, "error getting value by key", logger.Error(err))
 		return "", err
 	}
 
-	if part == "" {
-		return "", domainErrors.ErrEncryptionPartNotFound
+	if data == "" {
+		return "", domainErrors.ErrDataInDBNotFound
 	}
 
-	return part, nil
+	return data, nil
 }
 
-func (r *repository) Set(ctx context.Context, sessionID, part string) error {
+func (r *repository) Set(ctx context.Context, key, value string) error {
 	return r.db.Update(func(tx *buntdb.Tx) error {
-		_, _, err := tx.Set(sessionID, part, nil)
+		// TODO: add TTL here? Just in case process interrupted for someone and share stuck in memory for indefinite time. It's more like nitpick than real issue
+		_, _, err := tx.Set(key, value, nil)
 		if err != nil {
 			if errors.Is(err, buntdb.ErrIndexExists) {
-				return domainErrors.ErrEncryptionPartAlreadyExists
+				return domainErrors.ErrKeyInDBAlreadyExists
 			}
-			r.logger.ErrorContext(ctx, "error setting encryption part", logger.Error(err))
+			r.logger.ErrorContext(ctx, "error setting value by key into buntdb", logger.Error(err))
+			return err
+		}
+
+		return nil
+	})
+}
+
+func (r *repository) Update(ctx context.Context, key, value string) error {
+	return r.db.Update(func(tx *buntdb.Tx) error {
+		// TODO: add TTL here? Just in case process interrupted for someone and share stuck in memory for indefinite time. It's more like nitpick than real issue
+		_, _, err := tx.Set(key, value, nil)
+		if err != nil && !errors.Is(err, buntdb.ErrIndexExists) {
+			r.logger.ErrorContext(ctx, "error setting value by key into buntdb", logger.Error(err))
 			return err
 		}
 
