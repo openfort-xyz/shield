@@ -322,7 +322,10 @@ var (
 )
 
 func ProvideNotificationService() (*twilio.Client, error) {
-	config := twilio.GetConfigFromEnv()
+	config, err := ProvideTwilioConfig()
+	if err != nil {
+		return nil, err
+	}
 	client, err := twilio.NewClient(config)
 	if err != nil {
 		return nil, err
@@ -361,4 +364,14 @@ func ProvideRESTServer() (*rest.Server, error) {
 	}
 	server := rest.New(config, projectApplication, shareApplication, authenticationFactory, identityFactory, userService, application)
 	return server, nil
+}
+
+// wire.go:
+
+func ProvideTwilioConfig() (twilio.Config, error) {
+	cfg, err := twilio.GetConfigFromEnv()
+	if err != nil {
+		return twilio.Config{}, err
+	}
+	return *cfg, nil
 }

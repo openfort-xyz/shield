@@ -243,10 +243,18 @@ func ProvideOTPService() (s *otp.InMemoryOTPService, err error) {
 	return
 }
 
+func ProvideTwilioConfig() (twilio.Config, error) {
+	cfg, err := twilio.GetConfigFromEnv()
+	if err != nil {
+		return twilio.Config{}, err
+	}
+	return *cfg, nil
+}
+
 func ProvideNotificationService() (c *twilio.Client, err error) {
 	wire.Build(
 		twilio.NewClient,
-		twilio.GetConfigFromEnv,
+		ProvideTwilioConfig,
 	)
 
 	return

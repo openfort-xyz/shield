@@ -7,17 +7,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
+
+	env "github.com/caarlos0/env/v10"
 )
 
 // Config holds Twilio configuration
 type Config struct {
-	AccountSID     string
-	AuthToken      string
-	FromPhone      string // Twilio phone number for SMS
-	FromEmail      string // Sender email for SendGrid/Twilio Email API
-	SendGridAPIKey string // Optional: for email via SendGrid
+	AccountSID     string `env:"TWILIO_ACCOUNT_SID" envDefault:"1"`
+	AuthToken      string `env:"TWILIO_AUTH_TOKEN" envDefault:"1"`
+	FromPhone      string `env:"TWILIO_FROM_PHONE" envDefault:"1"` // Twilio phone number for SMS
+	FromEmail      string `env:"TWILIO_FROM_EMAIL" envDefault:"1"` // Sender email for SendGrid/Twilio Email API
+	SendGridAPIKey string `env:"SENDGRID_API_KEY" envDefault:"1"`  // Optional: for email via SendGrid
 }
 
 // Client represents a Twilio client
@@ -80,14 +81,13 @@ type SendGridContent struct {
 }
 
 // GetConfigFromEnv creates a Twilio config from environment variables
-func GetConfigFromEnv() Config {
-	return Config{
-		AccountSID:     os.Getenv("TWILIO_ACCOUNT_SID"),
-		AuthToken:      os.Getenv("TWILIO_AUTH_TOKEN"),
-		FromPhone:      os.Getenv("TWILIO_FROM_PHONE"),
-		FromEmail:      os.Getenv("TWILIO_FROM_EMAIL"),
-		SendGridAPIKey: os.Getenv("SENDGRID_API_KEY"),
+func GetConfigFromEnv() (*Config, error) {
+	cfg := &Config{}
+	if err := env.Parse(cfg); err != nil {
+		return nil, err
 	}
+	fmt.Printf("DEBUG: Twilio config loaded - AccountSID: '%s', AuthToken: '%s'\n", cfg.AccountSID, cfg.AuthToken)
+	return cfg, nil
 }
 
 // NewClient creates a new Twilio client
