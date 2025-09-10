@@ -183,7 +183,7 @@ func (h *Handler) RequestOTP(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: validate if email / phone number is correct
 
-	err = h.app.GenerateOTP(ctx, req.SignerId, req.Email, req.Phone)
+	err = h.app.GenerateOTP(ctx, req.UserId, req.Email, req.Phone)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage(err.Error()))
 	}
@@ -415,7 +415,7 @@ func (h *Handler) RegisterEncryptionSession(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	sessionID, err := h.app.RegisterEncryptionSession(ctx, req.EncryptionPart, req.SignerID)
+	sessionID, err := h.app.RegisterEncryptionSession(ctx, req.EncryptionPart, req.UserID, req.OTPCode)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return

@@ -170,8 +170,8 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	return providers, nil
 }
 
-func (a *ProjectApplication) GenerateOTP(ctx context.Context, signerId string, email *string, phone *string) error {
-	otpCode, err := a.otpService.GenerateOTP(ctx, signerId)
+func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, email *string, phone *string) error {
+	otpCode, err := a.otpService.GenerateOTP(ctx, userId)
 	if err != nil {
 		return err
 	}
@@ -402,14 +402,32 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 	return nil
 }
 
-func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string, signerId string) (string, error) {
+func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string, userId string, otpCode *string) (string, error) {
 	a.logger.InfoContext(ctx, "registering encryption session")
+
+	projectID := contexter.GetProjectID(ctx)
+
+	project, err := a.projectRepo.Get(ctx, projectID)
+	if err != nil {
+		return "", err
+	}
+
+	if project.Enable2FA {
+		if otpCode == nil {
+			return "", errors.New("OTP is required for this project")
+		}
+
+		_, err := a.otpService.VerifyOTP(ctx, userId, *otpCode)
+		if err != nil {
+			return "", err
+		}
+	}
 
 	sessionID := uuid.NewString()
 
 	encPartData := share.EncryptionPart{
-		EncPart:  encryptionPart,
-		SignerID: signerId,
+		EncPart: encryptionPart,
+		UserID:  userId,
 	}
 	encPartDataBytes, err := json.Marshal(encPartData)
 	if err != nil {

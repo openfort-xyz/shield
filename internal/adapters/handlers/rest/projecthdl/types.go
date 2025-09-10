@@ -7,13 +7,13 @@ type CreateProjectRequest struct {
 }
 
 type GenerateOTPRequest struct {
-	SignerId string  `json:"signer_id"`
-	Email    *string `json:"email"`
-	Phone    *string `json:"phone"`
+	UserId string  `json:"user_id"`
+	Email  *string `json:"email"`
+	Phone  *string `json:"phone"`
 }
 
 func (r *GenerateOTPRequest) ParametersValid() bool {
-	if r.SignerId == "" {
+	if r.UserId == "" {
 		return false
 	}
 
@@ -109,8 +109,9 @@ type RegisterEncryptionKeyResponse struct {
 }
 
 type RegisterEncryptionSessionRequest struct {
-	EncryptionPart string `json:"encryption_part"`
-	SignerID       string `json:"signer_id"`
+	EncryptionPart string  `json:"encryption_part"`
+	UserID         string  `json:"user_id"`
+	OTPCode        *string `json:"otp_code"`
 }
 
 type RegisterEncryptionSessionResponse struct {

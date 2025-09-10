@@ -198,8 +198,8 @@ func NewInMemoryOTPService(sharesRepo repositories.EncryptionPartsRepository, se
 //
 // Returns 9-digit numeric OTP string
 // Returns error with status 429 if rate limit exceeded
-func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, signerID string) (string, error) {
-	if err := s.securityService.TrackAttempt(signerID); err != nil {
+func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (string, error) {
+	if err := s.securityService.TrackAttempt(userID); err != nil {
 		return "", &HTTPError{
 			Status:  http.StatusTooManyRequests,
 			Message: err.Error(),
@@ -229,7 +229,7 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, signerID string) (
 	// 		Expires: true,
 	// 		TTL:     time.Duration(s.config.OTPExpiryMS) * time.Millisecond,
 	// 	}
-	err = s.sharesRepo.Set(ctx, signerID, string(requestBytes))
+	err = s.sharesRepo.Set(ctx, userID, string(requestBytes))
 	if err != nil {
 		return "", err
 	}
@@ -249,10 +249,10 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, signerID string) (
 // Returns the OTP request if valid, containing authentication context
 // Returns error with status 400 if no pending authentication
 // Returns error with status 401 if OTP expired, invalid, or max attempts exceeded
-func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, signerID, otpCode string) (*OTPRequest, error) {
+func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode string) (*OTPRequest, error) {
 	var request *OTPRequest
 
-	val, err := s.sharesRepo.Get(ctx, signerID)
+	val, err := s.sharesRepo.Get(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, signerID, otpCode st
 
 	currentTime := time.Now().UnixMilli()
 	if currentTime-request.CreatedAt > s.config.OTPExpiryMS {
-		err := s.sharesRepo.Delete(ctx, signerID)
+		err := s.sharesRepo.Delete(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
@@ -282,7 +282,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, signerID, otpCode st
 		request.FailedAttempts++
 
 		if request.FailedAttempts >= s.config.MaxFailedAttempts {
-			err := s.sharesRepo.Delete(ctx, signerID)
+			err := s.sharesRepo.Delete(ctx, userID)
 			if err != nil {
 				return nil, err
 			}
@@ -299,7 +299,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, signerID, otpCode st
 		// 		Expires: true,
 		// 		TTL:     time.Duration(s.config.OTPExpiryMS-(currentTime-request.CreatedAt)) * time.Millisecond,
 		// 	}
-		err = s.sharesRepo.Update(ctx, signerID, string(requestBytes))
+		err = s.sharesRepo.Update(ctx, userID, string(requestBytes))
 		if err != nil {
 			return nil, err
 		}
@@ -311,7 +311,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, signerID, otpCode st
 	}
 
 	// OTP is valid, remove from storage
-	err = s.sharesRepo.Delete(ctx, signerID)
+	err = s.sharesRepo.Delete(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
