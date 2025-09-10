@@ -2,6 +2,7 @@ package projectapp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 
@@ -10,7 +11,9 @@ import (
 	"github.com/google/uuid"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"go.openfort.xyz/shield/pkg/otp"
 	"go.openfort.xyz/shield/pkg/random"
+	"go.openfort.xyz/shield/pkg/twilio"
 
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
@@ -30,9 +33,11 @@ type ProjectApplication struct {
 	logger              *slog.Logger
 	encryptionFactory   factories.EncryptionFactory
 	encryptionPartsRepo repositories.EncryptionPartsRepository
+	otpService          *otp.InMemoryOTPService
+	notificationService *twilio.Client
 }
 
-func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRepository, providerSvc services.ProviderService, providerRepo repositories.ProviderRepository, sharesRepo repositories.ShareRepository, encryptionFactory factories.EncryptionFactory, encryptionPartsRepo repositories.EncryptionPartsRepository) *ProjectApplication {
+func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRepository, providerSvc services.ProviderService, providerRepo repositories.ProviderRepository, sharesRepo repositories.ShareRepository, encryptionFactory factories.EncryptionFactory, encryptionPartsRepo repositories.EncryptionPartsRepository, otpService *otp.InMemoryOTPService, notificationService *twilio.Client) *ProjectApplication {
 	return &ProjectApplication{
 		projectSvc:          projectSvc,
 		projectRepo:         projectRepo,
@@ -42,13 +47,15 @@ func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRep
 		logger:              logger.New("project_application"),
 		encryptionFactory:   encryptionFactory,
 		encryptionPartsRepo: encryptionPartsRepo,
+		otpService:          otpService,
+		notificationService: notificationService,
 	}
 }
 
-func (a *ProjectApplication) CreateProject(ctx context.Context, name string, opts ...ProjectOption) (*project.Project, error) {
+func (a *ProjectApplication) CreateProject(ctx context.Context, name string, enable2fa bool, opts ...ProjectOption) (*project.Project, error) {
 	a.logger.InfoContext(ctx, "creating project")
 
-	proj, err := a.projectSvc.Create(ctx, name)
+	proj, err := a.projectSvc.Create(ctx, name, enable2fa)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create project", logger.Error(err))
 		return nil, fromDomainError(err)
@@ -161,6 +168,35 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	}
 
 	return providers, nil
+}
+
+func (a *ProjectApplication) GenerateOTP(ctx context.Context, signerId string, email *string, phone *string) error {
+	otpCode, err := a.otpService.GenerateOTP(ctx, signerId)
+	if err != nil {
+		return err
+	}
+
+	if email != nil {
+		_, err := a.notificationService.SendEmail(*email, "Openfort OTP", otpCode)
+		if err != nil {
+			return err
+		}
+
+		// TODO: check the status on response
+
+		return nil
+	} else if phone != nil {
+		_, err := a.notificationService.SendSMS(*phone, otpCode)
+		if err != nil {
+			return err
+		}
+
+		// TODO: check the status on response
+
+		return nil
+	} else {
+		return errors.New("User information was not provided")
+	}
 }
 
 func (a *ProjectApplication) GetProviders(ctx context.Context) ([]*provider.Provider, error) {
@@ -366,11 +402,22 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 	return nil
 }
 
-func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string) (string, error) {
+func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string, signerId string) (string, error) {
 	a.logger.InfoContext(ctx, "registering encryption session")
 
 	sessionID := uuid.NewString()
-	err := a.encryptionPartsRepo.Set(ctx, sessionID, encryptionPart)
+
+	encPartData := share.EncryptionPart{
+		EncPart:  encryptionPart,
+		SignerID: signerId,
+	}
+	encPartDataBytes, err := json.Marshal(encPartData)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to serialize encryption part with signer ID", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+
+	err = a.encryptionPartsRepo.Set(ctx, sessionID, string(encPartDataBytes))
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to set encryption part", logger.Error(err))
 		return "", fromDomainError(err)

@@ -61,7 +61,12 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		opts = append(opts, projectapp.WithEncryptionKey())
 	}
 
-	proj, err := h.app.CreateProject(ctx, req.Name, opts...)
+	enable2fa := true
+	if req.Enable2FA != nil {
+		enable2fa = *req.Enable2FA
+	}
+
+	proj, err := h.app.CreateProject(ctx, req.Name, enable2fa, opts...)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return
@@ -152,6 +157,36 @@ func (h *Handler) AddProviders(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(resp)
+}
+
+func (h *Handler) RequestOTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "generating otp for user")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+		return
+	}
+
+	var req GenerateOTPRequest
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+
+	if !req.ParametersValid() {
+		// TODO: add more explicit message of what exactly is wrong with parameters
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("invalid parameters were passed"))
+	}
+
+	// TODO: validate if email / phone number is correct
+
+	err = h.app.GenerateOTP(ctx, req.SignerId, req.Email, req.Phone)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage(err.Error()))
+	}
 }
 
 // GetProviders lists all providers of a project
@@ -380,7 +415,7 @@ func (h *Handler) RegisterEncryptionSession(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	sessionID, err := h.app.RegisterEncryptionSession(ctx, req.EncryptionPart)
+	sessionID, err := h.app.RegisterEncryptionSession(ctx, req.EncryptionPart, req.SignerID)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return

@@ -6,4 +6,5 @@ type Project struct {
 	APIKey         string
 	APISecret      string
 	EncryptionPart string
+	Enable2FA      bool
 }

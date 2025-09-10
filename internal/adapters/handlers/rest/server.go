@@ -79,6 +79,7 @@ func (s *Server) Start(ctx context.Context) error {
 	p := r.PathPrefix("/project").Subrouter()
 	p.Use(authMdw.AuthenticateAPISecret)
 	p.HandleFunc("", projectHdl.GetProject).Methods(http.MethodGet)
+	p.HandleFunc("/otp", projectHdl.RequestOTP).Methods(http.MethodPost)
 	p.HandleFunc("/providers", projectHdl.GetProviders).Methods(http.MethodGet)
 	p.HandleFunc("/providers", projectHdl.AddProviders).Methods(http.MethodPost)
 	p.HandleFunc("/providers/{provider}", projectHdl.GetProvider).Methods(http.MethodGet)
