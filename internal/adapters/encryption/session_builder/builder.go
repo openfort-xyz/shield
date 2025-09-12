@@ -2,9 +2,11 @@ package sessbldr
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/ports/builders"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/strategies"
@@ -27,11 +29,16 @@ func NewEncryptionKeyBuilder(encryptionPartsRepo repositories.EncryptionPartsRep
 }
 
 func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) error {
-	part, err := b.encryptionPartsRepo.Get(ctx, identifier)
+	data, err := b.encryptionPartsRepo.Get(ctx, identifier)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
 			return domainErrors.ErrInvalidEncryptionSession
 		}
+		return err
+	}
+
+	var part share.EncryptionPart
+	if err := json.Unmarshal([]byte(data), &part); err != nil {
 		return err
 	}
 
@@ -40,7 +47,7 @@ func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) 
 		return err
 	}
 
-	b.projectPart = part
+	b.projectPart = part.EncPart
 	return nil
 }
 

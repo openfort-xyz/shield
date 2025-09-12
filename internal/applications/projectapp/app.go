@@ -13,7 +13,6 @@ import (
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/pkg/otp"
 	"go.openfort.xyz/shield/pkg/random"
-	"go.openfort.xyz/shield/pkg/twilio"
 
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
@@ -34,10 +33,10 @@ type ProjectApplication struct {
 	encryptionFactory   factories.EncryptionFactory
 	encryptionPartsRepo repositories.EncryptionPartsRepository
 	otpService          *otp.InMemoryOTPService
-	notificationService *twilio.Client
+	notificationService services.NotificationsService
 }
 
-func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRepository, providerSvc services.ProviderService, providerRepo repositories.ProviderRepository, sharesRepo repositories.ShareRepository, encryptionFactory factories.EncryptionFactory, encryptionPartsRepo repositories.EncryptionPartsRepository, otpService *otp.InMemoryOTPService, notificationService *twilio.Client) *ProjectApplication {
+func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRepository, providerSvc services.ProviderService, providerRepo repositories.ProviderRepository, sharesRepo repositories.ShareRepository, encryptionFactory factories.EncryptionFactory, encryptionPartsRepo repositories.EncryptionPartsRepository, otpService *otp.InMemoryOTPService, notificationService services.NotificationsService) *ProjectApplication {
 	return &ProjectApplication{
 		projectSvc:          projectSvc,
 		projectRepo:         projectRepo,
@@ -177,7 +176,7 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ema
 	}
 
 	if email != nil {
-		_, err := a.notificationService.SendEmail(*email, "Openfort OTP", otpCode)
+		err := a.notificationService.SendEmail(ctx, *email, "Openfort OTP", otpCode)
 		if err != nil {
 			return err
 		}
@@ -186,7 +185,7 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ema
 
 		return nil
 	} else if phone != nil {
-		_, err := a.notificationService.SendSMS(*phone, otpCode)
+		err := a.notificationService.SendSMS(ctx, *phone, otpCode)
 		if err != nil {
 			return err
 		}
@@ -409,12 +408,12 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 
 	project, err := a.projectRepo.Get(ctx, projectID)
 	if err != nil {
-		return "", err
+		return "", fromDomainError(err)
 	}
 
 	if project.Enable2FA {
 		if otpCode == nil {
-			return "", errors.New("OTP is required for this project")
+			return "", ErrOTPRequired
 		}
 
 		_, err := a.otpService.VerifyOTP(ctx, userId, *otpCode)

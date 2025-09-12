@@ -21,6 +21,7 @@ var (
 	ErrEncryptionNotConfigured     = errors.New("encryption not configured")
 	ErrJWKPemConflict              = errors.New("jwk and pem cannot be set at the same time")
 	ErrInvalidPemCertificate       = errors.New("invalid PEM certificate")
+	ErrOTPRequired                 = errors.New("OTP is required for this request")
 	ErrInternal                    = errors.New("internal error")
 )
 

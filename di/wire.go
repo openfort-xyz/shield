@@ -7,7 +7,7 @@ import (
 	"github.com/google/wire"
 	"go.openfort.xyz/shield/internal/adapters/authenticators"
 	"go.openfort.xyz/shield/internal/adapters/authenticators/identity"
-	"go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
+	ofidty "go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
 	"go.openfort.xyz/shield/internal/adapters/encryption"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest"
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt"
@@ -29,8 +29,8 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
+	"go.openfort.xyz/shield/pkg/brevo"
 	"go.openfort.xyz/shield/pkg/otp"
-	"go.openfort.xyz/shield/pkg/twilio"
 )
 
 func ProvideSQL() (c *sql.Client, err error) {
@@ -243,18 +243,19 @@ func ProvideOTPService() (s *otp.InMemoryOTPService, err error) {
 	return
 }
 
-func ProvideTwilioConfig() (twilio.Config, error) {
-	cfg, err := twilio.GetConfigFromEnv()
+func ProvideBrevoConfig() (brevo.Config, error) {
+	cfg, err := brevo.GetConfigFromEnv()
 	if err != nil {
-		return twilio.Config{}, err
+		return brevo.Config{}, err
 	}
 	return *cfg, nil
 }
 
-func ProvideNotificationService() (c *twilio.Client, err error) {
+func ProvideNotificationService() (c services.NotificationsService, err error) {
 	wire.Build(
-		twilio.NewClient,
-		ProvideTwilioConfig,
+		brevo.NewClient,
+		ProvideBrevoConfig,
+		wire.Bind(new(services.NotificationsService), new(*brevo.Client)),
 	)
 
 	return

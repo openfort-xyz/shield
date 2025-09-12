@@ -10,6 +10,13 @@ import (
 	"strings"
 
 	env "github.com/caarlos0/env/v10"
+
+	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
+)
+
+const (
+	FROM_EMAIL = "notify@openfort.xyz"
 )
 
 // Config holds Twilio configuration
@@ -19,13 +26,6 @@ type Config struct {
 	FromPhone      string `env:"TWILIO_FROM_PHONE" envDefault:"1"` // Twilio phone number for SMS
 	FromEmail      string `env:"TWILIO_FROM_EMAIL" envDefault:"1"` // Sender email for SendGrid/Twilio Email API
 	SendGridAPIKey string `env:"SENDGRID_API_KEY" envDefault:"1"`  // Optional: for email via SendGrid
-}
-
-// Client represents a Twilio client
-type Client struct {
-	config     Config
-	httpClient *http.Client
-	baseURL    string
 }
 
 // SMSRequest represents an SMS sending request
@@ -80,6 +80,12 @@ type SendGridContent struct {
 	Value string `json:"value"`
 }
 
+// Client represents a Twilio client
+type Client struct {
+	config         Config
+	sendgridClient *sendgrid.Client
+}
+
 // GetConfigFromEnv creates a Twilio config from environment variables
 func GetConfigFromEnv() (*Config, error) {
 	cfg := &Config{}
@@ -102,11 +108,43 @@ func NewClient(config Config) (*Client, error) {
 		return nil, fmt.Errorf("FromPhone is required")
 	}
 
+	client := sendgrid.NewSendClient(config.SendGridAPIKey)
+
 	return &Client{
-		config:     config,
-		httpClient: &http.Client{},
-		baseURL:    fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s", config.AccountSID),
+		config:         config,
+		sendgridClient: client,
 	}, nil
+}
+
+// SendEmail sends an email using SendGrid API (Twilio's email service)
+// If SendGridAPIKey is not provided, it will attempt to use Twilio's Email API (legacy)
+func (c *Client) SendEmail(to, subject, body string) error {
+	if to == "" {
+		return fmt.Errorf("recipient email is required")
+	}
+	if subject == "" {
+		return fmt.Errorf("email subject is required")
+	}
+	if body == "" {
+		return fmt.Errorf("email body is required")
+	}
+
+	if c.sendgridClient == nil {
+		return errors.New("missing SendGrid client to send an email")
+	}
+
+	from := mail.NewEmail("Openfort notify", FROM_EMAIL)
+	toMail := mail.NewEmail("", to)
+	message := mail.NewSingleEmail(from, subject, toMail, body, "")
+
+	// TODO: log somehow somewhere each sent message or smth like this
+	// to easier debug stuff in case smth goes wrong
+	_, err := c.sendgridClient.Send(message)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // SendSMS sends an SMS message using Twilio API
@@ -154,30 +192,6 @@ func (c *Client) SendSMS(to, message string) (*SMSResponse, error) {
 	}
 
 	return &smsResp, nil
-}
-
-// SendEmail sends an email using SendGrid API (Twilio's email service)
-// If SendGridAPIKey is not provided, it will attempt to use Twilio's Email API (legacy)
-func (c *Client) SendEmail(to, subject, body string) (*EmailResponse, error) {
-	if to == "" {
-		return nil, fmt.Errorf("recipient email is required")
-	}
-	if subject == "" {
-		return nil, fmt.Errorf("email subject is required")
-	}
-	if body == "" {
-		return nil, fmt.Errorf("email body is required")
-	}
-
-	// Use SendGrid if API key is provided
-	if c.config.SendGridAPIKey != "" {
-		return c.sendEmailViaSendGrid(to, subject, body)
-	} else {
-		return nil, errors.New("missing SendGrid client to send an email")
-	}
-
-	// Fallback to basic HTTP email sending (custom implementation)
-	// return c.sendEmailViaHTTP(to, subject, body)
 }
 
 // sendEmailViaSendGrid sends email using SendGrid API

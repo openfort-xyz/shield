@@ -31,8 +31,8 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
+	"go.openfort.xyz/shield/pkg/brevo"
 	"go.openfort.xyz/shield/pkg/otp"
-	"go.openfort.xyz/shield/pkg/twilio"
 )
 
 // Injectors from wire.go:
@@ -243,11 +243,11 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := ProvideNotificationService()
+	notificationsService, err := ProvideNotificationService()
 	if err != nil {
 		return nil, err
 	}
-	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, client)
+	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, notificationsService)
 	return projectApplication, nil
 }
 
@@ -321,12 +321,12 @@ var (
 	_wireSecurityConfigValue = otp.DefaultSecurityConfig
 )
 
-func ProvideNotificationService() (*twilio.Client, error) {
-	config, err := ProvideTwilioConfig()
+func ProvideNotificationService() (services.NotificationsService, error) {
+	config, err := ProvideBrevoConfig()
 	if err != nil {
 		return nil, err
 	}
-	client, err := twilio.NewClient(config)
+	client, err := brevo.NewClient(config)
 	if err != nil {
 		return nil, err
 	}
@@ -368,10 +368,10 @@ func ProvideRESTServer() (*rest.Server, error) {
 
 // wire.go:
 
-func ProvideTwilioConfig() (twilio.Config, error) {
-	cfg, err := twilio.GetConfigFromEnv()
+func ProvideBrevoConfig() (brevo.Config, error) {
+	cfg, err := brevo.GetConfigFromEnv()
 	if err != nil {
-		return twilio.Config{}, err
+		return brevo.Config{}, err
 	}
 	return *cfg, nil
 }

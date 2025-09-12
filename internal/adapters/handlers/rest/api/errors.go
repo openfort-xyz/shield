@@ -56,6 +56,8 @@ var (
 	ErrMissingAuthProvider   = &Error{"Missing auth provider", "A_MISSING", http.StatusUnauthorized}
 	ErrInvalidAuthProvider   = &Error{"Invalid auth provider", "A_INVALID", http.StatusUnauthorized}
 
+	ErrOTPRequired = &Error{"OTP is required for this request", "OTP_MISSING", http.StatusPreconditionRequired}
+
 	ErrInternal = &Error{"Internal error", "INTERNAL", http.StatusInternalServerError}
 )
 

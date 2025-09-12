@@ -15,6 +15,7 @@ func (p *parser) toDomain(proj *Project) *project.Project {
 		Name:      proj.Name,
 		APIKey:    proj.APIKey,
 		APISecret: proj.APISecret,
+		Enable2FA: proj.Enable2FA,
 	}
 }
 

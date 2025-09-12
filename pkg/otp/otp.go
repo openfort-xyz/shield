@@ -250,15 +250,13 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 // Returns error with status 400 if no pending authentication
 // Returns error with status 401 if OTP expired, invalid, or max attempts exceeded
 func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode string) (*OTPRequest, error) {
-	var request *OTPRequest
-
 	val, err := s.sharesRepo.Get(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	var req OTPRequest
-	if err := json.Unmarshal([]byte(val), &req); err != nil {
+	var request OTPRequest
+	if err := json.Unmarshal([]byte(val), &request); err != nil {
 		return nil, err
 	}
 
@@ -316,7 +314,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 		return nil, err
 	}
 
-	return request, nil
+	return &request, nil
 }
 
 // Cleanup removes expired OTPs and old tracking records

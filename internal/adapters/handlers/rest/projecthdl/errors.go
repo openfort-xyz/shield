@@ -11,6 +11,7 @@ func fromApplicationError(err error) *api.Error {
 	if err == nil {
 		return nil
 	}
+
 	switch {
 	case errors.Is(err, projectapp.ErrProjectNotFound):
 		return api.ErrProjectNotFound
@@ -40,6 +41,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrJWKPemConflict
 	case errors.Is(err, projectapp.ErrInvalidPemCertificate):
 		return api.ErrInvalidPemCertificate
+	case errors.Is(err, projectapp.ErrOTPRequired):
+		return api.ErrOTPRequired
 	default:
 		return api.ErrInternal
 	}
