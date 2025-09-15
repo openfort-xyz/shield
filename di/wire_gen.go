@@ -21,6 +21,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/healthzapp"
+	"go.openfort.xyz/shield/internal/applications/notificationsapp"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
@@ -322,15 +323,11 @@ var (
 )
 
 func ProvideNotificationService() (services.NotificationsService, error) {
-	config, err := ProvideBrevoConfig()
+	notificationApplication, err := notificationsapp.NewNotificationApp()
 	if err != nil {
 		return nil, err
 	}
-	client, err := brevo.NewClient(config)
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
+	return notificationApplication, nil
 }
 
 func ProvideRESTServer() (*rest.Server, error) {

@@ -19,6 +19,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/healthzapp"
+	"go.openfort.xyz/shield/internal/applications/notificationsapp"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
@@ -253,9 +254,8 @@ func ProvideBrevoConfig() (brevo.Config, error) {
 
 func ProvideNotificationService() (c services.NotificationsService, err error) {
 	wire.Build(
-		brevo.NewClient,
-		ProvideBrevoConfig,
-		wire.Bind(new(services.NotificationsService), new(*brevo.Client)),
+		notificationsapp.NewNotificationApp,
+		wire.Bind(new(services.NotificationsService), new(*notificationsapp.NotificationApplication)),
 	)
 
 	return
