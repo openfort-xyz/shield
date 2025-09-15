@@ -56,7 +56,11 @@ var (
 	ErrMissingAuthProvider   = &Error{"Missing auth provider", "A_MISSING", http.StatusUnauthorized}
 	ErrInvalidAuthProvider   = &Error{"Invalid auth provider", "A_INVALID", http.StatusUnauthorized}
 
-	ErrOTPRequired = &Error{"OTP is required for this request", "OTP_MISSING", http.StatusPreconditionRequired}
+	ErrOTPRequired          = &Error{"OTP is required for this request", "OTP_MISSING", http.StatusPreconditionRequired}
+	ErrOTPRateLimitExceeded = &Error{"Rate limit exceeded for user to generate OTP", "OTP_RATE_LIMIT", http.StatusTooManyRequests}
+	ErrOTPExpired           = &Error{"OTP is expired", "OTP_EXPIRED", http.StatusUnprocessableEntity}
+	ErrOTPInvalidated       = &Error{"otp invalidated after max failed attempts", "", http.StatusBadRequest}
+	ErrOTPInvalid           = &Error{"received otp is invalid", "", http.StatusBadRequest}
 
 	ErrInternal = &Error{"Internal error", "INTERNAL", http.StatusInternalServerError}
 )

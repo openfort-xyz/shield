@@ -22,6 +22,12 @@ var (
 	ErrJWKPemConflict              = errors.New("jwk and pem cannot be set at the same time")
 	ErrInvalidPemCertificate       = errors.New("invalid PEM certificate")
 	ErrOTPRequired                 = errors.New("OTP is required for this request")
+	ErrOTPRateLimitExceeded        = errors.New("rate limit exceeded for user")
+	ErrOTPFailedToGenerate         = errors.New("failed to generate OTP")
+	ErrOTPFailedToMarshal          = errors.New("failed to marshal OTP request")
+	ErrOTPExpired                  = errors.New("otp was expired")
+	ErrOTPInvalidated              = errors.New("otp invalidated after max failed attempts")
+	ErrOTPInvalid                  = errors.New("received otp is invalid")
 	ErrInternal                    = errors.New("internal error")
 )
 
@@ -60,5 +66,30 @@ func fromDomainError(err error) error {
 	if errors.Is(err, domainErrors.ErrInvalidEncryptionPart) {
 		return ErrInvalidEncryptionPart
 	}
+
+	if errors.Is(err, domainErrors.ErrOTPRateLimitExceeded) {
+		return ErrOTPRateLimitExceeded
+	}
+
+	if errors.Is(err, domainErrors.ErrOTPFailedToGenerate) {
+		return ErrInternal
+	}
+
+	if errors.Is(err, domainErrors.ErrOTPFailedToMarshal) {
+		return ErrInternal
+	}
+
+	if errors.Is(err, domainErrors.ErrOTPExpired) {
+		return ErrOTPExpired
+	}
+
+	if errors.Is(err, domainErrors.ErrOTPInvalidated) {
+		return ErrOTPInvalidated
+	}
+
+	if errors.Is(err, domainErrors.ErrOTPInvalid) {
+		return ErrOTPInvalid
+	}
+
 	return ErrInternal
 }

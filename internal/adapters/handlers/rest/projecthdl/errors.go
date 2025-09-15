@@ -43,6 +43,14 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrInvalidPemCertificate
 	case errors.Is(err, projectapp.ErrOTPRequired):
 		return api.ErrOTPRequired
+	case errors.Is(err, projectapp.ErrOTPRateLimitExceeded):
+		return api.ErrOTPRateLimitExceeded
+	case errors.Is(err, projectapp.ErrOTPExpired):
+		return api.ErrOTPExpired
+	case errors.Is(err, projectapp.ErrOTPInvalidated):
+		return api.ErrOTPInvalidated
+	case errors.Is(err, projectapp.ErrOTPInvalid):
+		return api.ErrOTPInvalid
 	default:
 		return api.ErrInternal
 	}
