@@ -73,7 +73,6 @@ func (s *Server) Start(ctx context.Context) error {
 	r := mux.NewRouter()
 	r.Use(rateLimiterMdw.RateLimitMiddleware)
 
-	r.Handle("/metrics", metrics.ExposeHTTP())
 	r.Use(metrics.HTTPMiddleware)
 
 	r.Use(requestmdw.RequestIDMiddleware)
