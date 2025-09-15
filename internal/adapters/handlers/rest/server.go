@@ -144,7 +144,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.server.IdleTimeout = s.config.IdleTimeout
 
 	// Start the metrics server
-	// Ideally, this server is never be exposed to the public internet
+	// Ideally, this server is not meant to be exposed to the public internet
 	// and its /metrics endpoint must only be consumed by prometheus
 	// or any other monitoring system
 	// so no authz is required
