@@ -67,7 +67,7 @@ func NewOnboardingTracker(windowMS int64, maxAttempts int) *OnboardingTracker {
 }
 
 // TrackAttempt tracks an onboarding attempt and returns an error if rate limit is exceeded
-func (ot *OnboardingTracker) TrackAttempt(signerID string) error {
+func (ot *OnboardingTracker) TrackAttempt(userID string) error {
 	ot.mu.Lock()
 	defer ot.mu.Unlock()
 
@@ -75,7 +75,7 @@ func (ot *OnboardingTracker) TrackAttempt(signerID string) error {
 
 	// Clean up old attempts outside the window
 	var validAttempts []int64
-	for _, timestamp := range ot.attempts[signerID] {
+	for _, timestamp := range ot.attempts[userID] {
 		if now-timestamp <= ot.windowMS {
 			validAttempts = append(validAttempts, timestamp)
 		}
@@ -83,12 +83,12 @@ func (ot *OnboardingTracker) TrackAttempt(signerID string) error {
 
 	// Check if we're at the rate limit
 	if len(validAttempts) >= ot.maxAttempts {
-		return fmt.Errorf("rate limit exceeded for signer %s", signerID)
+		return fmt.Errorf("rate limit exceeded for signer %s", userID)
 	}
 
 	// Add current attempt
 	validAttempts = append(validAttempts, now)
-	ot.attempts[signerID] = validAttempts
+	ot.attempts[userID] = validAttempts
 
 	return nil
 }
@@ -199,12 +199,12 @@ func NewInMemoryOTPService(sharesRepo repositories.EncryptionPartsRepository, se
 // Returns 9-digit numeric OTP string
 // Returns error with status 429 if rate limit exceeded
 func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (string, error) {
-	if err := s.securityService.TrackAttempt(userID); err != nil {
-		return "", &HTTPError{
-			Status:  http.StatusTooManyRequests,
-			Message: err.Error(),
-		}
-	}
+	// if err := s.securityService.TrackAttempt(userID); err != nil {
+	// 	return "", &HTTPError{
+	// 		Status:  http.StatusTooManyRequests,
+	// 		Message: err.Error(),
+	// 	}
+	// }
 
 	otp, err := s.createRandomOTP()
 	if err != nil {
@@ -258,10 +258,6 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 	var request OTPRequest
 	if err := json.Unmarshal([]byte(val), &request); err != nil {
 		return nil, err
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to deserialize OTP request: %w", err)
 	}
 
 	currentTime := time.Now().UnixMilli()
