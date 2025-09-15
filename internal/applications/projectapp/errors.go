@@ -28,6 +28,7 @@ var (
 	ErrOTPExpired                  = errors.New("otp was expired")
 	ErrOTPInvalidated              = errors.New("otp invalidated after max failed attempts")
 	ErrOTPInvalid                  = errors.New("received otp is invalid")
+	ErrOTPUserInfoMissing          = errors.New("neither email nor phone number was provided")
 	ErrInternal                    = errors.New("internal error")
 )
 

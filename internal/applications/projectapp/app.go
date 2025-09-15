@@ -190,7 +190,7 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ema
 
 		return nil
 	} else {
-		return errors.New("user information was not provided")
+		return ErrOTPUserInfoMissing
 	}
 }
 

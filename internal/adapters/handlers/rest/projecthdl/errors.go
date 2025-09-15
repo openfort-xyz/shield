@@ -51,6 +51,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrOTPInvalidated
 	case errors.Is(err, projectapp.ErrOTPInvalid):
 		return api.ErrOTPInvalid
+	case errors.Is(err, projectapp.ErrOTPUserInfoMissing):
+		return api.ErrOTPUserInfoMissing
 	default:
 		return api.ErrInternal
 	}
