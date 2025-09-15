@@ -7,16 +7,12 @@ import (
 	"net/http"
 	"strings"
 
-	"go.openfort.xyz/shield/pkg/prometheus"
-
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/healthzhdl"
 	"go.openfort.xyz/shield/internal/applications/healthzapp"
 
-	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/internal/core/ports/services"
-
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	metrics "go.openfort.xyz/metrics"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/authmdw"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/projecthdl"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/ratelimitermdw"
@@ -25,6 +21,8 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/sharehdl"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
+	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/logger"
 )
 
@@ -34,6 +32,7 @@ type Server struct {
 	shareApp              *shareapp.ShareApplication
 	healthzApp            *healthzapp.Application
 	server                *http.Server
+	metricsServer         *metrics.Server
 	logger                *slog.Logger
 	config                *Config
 	authenticationFactory factories.AuthenticationFactory
@@ -42,12 +41,19 @@ type Server struct {
 }
 
 // New creates a new REST server
-func New(cfg *Config, projectApp *projectapp.ProjectApplication, shareApp *shareapp.ShareApplication, authenticationFactory factories.AuthenticationFactory, identityFactory factories.IdentityFactory, userService services.UserService, healthzApp *healthzapp.Application) *Server {
+func New(cfg *Config,
+	projectApp *projectapp.ProjectApplication,
+	shareApp *shareapp.ShareApplication,
+	authenticationFactory factories.AuthenticationFactory,
+	identityFactory factories.IdentityFactory,
+	userService services.UserService,
+	healthzApp *healthzapp.Application) *Server {
 	return &Server{
 		projectApp:            projectApp,
 		shareApp:              shareApp,
 		healthzApp:            healthzApp,
 		server:                new(http.Server),
+		metricsServer:         metrics.NewServer(cfg.MetricsPort),
 		logger:                logger.New("rest_server"),
 		config:                cfg,
 		authenticationFactory: authenticationFactory,
@@ -67,8 +73,8 @@ func (s *Server) Start(ctx context.Context) error {
 	r := mux.NewRouter()
 	r.Use(rateLimiterMdw.RateLimitMiddleware)
 
-	r.Handle("/metrics", prometheus.ExposeHTTP())
-	r.Use(prometheus.Metrics)
+	r.Handle("/metrics", metrics.ExposeHTTP())
+	r.Use(metrics.HTTPMiddleware)
 
 	r.Use(requestmdw.RequestIDMiddleware)
 	r.Use(responsemdw.ResponseMiddleware)
@@ -136,6 +142,20 @@ func (s *Server) Start(ctx context.Context) error {
 	s.server.ReadTimeout = s.config.ReadTimeout
 	s.server.WriteTimeout = s.config.WriteTimeout
 	s.server.IdleTimeout = s.config.IdleTimeout
+
+	// Start the metrics server
+	// Ideally, this server is not meant to be exposed to the public internet
+	// and its /metrics endpoint must only be consumed by prometheus
+	// or any other monitoring system
+	// so no authz is required
+	// Default port is 9100 and can be configured via METRICS_PORT env var
+	// (look how Config is defined in config.go and used when instantiating the server)
+	go func() {
+		s.logger.InfoContext(ctx, "starting metrics server", slog.Int("port", s.config.MetricsPort))
+		if err := s.metricsServer.Start(ctx); err != nil && err != http.ErrServerClosed {
+			s.logger.ErrorContext(ctx, "failed to start metrics server", slog.Any("error", err))
+		}
+	}()
 
 	s.logger.InfoContext(ctx, "starting server", slog.String("address", s.server.Addr))
 	return s.server.ListenAndServe()
