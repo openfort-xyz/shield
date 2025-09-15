@@ -1,3 +1,6 @@
+// Inspiration for this OTP implementation was taken from this project https://github.com/Paella-Labs/tee-ts/tree/main
+// Main idea and core data flow taken from there and rewritten in Golang.
+
 package otp
 
 import (
@@ -7,11 +10,11 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"net/http"
 	"sync"
 	"time"
 
 	"github.com/tidwall/buntdb"
+	"go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 )
 
@@ -78,7 +81,7 @@ func (ot *OnboardingTracker) TrackAttempt(userID string) error {
 
 	// Check if we're at the rate limit
 	if len(validAttempts) >= ot.maxAttempts {
-		return fmt.Errorf("rate limit exceeded for signer %s", userID)
+		return errors.ErrOTPRateLimitExceeded
 	}
 
 	return nil
@@ -175,15 +178,12 @@ func NewInMemoryOTPService(sharesRepo repositories.EncryptionPartsRepository, se
 // Returns error with status 429 if rate limit exceeded
 func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (string, error) {
 	if err := s.securityService.TrackAttempt(userID); err != nil {
-		return "", &HTTPError{
-			Status:  http.StatusTooManyRequests,
-			Message: err.Error(),
-		}
+		return "", err
 	}
 
 	otp, err := s.createRandomOTP()
 	if err != nil {
-		return "", fmt.Errorf("failed to generate OTP: %w", err)
+		return "", err
 	}
 
 	log.Printf("[DEBUG] Generated OTP: %s", otp)
@@ -196,7 +196,7 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal OTP request: %w", err)
+		return "", errors.ErrOTPFailedToMarshal
 	}
 
 	options := buntdb.SetOptions{
@@ -240,10 +240,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 		if err != nil {
 			return nil, err
 		}
-		return nil, &HTTPError{
-			Status:  http.StatusUnauthorized,
-			Message: "OTP has expired",
-		}
+		return nil, errors.ErrOTPExpired
 	}
 
 	if request.OTP != otpCode {
@@ -258,10 +255,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 			// prevent brute forcing
 			s.securityService.AddAttempt(userID)
 
-			return nil, &HTTPError{
-				Status:  http.StatusUnauthorized,
-				Message: fmt.Sprintf("OTP invalidated after %d failed attempts", s.config.MaxFailedAttempts),
-			}
+			return nil, errors.ErrOTPInvalidated
 		}
 
 		// Update failed attempts count
@@ -276,10 +270,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 			return nil, err
 		}
 
-		return nil, &HTTPError{
-			Status:  http.StatusUnauthorized,
-			Message: fmt.Sprintf("Invalid OTP (%d/%d attempts)", request.FailedAttempts, s.config.MaxFailedAttempts),
-		}
+		return nil, errors.ErrOTPInvalid
 	}
 
 	// OTP is valid, remove from storage
@@ -320,7 +311,7 @@ func (s *InMemoryOTPService) createRandomOTP() (string, error) {
 
 	randomNumber, err := rand.Int(rand.Reader, maxValue)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate random number: %w", err)
+		return "", errors.ErrOTPFailedToGenerate
 	}
 
 	return fmt.Sprintf("%09d", randomNumber.Int64()), nil
