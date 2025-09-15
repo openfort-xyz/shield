@@ -28,11 +28,11 @@ import (
 
 // Server is the REST server for the shield API
 type Server struct {
-	projectApp *projectapp.ProjectApplication
-	shareApp   *shareapp.ShareApplication
-	healthzApp *healthzapp.Application
-	server     *http.Server
-
+	projectApp            *projectapp.ProjectApplication
+	shareApp              *shareapp.ShareApplication
+	healthzApp            *healthzapp.Application
+	server                *http.Server
+	metricsServer         *metrics.Server
 	logger                *slog.Logger
 	config                *Config
 	authenticationFactory factories.AuthenticationFactory
@@ -53,6 +53,7 @@ func New(cfg *Config,
 		shareApp:              shareApp,
 		healthzApp:            healthzApp,
 		server:                new(http.Server),
+		metricsServer:         metrics.NewServer(cfg.MetricsPort),
 		logger:                logger.New("rest_server"),
 		config:                cfg,
 		authenticationFactory: authenticationFactory,
@@ -141,6 +142,20 @@ func (s *Server) Start(ctx context.Context) error {
 	s.server.ReadTimeout = s.config.ReadTimeout
 	s.server.WriteTimeout = s.config.WriteTimeout
 	s.server.IdleTimeout = s.config.IdleTimeout
+
+	// Start the metrics server
+	// Ideally, this server is never be exposed to the public internet
+	// and its /metrics endpoint must only be consumed by prometheus
+	// or any other monitoring system
+	// so no authz is required
+	// Default port is 9100 and can be configured via METRICS_PORT env var
+	// (look how Config is defined in config.go and used when instantiating the server)
+	go func() {
+		s.logger.InfoContext(ctx, "starting metrics server", slog.Int("port", s.config.MetricsPort))
+		if err := s.metricsServer.Start(ctx); err != nil && err != http.ErrServerClosed {
+			s.logger.ErrorContext(ctx, "failed to start metrics server", slog.Any("error", err))
+		}
+	}()
 
 	s.logger.InfoContext(ctx, "starting server", slog.String("address", s.server.Addr))
 	return s.server.ListenAndServe()

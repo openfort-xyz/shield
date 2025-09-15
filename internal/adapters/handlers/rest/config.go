@@ -18,6 +18,7 @@ import (
 // - CORS_EXTRA_ALLOWED_HEADERS: the extra allowed headers for the CORS header (comma separated)
 type Config struct {
 	Port                    int           `env:"PORT" envDefault:"8080"`
+	MetricsPort             int           `env:"METRICS_PORT" envDefault:"9100"`
 	RPS                     int           `env:"REQUESTS_PER_SECOND" envDefault:"100"`
 	ReadTimeout             time.Duration `env:"READ_TIMEOUT" envDefault:"5s"`
 	WriteTimeout            time.Duration `env:"WRITE_TIMEOUT" envDefault:"10s"`
