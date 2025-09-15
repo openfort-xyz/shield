@@ -296,9 +296,9 @@ func ProvideOnboardingTracker() (*otp.OnboardingTracker, error) {
 
 var (
 	_wireInt64Value = otp.DefaultSecurityConfig.
-			DeviceOnboardingWindowMS
+			UserOnboardingWindowMS
 	_wireIntValue = otp.DefaultSecurityConfig.
-			MaxDeviceOnboardAttempts
+			MaxUserOnboardAttempts
 )
 
 func ProvideOTPService() (*otp.InMemoryOTPService, error) {

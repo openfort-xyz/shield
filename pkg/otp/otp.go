@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tidwall/buntdb"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 )
 
@@ -20,28 +21,23 @@ const OTPDigits = 9
 //
 // OTP Brute Force Protection:
 //   - OTP space: 1,000,000,000 possible combinations (9-digit numeric)
-//   - Attempts per day: With a window of 6 hours, 4 windows per day, 3 onboard attempts per window,
-//     and 3 OTP attempts per onboarding, an attacker gets 12 OTP generations per day.
-//   - Expected brute force time: Using cumulative probability model 0.5 = 1 - (1 - 3/1,000,000,000)^n,
-//     it takes 231,049,000 OTP generations for 50% success probability.
-//   - Time to brute force: 231,049,000 � 12 OTP generations/day = ~19,254,000 days H 53,000 years.
+//   - Attempts per day: With a window of 6 hours, 4 windows per day, 3 attempts per window, and 3 OTP attempts per one generation, an attacker gets 36 OTP generations per day.
+//   - Expected brute force time: Using cumulative probability model 0.5 = 1 - (1 - 3/1000,000,000)^n, it takes 231,049,000 OTP generations for 50% success probability.
+//   - Time to brute force: 231,049,000 ÷ 36 OTP generations/day = ~6,418,027 days ≈ **17583 years**.
 type SecurityConfig struct {
-	MaxFailedAttempts        int
-	DeviceOnboardingWindowMS int64
-	MaxDeviceOnboardAttempts int
-	OTPExpiryMS              int64
-	OTPCleanupGracePeriodMS  int64
+	MaxFailedAttempts      int
+	UserOnboardingWindowMS int64
+	MaxUserOnboardAttempts int
+	OTPExpiryMS            int64
 }
 
 var DefaultSecurityConfig = SecurityConfig{
-	MaxFailedAttempts:        3,
-	DeviceOnboardingWindowMS: 6 * 60 * 60 * 1000, // 6 hours
-	MaxDeviceOnboardAttempts: 3,
-	OTPExpiryMS:              5 * 60 * 1000,  // 5 minutes
-	OTPCleanupGracePeriodMS:  60 * 60 * 1000, // 1 hour
+	MaxFailedAttempts:      3,
+	UserOnboardingWindowMS: 6 * 60 * 60 * 1000, // 6 hours
+	MaxUserOnboardAttempts: 3,
+	OTPExpiryMS:            5 * 60 * 1000, // 5 minutes
 }
 
-// TODO: move to types somewhere
 // OTPRequest represents a pending OTP verification request
 type OTPRequest struct {
 	OTP            string `json:"otp"`
@@ -73,7 +69,6 @@ func (ot *OnboardingTracker) TrackAttempt(userID string) error {
 
 	now := time.Now().UnixMilli()
 
-	// Clean up old attempts outside the window
 	var validAttempts []int64
 	for _, timestamp := range ot.attempts[userID] {
 		if now-timestamp <= ot.windowMS {
@@ -86,11 +81,11 @@ func (ot *OnboardingTracker) TrackAttempt(userID string) error {
 		return fmt.Errorf("rate limit exceeded for signer %s", userID)
 	}
 
-	// Add current attempt
-	validAttempts = append(validAttempts, now)
-	ot.attempts[userID] = validAttempts
-
 	return nil
+}
+
+func (ot *OnboardingTracker) AddAttempt(userID string) {
+	ot.attempts[userID] = []int64{time.Now().UnixMilli()}
 }
 
 // CleanupOldRecords removes tracking data older than the window
@@ -127,12 +122,12 @@ type OTPService interface {
 	// GenerateOTP generates a new OTP and stores it
 	// Returns 9-digit numeric OTP string
 	// Returns error with status 429 if device onboarding rate limit exceeded
-	GenerateOTP(signerID, authID, deviceID string) (string, error)
+	GenerateOTP(ctx context.Context, userId string) (string, error)
 
 	// VerifyOTP verifies an OTP for a given device
 	// Returns the OTP request if valid
 	// Returns error if OTP is invalid, expired, or max attempts exceeded
-	VerifyOTP(deviceID, otpCode string) (*OTPRequest, error)
+	VerifyOTP(ctx context.Context, userID, otpCode string) (*OTPRequest, error)
 
 	// Cleanup removes expired OTPs and old tracking records
 	Cleanup() error
@@ -154,27 +149,7 @@ type InMemoryOTPService struct {
 	securityService *OnboardingTracker
 	config          SecurityConfig
 	cleanupTicker   *time.Ticker
-	stopCleanup     chan struct{}
-	mu              sync.Mutex
 }
-
-var (
-	instance *InMemoryOTPService
-	once     sync.Once
-)
-
-// GetInstance returns singleton instance of InMemoryOTPService with default security configuration
-// func GetInstance() (*InMemoryOTPService, error) {
-// 	var err error
-// 	once.Do(func() {
-// 		security := NewOnboardingTracker(
-// 			DefaultSecurityConfig.DeviceOnboardingWindowMS,
-// 			DefaultSecurityConfig.MaxDeviceOnboardAttempts,
-// 		)
-// 		instance, err = NewInMemoryOTPService(security, DefaultSecurityConfig)
-// 	})
-// 	return instance, err
-// }
 
 // NewInMemoryOTPService creates a new OTP service with buntdb storage
 func NewInMemoryOTPService(sharesRepo repositories.EncryptionPartsRepository, securityService *OnboardingTracker, config SecurityConfig) (*InMemoryOTPService, error) {
@@ -182,10 +157,10 @@ func NewInMemoryOTPService(sharesRepo repositories.EncryptionPartsRepository, se
 		sharesRepo:      sharesRepo,
 		securityService: securityService,
 		config:          config,
-		stopCleanup:     make(chan struct{}),
 	}
 
-	// service.startCleanupInterval()
+	service.startCleanupInterval()
+
 	return service, nil
 }
 
@@ -199,12 +174,12 @@ func NewInMemoryOTPService(sharesRepo repositories.EncryptionPartsRepository, se
 // Returns 9-digit numeric OTP string
 // Returns error with status 429 if rate limit exceeded
 func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (string, error) {
-	// if err := s.securityService.TrackAttempt(userID); err != nil {
-	// 	return "", &HTTPError{
-	// 		Status:  http.StatusTooManyRequests,
-	// 		Message: err.Error(),
-	// 	}
-	// }
+	if err := s.securityService.TrackAttempt(userID); err != nil {
+		return "", &HTTPError{
+			Status:  http.StatusTooManyRequests,
+			Message: err.Error(),
+		}
+	}
 
 	otp, err := s.createRandomOTP()
 	if err != nil {
@@ -224,12 +199,11 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 		return "", fmt.Errorf("failed to marshal OTP request: %w", err)
 	}
 
-	// TODO: add this stuff there
-	// &buntdb.SetOptions{
-	// 		Expires: true,
-	// 		TTL:     time.Duration(s.config.OTPExpiryMS) * time.Millisecond,
-	// 	}
-	err = s.sharesRepo.Set(ctx, userID, string(requestBytes))
+	options := buntdb.SetOptions{
+		Expires: true,
+		TTL:     time.Duration(s.config.OTPExpiryMS+1000) * time.Millisecond, // add some buffer to expiry time, just in case
+	}
+	err = s.sharesRepo.Set(ctx, userID, string(requestBytes), &options)
 	if err != nil {
 		return "", err
 	}
@@ -280,6 +254,10 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 			if err != nil {
 				return nil, err
 			}
+
+			// prevent brute forcing
+			s.securityService.AddAttempt(userID)
+
 			return nil, &HTTPError{
 				Status:  http.StatusUnauthorized,
 				Message: fmt.Sprintf("OTP invalidated after %d failed attempts", s.config.MaxFailedAttempts),
@@ -288,12 +266,12 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 
 		// Update failed attempts count
 		requestBytes, _ := json.Marshal(request)
-		// TODO: add TTL
-		// &buntdb.SetOptions{
-		// 		Expires: true,
-		// 		TTL:     time.Duration(s.config.OTPExpiryMS-(currentTime-request.CreatedAt)) * time.Millisecond,
-		// 	}
-		err = s.sharesRepo.Update(ctx, userID, string(requestBytes))
+
+		options := buntdb.SetOptions{
+			Expires: true,
+			TTL:     time.Duration((s.config.OTPExpiryMS-(currentTime-request.CreatedAt))+1000) * time.Millisecond, // add some buffer to expiry time, just in case
+		}
+		err = s.sharesRepo.Update(ctx, userID, string(requestBytes), &options)
 		if err != nil {
 			return nil, err
 		}
@@ -313,77 +291,21 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 	return &request, nil
 }
 
-// Cleanup removes expired OTPs and old tracking records
-// func (s *InMemoryOTPService) Cleanup() error {
-// 	s.cleanupExpiredOTPs()
-// 	s.securityService.CleanupOldRecords()
-// 	return nil
-// }
+// Cleanup removes old tracking records
+func (s *InMemoryOTPService) Cleanup() error {
+	s.securityService.CleanupOldRecords()
+	return nil
+}
 
-// Close closes the OTP service and cleans up resources
-// func (s *InMemoryOTPService) Close() error {
-// 	s.mu.Lock()
-// 	defer s.mu.Unlock()
+func (s *InMemoryOTPService) startCleanupInterval() {
+	s.cleanupTicker = time.NewTicker(time.Duration(s.config.OTPExpiryMS) * time.Millisecond)
 
-// 	if s.cleanupTicker != nil {
-// 		s.cleanupTicker.Stop()
-// 		close(s.stopCleanup)
-// 		s.cleanupTicker = nil
-// 	}
-
-// 	return s.db.Close()
-// }
-
-// func (s *InMemoryOTPService) startCleanupInterval() {
-// 	s.cleanupTicker = time.NewTicker(time.Duration(s.config.OTPExpiryMS) * time.Millisecond)
-
-// 	go func() {
-// 		for {
-// 			select {
-// 			case <-s.cleanupTicker.C:
-// 				s.Cleanup()
-// 			case <-s.stopCleanup:
-// 				return
-// 			}
-// 		}
-// 	}()
-// }
-
-// func (s *InMemoryOTPService) cleanupExpiredOTPs() {
-// 	currentTime := time.Now().UnixMilli()
-// 	expiredCount := 0
-// 	extendedExpiryTime := s.config.OTPExpiryMS + s.config.OTPCleanupGracePeriodMS
-
-// 	s.db.Update(func(tx *buntdb.Tx) error {
-// 		var toDelete []string
-
-// 		tx.Ascend("", func(key, value string) bool {
-// 			var request OTPRequest
-// 			if err := json.Unmarshal([]byte(value), &request); err != nil {
-// 				// If we can't unmarshal, delete it
-// 				toDelete = append(toDelete, key)
-// 				expiredCount++
-// 				return true
-// 			}
-
-// 			if currentTime-request.CreatedAt > extendedExpiryTime {
-// 				toDelete = append(toDelete, key)
-// 				expiredCount++
-// 			}
-// 			return true
-// 		})
-
-// 		for _, key := range toDelete {
-// 			tx.Delete(key)
-// 		}
-
-// 		return nil
-// 	})
-
-// 	if expiredCount > 0 {
-// 		log.Printf("[Cleanup] Removed %d expired OTPs from memory", expiredCount)
-// 	}
-// }
+	go func() {
+		for range s.cleanupTicker.C {
+			s.Cleanup()
+		}
+	}()
+}
 
 // createRandomOTP generates cryptographically secure 9-digit OTP
 //

@@ -48,10 +48,9 @@ func (r *repository) Get(ctx context.Context, key string) (string, error) {
 	return data, nil
 }
 
-func (r *repository) Set(ctx context.Context, key, value string) error {
+func (r *repository) Set(ctx context.Context, key, value string, options *buntdb.SetOptions) error {
 	return r.db.Update(func(tx *buntdb.Tx) error {
-		// TODO: add TTL here? Just in case process interrupted for someone and share stuck in memory for indefinite time. It's more like nitpick than real issue
-		_, _, err := tx.Set(key, value, nil)
+		_, _, err := tx.Set(key, value, options)
 		if err != nil {
 			if errors.Is(err, buntdb.ErrIndexExists) {
 				return domainErrors.ErrKeyInDBAlreadyExists
@@ -64,10 +63,9 @@ func (r *repository) Set(ctx context.Context, key, value string) error {
 	})
 }
 
-func (r *repository) Update(ctx context.Context, key, value string) error {
+func (r *repository) Update(ctx context.Context, key, value string, options *buntdb.SetOptions) error {
 	return r.db.Update(func(tx *buntdb.Tx) error {
-		// TODO: add TTL here? Just in case process interrupted for someone and share stuck in memory for indefinite time. It's more like nitpick than real issue
-		_, _, err := tx.Set(key, value, nil)
+		_, _, err := tx.Set(key, value, options)
 		if err != nil && !errors.Is(err, buntdb.ErrIndexExists) {
 			r.logger.ErrorContext(ctx, "error setting value by key into buntdb", logger.Error(err))
 			return err

@@ -226,8 +226,8 @@ func ProvideHealthzApplication() (a *healthzapp.Application, err error) {
 func ProvideOnboardingTracker() (t *otp.OnboardingTracker, err error) {
 	wire.Build(
 		otp.NewOnboardingTracker,
-		wire.Value(otp.DefaultSecurityConfig.DeviceOnboardingWindowMS),
-		wire.Value(otp.DefaultSecurityConfig.MaxDeviceOnboardAttempts),
+		wire.Value(otp.DefaultSecurityConfig.UserOnboardingWindowMS),
+		wire.Value(otp.DefaultSecurityConfig.MaxUserOnboardAttempts),
 	)
 
 	return

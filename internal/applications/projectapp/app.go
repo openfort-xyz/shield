@@ -430,7 +430,7 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 		return "", fromDomainError(err)
 	}
 
-	err = a.encryptionPartsRepo.Set(ctx, sessionID, string(encPartDataBytes))
+	err = a.encryptionPartsRepo.Set(ctx, sessionID, string(encPartDataBytes), nil)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to set encryption part", logger.Error(err))
 		return "", fromDomainError(err)
