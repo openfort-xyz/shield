@@ -7,16 +7,12 @@ import (
 	"net/http"
 	"strings"
 
-	"go.openfort.xyz/shield/pkg/prometheus"
-
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/healthzhdl"
 	"go.openfort.xyz/shield/internal/applications/healthzapp"
 
-	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/internal/core/ports/services"
-
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	metrics "go.openfort.xyz/metrics"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/authmdw"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/projecthdl"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/ratelimitermdw"
@@ -25,15 +21,18 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/sharehdl"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
+	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/logger"
 )
 
 // Server is the REST server for the shield API
 type Server struct {
-	projectApp            *projectapp.ProjectApplication
-	shareApp              *shareapp.ShareApplication
-	healthzApp            *healthzapp.Application
-	server                *http.Server
+	projectApp *projectapp.ProjectApplication
+	shareApp   *shareapp.ShareApplication
+	healthzApp *healthzapp.Application
+	server     *http.Server
+
 	logger                *slog.Logger
 	config                *Config
 	authenticationFactory factories.AuthenticationFactory
@@ -42,7 +41,13 @@ type Server struct {
 }
 
 // New creates a new REST server
-func New(cfg *Config, projectApp *projectapp.ProjectApplication, shareApp *shareapp.ShareApplication, authenticationFactory factories.AuthenticationFactory, identityFactory factories.IdentityFactory, userService services.UserService, healthzApp *healthzapp.Application) *Server {
+func New(cfg *Config,
+	projectApp *projectapp.ProjectApplication,
+	shareApp *shareapp.ShareApplication,
+	authenticationFactory factories.AuthenticationFactory,
+	identityFactory factories.IdentityFactory,
+	userService services.UserService,
+	healthzApp *healthzapp.Application) *Server {
 	return &Server{
 		projectApp:            projectApp,
 		shareApp:              shareApp,
@@ -67,8 +72,8 @@ func (s *Server) Start(ctx context.Context) error {
 	r := mux.NewRouter()
 	r.Use(rateLimiterMdw.RateLimitMiddleware)
 
-	r.Handle("/metrics", prometheus.ExposeHTTP())
-	r.Use(prometheus.Metrics)
+	r.Handle("/metrics", metrics.ExposeHTTP())
+	r.Use(metrics.HTTPMiddleware)
 
 	r.Use(requestmdw.RequestIDMiddleware)
 	r.Use(responsemdw.ResponseMiddleware)
