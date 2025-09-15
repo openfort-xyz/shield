@@ -181,8 +181,6 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ema
 			return err
 		}
 
-		// TODO: check the status on response
-
 		return nil
 	} else if phone != nil {
 		err := a.notificationService.SendSMS(ctx, *phone, otpCode)
@@ -190,11 +188,9 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ema
 			return err
 		}
 
-		// TODO: check the status on response
-
 		return nil
 	} else {
-		return errors.New("User information was not provided")
+		return errors.New("user information was not provided")
 	}
 }
 

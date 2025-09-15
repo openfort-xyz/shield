@@ -71,7 +71,3 @@ func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, 
 
 	return nil
 }
-func (c *Client) SendSMS(ctx context.Context, to string, message string) error {
-	fmt.Printf("\n\nWARNING: Was called a function which is not implemented - SendSMS\n\n")
-	return nil
-}
