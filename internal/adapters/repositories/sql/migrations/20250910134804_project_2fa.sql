@@ -8,11 +8,6 @@ ADD COLUMN 2fa_enabled BOOL NOT NULL DEFAULT false;
 UPDATE shld_projects SET 2fa_enabled = false;
 -- +goose StatementEnd
 
--- +goose StatementBegin
-ALTER TABLE shld_projects
-ALTER COLUMN 2fa_enabled SET DEFAULT true;
--- +goose StatementEnd
-
 -- +goose Down
 -- +goose StatementBegin
 ALTER TABLE shld_projects DROP COLUMN IF EXISTS 2fa_enabled;

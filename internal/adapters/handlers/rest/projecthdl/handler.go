@@ -61,7 +61,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		opts = append(opts, projectapp.WithEncryptionKey())
 	}
 
-	enable2fa := true
+	enable2fa := false
 	if req.Enable2FA != nil {
 		enable2fa = *req.Enable2FA
 	}
