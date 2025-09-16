@@ -48,7 +48,7 @@ type OTPRequest struct {
 	FailedAttempts int    `json:"failed_attempts"`
 }
 
-// OnboardingTracker tracks device onboarding attempts with rate limiting
+// OnboardingTracker tracks failed onboarding attempts with rate limiting
 type OnboardingTracker struct {
 	windowMS    int64
 	maxAttempts int
@@ -124,7 +124,6 @@ func (ot *OnboardingTracker) CleanupOldRecords() {
 type OTPService interface {
 	// GenerateOTP generates a new OTP and stores it
 	// Returns 9-digit numeric OTP string
-	// Returns error with status 429 if device onboarding rate limit exceeded
 	GenerateOTP(ctx context.Context, userId string) (string, error)
 
 	// VerifyOTP verifies an OTP for a given device
@@ -142,7 +141,7 @@ type OTPService interface {
 // InMemoryOTPService implements OTPService with comprehensive security controls using buntdb
 //
 // Security Features:
-// - Rate Limiting: Device onboarding attempts are limited per signerID+authID pair
+// - Rate Limiting: User onboarding attempts are limited per userID
 // - Brute Force Protection: OTPs invalidated after 3 failed attempts
 // - Time-based Expiry: OTPs expire after 5 minutes
 // - Memory Management: Automatic cleanup of expired OTPs and old records
@@ -170,12 +169,11 @@ func NewInMemoryOTPService(sharesRepo repositories.EncryptionPartsRepository, se
 // GenerateOTP generates a new OTP and stores it in memory
 //
 // Security Flow:
-// 1. Enforces device onboarding limits per signerID/authID pair
+// 1. Enforces user onboarding limits per userID
 // 2. Generates cryptographically secure 9-digit OTP
 // 3. Stores OTP with metadata for verification tracking
 //
 // Returns 9-digit numeric OTP string
-// Returns error with status 429 if rate limit exceeded
 func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (string, error) {
 	if err := s.securityService.TrackAttempt(userID); err != nil {
 		return "", err
@@ -185,8 +183,6 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 	if err != nil {
 		return "", err
 	}
-
-	log.Printf("[DEBUG] Generated OTP: %s", otp)
 
 	request := &OTPRequest{
 		OTP:            otp,
@@ -211,18 +207,16 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 	return otp, nil
 }
 
-// VerifyOTP verifies an OTP for a given device with comprehensive security checks
+// VerifyOTP verifies an OTP for a given user with comprehensive security checks
 //
 // Security Validations:
-// 1. Checks if OTP request exists for device
+// 1. Checks if OTP request exists for user
 // 2. Validates OTP hasn't expired (5-minute window)
 // 3. Verifies OTP code matches
 // 4. Tracks failed attempts and invalidates after 3 failures
 // 5. Cleans up successful/failed requests from memory
 //
 // Returns the OTP request if valid, containing authentication context
-// Returns error with status 400 if no pending authentication
-// Returns error with status 401 if OTP expired, invalid, or max attempts exceeded
 func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode string) (*OTPRequest, error) {
 	val, err := s.sharesRepo.Get(ctx, userID)
 	if err != nil {

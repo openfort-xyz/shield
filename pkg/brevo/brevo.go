@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	FROM_EMAIL = "vadym@openfort.xyz"
+	FROM_EMAIL        = "shield@openfort.xyz"
+	EMAIL_SENDER_NAME = "Shield"
 )
 
 type Config struct {
@@ -46,14 +47,14 @@ func NewClient(config Config) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, body string) error {
+func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, body string, userId string) error {
 	sender := brevo.SendSmtpEmailSender{
-		Name:  "Openfort",
+		Name:  EMAIL_SENDER_NAME,
 		Email: FROM_EMAIL,
 	}
 	to := brevo.SendSmtpEmailTo{
 		Email: toEmail,
-		Name:  "user", // TODO: here we can put user UUID
+		Name:  userId,
 	}
 	email := brevo.SendSmtpEmail{
 		Sender:      &sender,
@@ -62,12 +63,10 @@ func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, 
 		TextContent: body,
 	}
 
-	_, resp, err := c.brevoClient.TransactionalEmailsApi.SendTransacEmail(ctx, email)
+	_, _, err := c.brevoClient.TransactionalEmailsApi.SendTransacEmail(ctx, email)
 	if err != nil {
-		fmt.Printf("\nHere we go: %+v\n", err)
 		return err
 	}
-	fmt.Printf("\n\nINFO: Here is response from Breco on sent email: %+v\n\n", resp)
 
 	return nil
 }

@@ -39,8 +39,8 @@ func NewNotificationApp() (*NotificationApplication, error) {
 	}, nil
 }
 
-func (c *NotificationApplication) SendEmail(ctx context.Context, toEmail string, subject string, body string) error {
-	err := c.emailProvider.SendEmail(ctx, toEmail, subject, body)
+func (c *NotificationApplication) SendEmail(ctx context.Context, toEmail string, subject string, body string, userId string) error {
+	err := c.emailProvider.SendEmail(ctx, toEmail, subject, body, userId)
 
 	return err
 }

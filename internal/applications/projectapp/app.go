@@ -13,6 +13,7 @@ import (
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/pkg/otp"
 	"go.openfort.xyz/shield/pkg/random"
+	"go.openfort.xyz/shield/pkg/validation"
 
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
@@ -35,6 +36,8 @@ type ProjectApplication struct {
 	otpService          *otp.InMemoryOTPService
 	notificationService services.NotificationsService
 }
+
+const OTP_EMAIL_SUBJECT = "Openfort OTP"
 
 func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRepository, providerSvc services.ProviderService, providerRepo repositories.ProviderRepository, sharesRepo repositories.ShareRepository, encryptionFactory factories.EncryptionFactory, encryptionPartsRepo repositories.EncryptionPartsRepository, otpService *otp.InMemoryOTPService, notificationService services.NotificationsService) *ProjectApplication {
 	return &ProjectApplication{
@@ -176,13 +179,21 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ema
 	}
 
 	if email != nil {
-		err := a.notificationService.SendEmail(ctx, *email, "Openfort OTP", otpCode)
+		if !validation.IsValidEmail(*email) {
+			return ErrEmailIsInvalid
+		}
+
+		err := a.notificationService.SendEmail(ctx, *email, OTP_EMAIL_SUBJECT, otpCode, userId)
 		if err != nil {
 			return err
 		}
 
 		return nil
 	} else if phone != nil {
+		if !validation.IsValidPhoneNumber(*phone) {
+			return ErrPhoneNumberIsInvalid
+		}
+
 		err := a.notificationService.SendSMS(ctx, *phone, otpCode)
 		if err != nil {
 			return err

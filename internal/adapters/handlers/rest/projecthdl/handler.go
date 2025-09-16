@@ -177,16 +177,13 @@ func (h *Handler) RequestOTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !req.ParametersValid() {
-		// TODO: add more explicit message of what exactly is wrong with parameters
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("invalid parameters were passed"))
 		return
 	}
 
-	// TODO: validate if email / phone number is correct
-
 	err = h.app.GenerateOTP(ctx, req.UserId, req.Email, req.Phone)
 	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage(err.Error()))
+		api.RespondWithError(w, fromApplicationError(err))
 		return
 	}
 
