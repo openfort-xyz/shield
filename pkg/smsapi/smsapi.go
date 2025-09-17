@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/caarlos0/env/v10"
+	env "github.com/caarlos0/env/v10"
 	"github.com/smsapi/smsapi-go/smsapi"
 )
 
