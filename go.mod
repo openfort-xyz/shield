@@ -8,7 +8,6 @@ require (
 	github.com/MicahParks/keyfunc/v3 v3.3.3
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/codahale/sss v0.0.0-20160501174526-0cb9f6d3f7f1
-	github.com/getbrevo/brevo-go v1.1.3
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
@@ -33,7 +32,6 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/MicahParks/jwkset v0.6.0 // indirect
-	github.com/antihax/optional v1.0.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -65,7 +63,6 @@ require (
 	go.openfort.xyz/jsonrpc v0.0.5 // indirect
 	go.openfort.xyz/pubsub v0.0.18 // indirect
 	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/oauth2 v0.24.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
