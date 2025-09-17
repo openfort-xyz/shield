@@ -2,6 +2,7 @@ package shareapp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -41,6 +42,15 @@ func TestShareApplication_GetShare(t *testing.T) {
 	storedPart, projectPart, err := reconstructor.Split(key)
 	if err != nil {
 		t.Fatalf("failed to generate encryption key: %v", err)
+	}
+
+	storedProjectPart := share.EncryptionPart{
+		EncPart: projectPart,
+		UserID:  "userID",
+	}
+	storedProjectPartBytes, err := json.Marshal(storedProjectPart)
+	if err != nil {
+		t.Fatalf("failed to marshal project part: %v", err)
 	}
 
 	cypher := encryptionFactory.CreateEncryptionStrategy(key)
@@ -112,7 +122,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				encryptionPartsRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
-				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(projectPart, nil)
+				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytes), nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 
