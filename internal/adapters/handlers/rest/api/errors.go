@@ -66,6 +66,8 @@ var (
 	ErrEmailIsInvalid       = &Error{"Provided Email is invalid", "EMAIL_INVALID", http.StatusBadRequest}
 	ErrPhoneNumberIsInvalid = &Error{"Provided phone number is invalid", "PHONE_INVALID", http.StatusBadRequest}
 
+	ErrMissingNotificationService = &Error{"Missing notification service", "MISSING_NOTIFICATION_SERV", http.StatusInternalServerError}
+
 	ErrInternal = &Error{"Internal error", "INTERNAL", http.StatusInternalServerError}
 )
 

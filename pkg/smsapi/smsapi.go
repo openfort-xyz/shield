@@ -9,7 +9,7 @@ import (
 )
 
 type Config struct {
-	SMSAPIKey string `env:"SMS_API_KEY" envDefault:""`
+	SMSAPIKey string `env:"SMS_API_KEY"`
 }
 
 type Client struct {

@@ -30,7 +30,6 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
-	"go.openfort.xyz/shield/pkg/brevo"
 	"go.openfort.xyz/shield/pkg/otp"
 )
 
@@ -244,20 +243,18 @@ func ProvideOTPService() (s *otp.InMemoryOTPService, err error) {
 	return
 }
 
-func ProvideBrevoConfig() (brevo.Config, error) {
-	cfg, err := brevo.GetConfigFromEnv()
+func NewNotificationService() (services.NotificationsService, error) {
+	app, err := notificationsapp.NewNotificationApp()
 	if err != nil {
-		return brevo.Config{}, err
+		return nil, err
 	}
-	return *cfg, nil
+	return app, nil
 }
 
 func ProvideNotificationService() (c services.NotificationsService, err error) {
 	wire.Build(
-		notificationsapp.NewNotificationApp,
-		wire.Bind(new(services.NotificationsService), new(*notificationsapp.NotificationApplication)),
+		NewNotificationService,
 	)
-
 	return
 }
 

@@ -32,7 +32,6 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
-	"go.openfort.xyz/shield/pkg/brevo"
 	"go.openfort.xyz/shield/pkg/otp"
 )
 
@@ -323,11 +322,11 @@ var (
 )
 
 func ProvideNotificationService() (services.NotificationsService, error) {
-	notificationApplication, err := notificationsapp.NewNotificationApp()
+	notificationsService, err := NewNotificationService()
 	if err != nil {
 		return nil, err
 	}
-	return notificationApplication, nil
+	return notificationsService, nil
 }
 
 func ProvideRESTServer() (*rest.Server, error) {
@@ -365,10 +364,10 @@ func ProvideRESTServer() (*rest.Server, error) {
 
 // wire.go:
 
-func ProvideBrevoConfig() (brevo.Config, error) {
-	cfg, err := brevo.GetConfigFromEnv()
+func NewNotificationService() (services.NotificationsService, error) {
+	app, err := notificationsapp.NewNotificationApp()
 	if err != nil {
-		return brevo.Config{}, err
+		return nil, err
 	}
-	return *cfg, nil
+	return app, nil
 }

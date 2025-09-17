@@ -14,7 +14,7 @@ type Project struct {
 	CreatedAt time.Time      `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`
-	Enable2FA bool           `gorm:"column:2fa_enabled"`
+	Enable2FA bool           `gorm:"column:enable_2fa"`
 }
 
 func (Project) TableName() string {

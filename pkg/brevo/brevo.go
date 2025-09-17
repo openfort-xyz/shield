@@ -14,7 +14,7 @@ const (
 )
 
 type Config struct {
-	BrevoAPIKey string `env:"BREVO_API_KEY" envDefault:""`
+	BrevoAPIKey string `env:"BREVO_API_KEY"`
 }
 
 type Client struct {

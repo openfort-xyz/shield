@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"reflect"
 
 	pem "go.openfort.xyz/shield/internal/adapters/authenticators/identity/custom_identity"
 
@@ -173,6 +174,10 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 }
 
 func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, email *string, phone *string) error {
+	if reflect.ValueOf(a.notificationService).IsNil() {
+		return ErrMissingNotificationService
+	}
+
 	otpCode, err := a.otpService.GenerateOTP(ctx, userId)
 	if err != nil {
 		return err

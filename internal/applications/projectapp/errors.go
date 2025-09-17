@@ -31,6 +31,7 @@ var (
 	ErrOTPUserInfoMissing          = errors.New("neither email nor phone number was provided")
 	ErrEmailIsInvalid              = errors.New("email is invalid")
 	ErrPhoneNumberIsInvalid        = errors.New("phone number is invalid")
+	ErrMissingNotificationService  = errors.New("cannot generate OTP because notification service is absent")
 	ErrInternal                    = errors.New("internal error")
 )
 

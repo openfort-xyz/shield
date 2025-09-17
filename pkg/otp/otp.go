@@ -147,16 +147,16 @@ type OTPService interface {
 // - Memory Management: Automatic cleanup of expired OTPs and old records
 // - Cryptographic Randomness: Uses crypto/rand for OTP generation
 type InMemoryOTPService struct {
-	sharesRepo      repositories.EncryptionPartsRepository
+	partsRepo       repositories.EncryptionPartsRepository
 	securityService *OnboardingTracker
 	config          SecurityConfig
 	cleanupTicker   *time.Ticker
 }
 
 // NewInMemoryOTPService creates a new OTP service with buntdb storage
-func NewInMemoryOTPService(sharesRepo repositories.EncryptionPartsRepository, securityService *OnboardingTracker, config SecurityConfig) (*InMemoryOTPService, error) {
+func NewInMemoryOTPService(partsRepo repositories.EncryptionPartsRepository, securityService *OnboardingTracker, config SecurityConfig) (*InMemoryOTPService, error) {
 	service := &InMemoryOTPService{
-		sharesRepo:      sharesRepo,
+		partsRepo:       partsRepo,
 		securityService: securityService,
 		config:          config,
 	}
@@ -199,7 +199,7 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 		Expires: true,
 		TTL:     time.Duration(s.config.OTPExpiryMS+1000) * time.Millisecond, // add some buffer to expiry time, just in case
 	}
-	err = s.sharesRepo.Set(ctx, userID, string(requestBytes), &options)
+	err = s.partsRepo.Set(ctx, userID, string(requestBytes), &options)
 	if err != nil {
 		return "", err
 	}
@@ -218,7 +218,7 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 //
 // Returns the OTP request if valid, containing authentication context
 func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode string) (*OTPRequest, error) {
-	val, err := s.sharesRepo.Get(ctx, userID)
+	val, err := s.partsRepo.Get(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 
 	currentTime := time.Now().UnixMilli()
 	if currentTime-request.CreatedAt > s.config.OTPExpiryMS {
-		err := s.sharesRepo.Delete(ctx, userID)
+		err := s.partsRepo.Delete(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +241,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 		request.FailedAttempts++
 
 		if request.FailedAttempts >= s.config.MaxFailedAttempts {
-			err := s.sharesRepo.Delete(ctx, userID)
+			err := s.partsRepo.Delete(ctx, userID)
 			if err != nil {
 				return nil, err
 			}
@@ -259,7 +259,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 			Expires: true,
 			TTL:     time.Duration((s.config.OTPExpiryMS-(currentTime-request.CreatedAt))+1000) * time.Millisecond, // add some buffer to expiry time, just in case
 		}
-		err = s.sharesRepo.Update(ctx, userID, string(requestBytes), &options)
+		err = s.partsRepo.Update(ctx, userID, string(requestBytes), &options)
 		if err != nil {
 			return nil, err
 		}
@@ -268,7 +268,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 	}
 
 	// OTP is valid, remove from storage
-	err = s.sharesRepo.Delete(ctx, userID)
+	err = s.partsRepo.Delete(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

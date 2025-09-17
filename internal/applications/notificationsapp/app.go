@@ -14,16 +14,16 @@ type NotificationApplication struct {
 
 func NewNotificationApp() (*NotificationApplication, error) {
 	brevoConfig, err := brevo.GetConfigFromEnv()
-	if err != nil {
-		return nil, err
-	}
-
-	brevoClient, err := brevo.NewClient(*brevoConfig)
-	if err != nil {
+	if err != nil || brevoConfig.BrevoAPIKey == "" {
 		return nil, err
 	}
 
 	smsApiConfig, err := smsapi.GetConfigFromEnv()
+	if err != nil || smsApiConfig.SMSAPIKey == "" {
+		return nil, err
+	}
+
+	brevoClient, err := brevo.NewClient(*brevoConfig)
 	if err != nil {
 		return nil, err
 	}
