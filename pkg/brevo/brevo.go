@@ -11,12 +11,12 @@ import (
 )
 
 const (
-	BREVO_API_URL     = "https://api.brevo.com/v3/smtp/email"
-	FROM_EMAIL        = "shield@openfort.xyz"
-	EMAIL_SENDER_NAME = "Shield"
+	BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 )
 
 type Config struct {
+	FromEmail   string `env:"BREVO_FROM_EMAIL"`
+	SenderName  string `env:"BREVO_EMAIL_SENDER_NAME"`
 	BrevoAPIKey string `env:"BREVO_API_KEY"`
 }
 
@@ -35,6 +35,14 @@ func GetConfigFromEnv() (*Config, error) {
 func NewClient(config Config) (*Client, error) {
 	if config.BrevoAPIKey == "" {
 		return nil, fmt.Errorf("BREVO_API_KEY is required")
+	}
+
+	if config.FromEmail == "" {
+		return nil, fmt.Errorf("BREVO_FROM_EMAIL is required")
+	}
+
+	if config.SenderName == "" {
+		return nil, fmt.Errorf("BREVO_EMAIL_SENDER_NAME is required")
 	}
 
 	return &Client{
@@ -66,8 +74,8 @@ func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, 
 
 	emailReq := EmailRequest{
 		Sender: Sender{
-			Name:  EMAIL_SENDER_NAME,
-			Email: FROM_EMAIL,
+			Name:  c.config.SenderName,
+			Email: c.config.FromEmail,
 		},
 		To: []Recipient{
 			{
