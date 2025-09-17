@@ -3,8 +3,9 @@ package projectsvc
 import (
 	"context"
 	"errors"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"testing"
+
+	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 
 	"github.com/stretchr/testify/mock"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
@@ -50,7 +51,7 @@ func TestService_Create(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			result, err := svc.Create(ctx, testName)
+			result, err := svc.Create(ctx, testName, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
 			}

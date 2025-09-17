@@ -32,7 +32,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
 
 	tc := []struct {
 		name     string
@@ -114,7 +114,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
 			ass := assert.New(t)
-			proj, err := app.CreateProject(ctx, tt.projName, tt.options...)
+			proj, err := app.CreateProject(ctx, tt.projName, false, tt.options...)
 			ass.Equal(tt.wantErr, err)
 			if tt.wantErr == nil {
 				ass.Equal(tt.wantProj.Name, proj.Name)
@@ -138,7 +138,7 @@ func TestProjectApplication_GetProject(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
 	projOK := &project.Project{
 		ID:             "project-id",
 		Name:           "project name",
@@ -203,7 +203,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
 	validPEM := "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1ljaGMp9BrY6KQtUIWhw\ng2weyyF65zzNFR9VCxyxk7M/NCTvash6nJO4HwZ+/51YO6kZFr0JDdIMrMmNu/pE\na4FfvmAQJ+vDdc8LSwS7IWAp9y04MZVVFLEQzbToQ3kqkaJV5KsbKuADjm3JCXng\nkeOvuS04AeO4W2lB5BqQ+wX5TjAZ9P7xusJUd2ovk1kWVKeJDTxpAImpVhK2nLZ3\nFV/TWWVYutYFU1wmoRRyOeypTP4ZSPhKB5s6PqQuyl9KPqiWz7ESL9zAW3/yxONb\nEPc9pB8w/qXcW++g6iCYN66xH4punt7KuismzQwGysgnMyK6UnNuOJyJznPzAvB+\nQwIDAQAB\n-----END PUBLIC KEY-----\n"
 
 	tc := []struct {
@@ -391,7 +391,7 @@ func TestProjectApplication_GetProviders(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
 	providers := []*provider.Provider{
 		{
 			ID:        "provider-id",
@@ -463,7 +463,7 @@ func TestProjectApplication_GetProviderDetail(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
 
 	prov := &provider.Provider{
 		ID:        "provider-id",
@@ -549,7 +549,7 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
 	validPEM := "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1ljaGMp9BrY6KQtUIWhw\ng2weyyF65zzNFR9VCxyxk7M/NCTvash6nJO4HwZ+/51YO6kZFr0JDdIMrMmNu/pE\na4FfvmAQJ+vDdc8LSwS7IWAp9y04MZVVFLEQzbToQ3kqkaJV5KsbKuADjm3JCXng\nkeOvuS04AeO4W2lB5BqQ+wX5TjAZ9P7xusJUd2ovk1kWVKeJDTxpAImpVhK2nLZ3\nFV/TWWVYutYFU1wmoRRyOeypTP4ZSPhKB5s6PqQuyl9KPqiWz7ESL9zAW3/yxONb\nEPc9pB8w/qXcW++g6iCYN66xH4punt7KuismzQwGysgnMyK6UnNuOJyJznPzAvB+\nQwIDAQAB\n-----END PUBLIC KEY-----\n"
 
 	openfortProvider := &provider.Provider{
@@ -782,7 +782,7 @@ func TestProjectApplication_RemoveProvider(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
 
 	openfortProvider := &provider.Provider{
 		ID:        "provider-id",
@@ -874,7 +874,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
 
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
@@ -1010,7 +1010,7 @@ func TestProjectApplication_RegisterEncryptionKey(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
 
 	tc := []struct {
 		name    string
@@ -1074,7 +1074,7 @@ func TestProjectApplication_RegisterEncryptionSession(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo)
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
 
 	tc := []struct {
 		name    string
@@ -1087,6 +1087,8 @@ func TestProjectApplication_RegisterEncryptionSession(t *testing.T) {
 			mock: func() {
 				encryptionPartsRepo.ExpectedCalls = nil
 				encryptionPartsRepo.On("Set", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("Get", mock.Anything, "project_id").Return(&project.Project{ID: "project_id"}, nil)
 			},
 		},
 		{
@@ -1103,7 +1105,7 @@ func TestProjectApplication_RegisterEncryptionSession(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
 			ass := assert.New(t)
-			_, err := app.RegisterEncryptionSession(ctx, "encryptionPart")
+			_, err := app.RegisterEncryptionSession(ctx, "encryptionPart", "irrelevant", nil)
 			ass.Equal(tt.wantErr, err)
 		})
 	}

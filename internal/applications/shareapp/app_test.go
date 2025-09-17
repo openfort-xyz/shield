@@ -233,7 +233,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 			tt.mock()
 			ass := assert.New(t)
 			s, err := app.GetShare(ctx, tt.opts...)
-			ass.ErrorIs(tt.wantErr, err)
+			ass.ErrorIs(err, tt.wantErr)
 			ass.Equal(tt.want, s)
 		})
 	}
