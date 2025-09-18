@@ -178,6 +178,17 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ema
 		return ErrMissingNotificationService
 	}
 
+	projectID := contexter.GetProjectID(ctx)
+
+	project, err := a.projectRepo.Get(ctx, projectID)
+	if err != nil {
+		return fromDomainError(err)
+	}
+
+	if !project.Enable2FA {
+		return ErrProjectDoesntHave2FA
+	}
+
 	otpCode, err := a.otpService.GenerateOTP(ctx, userId)
 	if err != nil {
 		return err

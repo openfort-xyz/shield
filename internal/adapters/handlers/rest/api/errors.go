@@ -62,6 +62,7 @@ var (
 	ErrOTPInvalidated       = &Error{"OTP invalidated after max failed attempts", "OTP_INVALIDATED", http.StatusBadRequest}
 	ErrOTPInvalid           = &Error{"Received otp is invalid", "OTP_INVALID", http.StatusBadRequest}
 	ErrOTPUserInfoMissing   = &Error{"Missing user information like email or phone number", "OTP_USER_INFO_MISSING", http.StatusBadRequest}
+	ErrProjectDoesntHave2FA = &Error{"Project doesn't support 2FA", "OTP_NOT_SUPPORTED", http.StatusBadRequest}
 
 	ErrEmailIsInvalid       = &Error{"Provided Email is invalid", "EMAIL_INVALID", http.StatusBadRequest}
 	ErrPhoneNumberIsInvalid = &Error{"Provided phone number is invalid", "PHONE_INVALID", http.StatusBadRequest}

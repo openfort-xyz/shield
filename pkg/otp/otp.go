@@ -15,6 +15,7 @@ import (
 
 	"github.com/tidwall/buntdb"
 	"go.openfort.xyz/shield/internal/core/domain/errors"
+	"go.openfort.xyz/shield/internal/core/domain/otp"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 )
 
@@ -41,11 +42,18 @@ var DefaultSecurityConfig = SecurityConfig{
 	OTPExpiryMS:            5 * 60 * 1000, // 5 minutes
 }
 
-// OTPRequest represents a pending OTP verification request
-type OTPRequest struct {
-	OTP            string `json:"otp"`
-	CreatedAt      int64  `json:"created_at"`
-	FailedAttempts int    `json:"failed_attempts"`
+type Clock interface {
+	Now() time.Time
+}
+
+type RealClock struct{}
+
+func NewRealClock() RealClock {
+	return RealClock{}
+}
+
+func (c *RealClock) Now() time.Time {
+	return time.Now()
 }
 
 // OnboardingTracker tracks failed onboarding attempts with rate limiting
@@ -54,14 +62,16 @@ type OnboardingTracker struct {
 	maxAttempts int
 	attempts    map[string][]int64
 	mu          sync.RWMutex
+	clock       Clock
 }
 
 // NewOnboardingTracker creates a new onboarding tracker
-func NewOnboardingTracker(windowMS int64, maxAttempts int) *OnboardingTracker {
+func NewOnboardingTracker(windowMS int64, maxAttempts int, clock Clock) *OnboardingTracker {
 	return &OnboardingTracker{
 		windowMS:    windowMS,
 		maxAttempts: maxAttempts,
 		attempts:    make(map[string][]int64),
+		clock:       clock,
 	}
 }
 
@@ -70,7 +80,7 @@ func (ot *OnboardingTracker) TrackAttempt(userID string) error {
 	ot.mu.Lock()
 	defer ot.mu.Unlock()
 
-	now := time.Now().UnixMilli()
+	now := ot.clock.Now().UnixMilli()
 
 	var validAttempts []int64
 	for _, timestamp := range ot.attempts[userID] {
@@ -88,7 +98,9 @@ func (ot *OnboardingTracker) TrackAttempt(userID string) error {
 }
 
 func (ot *OnboardingTracker) AddAttempt(userID string) {
-	ot.attempts[userID] = []int64{time.Now().UnixMilli()}
+	attempts := ot.attempts[userID]
+	attempts = append(attempts, ot.clock.Now().UnixMilli())
+	ot.attempts[userID] = attempts
 }
 
 // CleanupOldRecords removes tracking data older than the window
@@ -96,7 +108,7 @@ func (ot *OnboardingTracker) CleanupOldRecords() {
 	ot.mu.Lock()
 	defer ot.mu.Unlock()
 
-	now := time.Now().UnixMilli()
+	now := ot.clock.Now().UnixMilli()
 	cleanedCount := 0
 
 	for key, attempts := range ot.attempts {
@@ -129,7 +141,7 @@ type OTPService interface {
 	// VerifyOTP verifies an OTP for a given device
 	// Returns the OTP request if valid
 	// Returns error if OTP is invalid, expired, or max attempts exceeded
-	VerifyOTP(ctx context.Context, userID, otpCode string) (*OTPRequest, error)
+	VerifyOTP(ctx context.Context, userID, otpCode string) (*otp.OTPRequest, error)
 
 	// Cleanup removes expired OTPs and old tracking records
 	Cleanup() error
@@ -151,14 +163,16 @@ type InMemoryOTPService struct {
 	securityService *OnboardingTracker
 	config          SecurityConfig
 	cleanupTicker   *time.Ticker
+	clock           Clock
 }
 
 // NewInMemoryOTPService creates a new OTP service with buntdb storage
-func NewInMemoryOTPService(partsRepo repositories.EncryptionPartsRepository, securityService *OnboardingTracker, config SecurityConfig) (*InMemoryOTPService, error) {
+func NewInMemoryOTPService(partsRepo repositories.EncryptionPartsRepository, securityService *OnboardingTracker, config SecurityConfig, clock Clock) (*InMemoryOTPService, error) {
 	service := &InMemoryOTPService{
 		partsRepo:       partsRepo,
 		securityService: securityService,
 		config:          config,
+		clock:           clock,
 	}
 
 	service.startCleanupInterval()
@@ -179,14 +193,14 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 		return "", err
 	}
 
-	otp, err := s.createRandomOTP()
+	otpCode, err := s.createRandomOTP()
 	if err != nil {
 		return "", err
 	}
 
-	request := &OTPRequest{
-		OTP:            otp,
-		CreatedAt:      time.Now().UnixMilli(),
+	request := &otp.OTPRequest{
+		OTP:            otpCode,
+		CreatedAt:      s.clock.Now().UnixMilli(),
 		FailedAttempts: 0,
 	}
 
@@ -204,7 +218,7 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 		return "", err
 	}
 
-	return otp, nil
+	return otpCode, nil
 }
 
 // VerifyOTP verifies an OTP for a given user with comprehensive security checks
@@ -217,18 +231,18 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 // 5. Cleans up successful/failed requests from memory
 //
 // Returns the OTP request if valid, containing authentication context
-func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode string) (*OTPRequest, error) {
+func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode string) (*otp.OTPRequest, error) {
 	val, err := s.partsRepo.Get(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	var request OTPRequest
+	var request otp.OTPRequest
 	if err := json.Unmarshal([]byte(val), &request); err != nil {
 		return nil, err
 	}
 
-	currentTime := time.Now().UnixMilli()
+	currentTime := s.clock.Now().UnixMilli()
 	if currentTime-request.CreatedAt > s.config.OTPExpiryMS {
 		err := s.partsRepo.Delete(ctx, userID)
 		if err != nil {

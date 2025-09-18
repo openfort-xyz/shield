@@ -289,7 +289,8 @@ func ProvideHealthzApplication() (*healthzapp.Application, error) {
 func ProvideOnboardingTracker() (*otp.OnboardingTracker, error) {
 	int64_2 := _wireInt64Value
 	int2 := _wireIntValue
-	onboardingTracker := otp.NewOnboardingTracker(int64_2, int2)
+	clock := ProvideClock()
+	onboardingTracker := otp.NewOnboardingTracker(int64_2, int2, clock)
 	return onboardingTracker, nil
 }
 
@@ -310,7 +311,8 @@ func ProvideOTPService() (*otp.InMemoryOTPService, error) {
 		return nil, err
 	}
 	securityConfig := _wireSecurityConfigValue
-	inMemoryOTPService, err := otp.NewInMemoryOTPService(encryptionPartsRepository, onboardingTracker, securityConfig)
+	clock := ProvideClock()
+	inMemoryOTPService, err := otp.NewInMemoryOTPService(encryptionPartsRepository, onboardingTracker, securityConfig, clock)
 	if err != nil {
 		return nil, err
 	}
@@ -363,6 +365,11 @@ func ProvideRESTServer() (*rest.Server, error) {
 }
 
 // wire.go:
+
+func ProvideClock() otp.Clock {
+	clock := otp.NewRealClock()
+	return &clock
+}
 
 func NewNotificationService() (services.NotificationsService, error) {
 	app, err := notificationsapp.NewNotificationApp()

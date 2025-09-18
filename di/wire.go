@@ -222,11 +222,17 @@ func ProvideHealthzApplication() (a *healthzapp.Application, err error) {
 	return
 }
 
+func ProvideClock() otp.Clock {
+	clock := otp.NewRealClock()
+	return &clock
+}
+
 func ProvideOnboardingTracker() (t *otp.OnboardingTracker, err error) {
 	wire.Build(
 		otp.NewOnboardingTracker,
 		wire.Value(otp.DefaultSecurityConfig.UserOnboardingWindowMS),
 		wire.Value(otp.DefaultSecurityConfig.MaxUserOnboardAttempts),
+		ProvideClock,
 	)
 
 	return
@@ -238,6 +244,7 @@ func ProvideOTPService() (s *otp.InMemoryOTPService, err error) {
 		ProvideInMemoryEncryptionPartsRepository,
 		ProvideOnboardingTracker,
 		wire.Value(otp.DefaultSecurityConfig),
+		ProvideClock,
 	)
 
 	return

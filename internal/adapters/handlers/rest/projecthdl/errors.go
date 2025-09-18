@@ -59,6 +59,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrPhoneNumberIsInvalid
 	case errors.Is(err, projectapp.ErrMissingNotificationService):
 		return api.ErrMissingNotificationService
+	case errors.Is(err, projectapp.ErrProjectDoesntHave2FA):
+		return api.ErrProjectDoesntHave2FA
 	default:
 		return api.ErrInternal
 	}
