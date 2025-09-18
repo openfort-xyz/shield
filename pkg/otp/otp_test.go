@@ -55,7 +55,7 @@ func TestOtp(t *testing.T) {
 			panic(err)
 		}
 
-		otpReq := otp.OTPRequest{
+		otpReq := otp.Request{
 			OTP:            newOtp,
 			CreatedAt:      tClock.Now().UnixMilli(),
 			FailedAttempts: 0,
@@ -104,7 +104,7 @@ func TestOtp(t *testing.T) {
 			panic(err)
 		}
 
-		otpReq := otp.OTPRequest{
+		otpReq := otp.Request{
 			OTP:            "123",
 			CreatedAt:      tClock.Now().UnixMilli(),
 			FailedAttempts: 0,
@@ -150,7 +150,7 @@ func TestOtp(t *testing.T) {
 			panic(err)
 		}
 
-		otpReq := otp.OTPRequest{
+		otpReq := otp.Request{
 			OTP:            newOtp,
 			CreatedAt:      tClock.Now().Add(-1 * time.Hour).UnixMilli(),
 			FailedAttempts: 0,
@@ -199,7 +199,7 @@ func TestOtpBruteForce(t *testing.T) {
 		}
 
 		for i := 0; i < 3; i++ {
-			otpReq := otp.OTPRequest{
+			otpReq := otp.Request{
 				OTP:            "123",
 				CreatedAt:      tClock.Now().UnixMilli(),
 				FailedAttempts: 2,
@@ -251,7 +251,7 @@ func TestOtpBruteForce(t *testing.T) {
 		}
 
 		for i := 0; i < 3; i++ {
-			otpReq := otp.OTPRequest{
+			otpReq := otp.Request{
 				OTP:            "123",
 				CreatedAt:      tClock.Now().UnixMilli(),
 				FailedAttempts: 2,

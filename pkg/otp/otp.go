@@ -141,7 +141,7 @@ type OTPService interface {
 	// VerifyOTP verifies an OTP for a given device
 	// Returns the OTP request if valid
 	// Returns error if OTP is invalid, expired, or max attempts exceeded
-	VerifyOTP(ctx context.Context, userID, otpCode string) (*otp.OTPRequest, error)
+	VerifyOTP(ctx context.Context, userID, otpCode string) (*otp.Request, error)
 
 	// Cleanup removes expired OTPs and old tracking records
 	Cleanup() error
@@ -198,7 +198,7 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 		return "", err
 	}
 
-	request := &otp.OTPRequest{
+	request := &otp.Request{
 		OTP:            otpCode,
 		CreatedAt:      s.clock.Now().UnixMilli(),
 		FailedAttempts: 0,
@@ -231,13 +231,13 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 // 5. Cleans up successful/failed requests from memory
 //
 // Returns the OTP request if valid, containing authentication context
-func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode string) (*otp.OTPRequest, error) {
+func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode string) (*otp.Request, error) {
 	val, err := s.partsRepo.Get(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	var request otp.OTPRequest
+	var request otp.Request
 	if err := json.Unmarshal([]byte(val), &request); err != nil {
 		return nil, err
 	}

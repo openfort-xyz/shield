@@ -1197,7 +1197,7 @@ func TestProjectApplication_RegisterEncryptionSessionWithOtp(t *testing.T) {
 					panic(err)
 				}
 
-				otpReq := otp.OTPRequest{
+				otpReq := otp.Request{
 					OTP:            otpCode,
 					CreatedAt:      clk.Now().UnixMilli(),
 					FailedAttempts: 0,
