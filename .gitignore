@@ -19,6 +19,7 @@
 !CHANGELOG.md
 !.github/workflows/run-rests.yml
 !.github/workflows/docker-image.yml
+!pkg/brevo/otp_template.html
 
 !README.md
 !LICENSE

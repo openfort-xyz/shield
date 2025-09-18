@@ -3,8 +3,10 @@ package brevo
 import (
 	"bytes"
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 
 	env "github.com/caarlos0/env/v10"
@@ -13,6 +15,9 @@ import (
 const (
 	BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 )
+
+//go:embed otp_template.html
+var otpTemplateFS embed.FS
 
 type Config struct {
 	FromEmail   string `env:"BREVO_FROM_EMAIL"`
@@ -64,13 +69,40 @@ type EmailRequest struct {
 	Sender      Sender      `json:"sender"`
 	To          []Recipient `json:"to"`
 	Subject     string      `json:"subject"`
-	TextContent string      `json:"textContent"`
-	// For future reference
-	// HTMLContent string      `json:"htmlContent"`
+	TextContent string      `json:"textContent,omitempty"`
+	HTMLContent string      `json:"htmlContent,omitempty"`
 }
 
-func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, body string, userId string) error {
-	const ()
+type OTPData struct {
+	OTP string
+}
+
+func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, otp string, userId string) error {
+	// Load and parse the HTML template
+	tmplContent, err := otpTemplateFS.ReadFile("otp_template.html")
+	if err != nil {
+		return fmt.Errorf("failed to read OTP template: %v", err)
+	}
+
+	tmpl, err := template.New("otp").Parse(string(tmplContent))
+	if err != nil {
+		return fmt.Errorf("failed to parse OTP template: %v", err)
+	}
+
+	// Execute the template with OTP data
+	var htmlBuffer bytes.Buffer
+	if err := tmpl.Execute(&htmlBuffer, OTPData{OTP: otp}); err != nil {
+		return fmt.Errorf("failed to execute template: %v", err)
+	}
+
+	// Debug: check if HTML content was generated
+	htmlContent := htmlBuffer.String()
+	if htmlContent == "" {
+		return fmt.Errorf("HTML template generated empty content")
+	}
+
+	// Create fallback text content
+	textContent := fmt.Sprintf("Your verification code is: %s\n\nThis code is valid for 5 minutes only. Do not share this code with anyone.", otp)
 
 	emailReq := EmailRequest{
 		Sender: Sender{
@@ -84,9 +116,14 @@ func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, 
 			},
 		},
 		Subject:     subject,
-		TextContent: body,
+		TextContent: textContent,
+		HTMLContent: htmlContent,
 	}
 
+	return c.sendEmailRequest(emailReq)
+}
+
+func (c *Client) sendEmailRequest(emailReq EmailRequest) error {
 	jsonData, err := json.Marshal(emailReq)
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %v", err)
