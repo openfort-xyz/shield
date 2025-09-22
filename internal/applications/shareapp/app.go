@@ -309,7 +309,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 }
 
 func (a *ShareApplication) GetShareByReference(ctx context.Context, reference string, opts ...Option) (*share.Share, error) {
-	a.logger.InfoContext(ctx, "getting keychain shares")
+	a.logger.InfoContext(ctx, "getting share by reference")
 	externalUserID := contexter.GetExternalUserID(ctx)
 
 	var opt options
