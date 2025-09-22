@@ -111,10 +111,10 @@ func (s *service) Find(ctx context.Context, userID string, keychainID, reference
 	}
 
 	if reference == nil {
-		return s.repo.GetByReference(ctx, share.DefaultReference, *keychainID)
+		return s.repo.GetByReferenceAndKeychain(ctx, share.DefaultReference, *keychainID)
 	}
 
-	return s.repo.GetByReference(ctx, *reference, *keychainID)
+	return s.repo.GetByReferenceAndKeychain(ctx, *reference, *keychainID)
 }
 
 func (s *service) validateKeychain(ctx context.Context, shr *share.Share) error {

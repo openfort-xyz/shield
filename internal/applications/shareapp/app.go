@@ -25,17 +25,19 @@ type ShareApplication struct {
 	shareRepo          repositories.ShareRepository
 	keychainRepository repositories.KeychainRepository
 	projectRepo        repositories.ProjectRepository
+	userRepo           repositories.UserRepository
 	logger             *slog.Logger
 	encryptionFactory  factories.EncryptionFactory
 	shamirJob          *shamirjob.Job
 }
 
-func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository, keychainRepository repositories.KeychainRepository, encryptionFactory factories.EncryptionFactory, shamirJob *shamirjob.Job) *ShareApplication {
+func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository, userRepo repositories.UserRepository, keychainRepository repositories.KeychainRepository, encryptionFactory factories.EncryptionFactory, shamirJob *shamirjob.Job) *ShareApplication {
 	return &ShareApplication{
 		shareSvc:           shareSvc,
 		shareRepo:          shareRepo,
 		keychainRepository: keychainRepository,
 		projectRepo:        projectRepo,
+		userRepo:           userRepo,
 		logger:             logger.New("share_application"),
 		encryptionFactory:  encryptionFactory,
 		shamirJob:          shamirJob,
@@ -245,7 +247,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 	}
 
 	if reference != nil {
-		shr, err := a.shareRepo.GetByReference(ctx, *reference, keychainID)
+		shr, err := a.shareRepo.GetByReferenceAndKeychain(ctx, *reference, keychainID)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to get share by reference", logger.Error(err))
 			return nil, fromDomainError(err)
@@ -304,6 +306,56 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 	}
 
 	return shrs, nil
+}
+
+func (a *ShareApplication) GetShareByReference(ctx context.Context, reference string, opts ...Option) (*share.Share, error) {
+	a.logger.InfoContext(ctx, "getting keychain shares")
+	externalUserID := contexter.GetExternalUserID(ctx)
+
+	var opt options
+	for _, o := range opts {
+		o(&opt)
+	}
+
+	shr, err := a.shareRepo.GetByReference(ctx, reference)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get share by reference", logger.Error(err))
+		return nil, fromDomainError(err)
+	}
+
+	userIDs, err := a.userRepo.GetUserIDsByExternalID(ctx, externalUserID)
+	if err != nil {
+		return nil, fromDomainError(err)
+	}
+
+	found := false
+
+	for _, usrID := range userIDs {
+		if usrID == shr.UserID {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil, ErrShareNotFound
+	}
+
+	if shr.RequiresEncryption() {
+		encryptionKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
+		if err != nil {
+			return nil, err
+		}
+
+		cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
+		shr.Secret, err = cypher.Decrypt(shr.Secret)
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to decrypt secret", logger.Error(err))
+			return nil, ErrInternal
+		}
+	}
+
+	return shr, nil
 }
 
 func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share.Share, error) {

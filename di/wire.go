@@ -7,7 +7,7 @@ import (
 	"github.com/google/wire"
 	"go.openfort.xyz/shield/internal/adapters/authenticators"
 	"go.openfort.xyz/shield/internal/adapters/authenticators/identity"
-	"go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
+	ofidty "go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
 	"go.openfort.xyz/shield/internal/adapters/encryption"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest"
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt"
@@ -166,6 +166,7 @@ func ProvideShareApplication() (a *shareapp.ShareApplication, err error) {
 		ProvideShareService,
 		ProvideSQLShareRepository,
 		ProvideSQLProjectRepository,
+		ProvideSQLUserRepository,
 		ProvideSQLKeychainRepository,
 		ProvideEncryptionFactory,
 		ProvideShamirJob,
