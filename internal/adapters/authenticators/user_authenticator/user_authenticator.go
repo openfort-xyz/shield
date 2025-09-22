@@ -55,7 +55,8 @@ func (a *UserAuthenticator) Authenticate(ctx context.Context) (*authentication.A
 	}
 
 	return &authentication.Authentication{
-		UserID:    usr.ID,
-		ProjectID: proj.ID,
+		UserID:         usr.ID,
+		ProjectID:      proj.ID,
+		ExternalUserID: externalUserID,
 	}, nil
 }

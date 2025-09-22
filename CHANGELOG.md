@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.21]
+### What
+This release fixes a bug which happens only in case one external user has two shield accounts and each of that accounts has own keychain. Usually it's not happening though.
+
+### Why
+So if user has two accounts and two keychains and he wants to select cold share by reference for key reconstruction API now may select a wrong shield user on the middleware level, and then as a result select wrong keychain which doesn't related to the share with reference which was sent in API method arguments.
+
+It means that API throws share not found error.
+
+## How
+With these changes we start to save external user ID to the context, on the middleware level. And it adds a new endpoint to select a share by reference.
+
+Once we selected a share by reference we check if external user really owns it and if yes return it.
+
 ## [v0.2.3]
 ### Updated
 - JWT token library

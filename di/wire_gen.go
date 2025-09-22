@@ -194,6 +194,10 @@ func ProvideShareApplication() (*shareapp.ShareApplication, error) {
 	if err != nil {
 		return nil, err
 	}
+	userRepository, err := ProvideSQLUserRepository()
+	if err != nil {
+		return nil, err
+	}
 	keychainRepository, err := ProvideSQLKeychainRepository()
 	if err != nil {
 		return nil, err
@@ -206,7 +210,7 @@ func ProvideShareApplication() (*shareapp.ShareApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	shareApplication := shareapp.New(shareService, shareRepository, projectRepository, keychainRepository, encryptionFactory, job)
+	shareApplication := shareapp.New(shareService, shareRepository, projectRepository, userRepository, keychainRepository, encryptionFactory, job)
 	return shareApplication, nil
 }
 

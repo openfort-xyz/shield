@@ -168,6 +168,7 @@ func ProvideShareApplication() (a *shareapp.ShareApplication, err error) {
 		ProvideShareService,
 		ProvideSQLShareRepository,
 		ProvideSQLProjectRepository,
+		ProvideSQLUserRepository,
 		ProvideSQLKeychainRepository,
 		ProvideEncryptionFactory,
 		ProvideShamirJob,
