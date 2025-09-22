@@ -13,6 +13,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/keychainmockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/usermockedrepo"
 	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/domain/keychain"
@@ -25,13 +26,14 @@ import (
 func TestShareApplication_GetShare(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
+	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
 		t.Fatalf(key)
@@ -183,7 +185,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
-				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 			},
 		},
@@ -243,13 +245,14 @@ func TestShareApplication_GetShareEncryption(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
 
+	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
@@ -335,13 +338,14 @@ func TestShareApplication_GetShareEncryption(t *testing.T) {
 func TestShareApplication_RegisterShare(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
+	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
 		t.Fatalf(key)
@@ -389,7 +393,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, plainShare).Return(nil)
@@ -403,7 +407,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, encryptedShare).Return(nil)
@@ -460,7 +464,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
+				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
 				shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
@@ -490,13 +494,14 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 func TestShareApplication_DeleteShare(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
+	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 
 	testKeychain := &keychain.Keychain{
 		ID:     "test_keychain",
@@ -526,7 +531,7 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id", KeychainID: new(string)}, nil)
-				shareRepo.On("GetByReference", mock.Anything, reference, mock.Anything).Return(&share.Share{ID: "share-id"}, nil)
+				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, reference, mock.Anything).Return(&share.Share{ID: "share-id"}, nil)
 				shareRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 			},
 			reference: &reference,
@@ -537,7 +542,7 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
 			},
@@ -548,7 +553,7 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReference", mock.Anything, reference, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, reference, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
 			},
@@ -585,13 +590,14 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 func TestShareApplication_UpdateShare(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
+	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 	updates := &share.Share{
 		ID:                   "share-id",
 		Secret:               "secret",
@@ -626,7 +632,7 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
 			},
