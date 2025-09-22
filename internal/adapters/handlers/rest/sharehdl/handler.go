@@ -122,6 +122,57 @@ func (h *Handler) Keychain(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// Get share by its reference
+// @Summary Get share
+// @Description Get the share for the user
+// @Tags Share
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param Authorization header string true "
+// @Param X-Auth-Provider header string true "Auth Provider"
+// @Param reference query string false "Reference"
+// @Success 200 {object} GetShareResponse "Successful response"
+// @Failure 404 "Description: Not Found"
+// @Failure 500 "Description: Internal Server Error"
+// @Router /shares [get]
+func (h *Handler) GetShareByReference(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "getting share by reference")
+	var reference string
+
+	arg := mux.Vars(r)["reference"]
+	if arg != "" {
+		reference = arg
+	}
+
+	var opts []shareapp.Option
+	encryptionPart := r.Header.Get(EncryptionPartHeader)
+	if encryptionPart != "" {
+		opts = append(opts, shareapp.WithEncryptionPart(encryptionPart))
+	}
+
+	encryptionSession := r.Header.Get(EncryptionSessionHeader)
+	if encryptionSession != "" {
+		opts = append(opts, shareapp.WithEncryptionSession(encryptionSession))
+	}
+
+	share, err := h.app.GetShareByReference(ctx, reference, opts...)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	resp, err := json.Marshal(GetShareResponse(*h.parser.fromDomain(share)))
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}
+
 // RegisterShare registers a new share
 // @Summary Register new share
 // @Description Register a new share for the user

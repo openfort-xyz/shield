@@ -35,7 +35,15 @@ func (m *MockShareRepository) Get(ctx context.Context, shareID string) (*share.S
 	return args.Get(0).(*share.Share), args.Error(1)
 }
 
-func (m *MockShareRepository) GetByReference(ctx context.Context, reference, keychainID string) (*share.Share, error) {
+func (m *MockShareRepository) GetByReference(ctx context.Context, reference string) (*share.Share, error) {
+	args := m.Mock.Called(ctx, reference)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*share.Share), args.Error(1)
+}
+
+func (m *MockShareRepository) GetByReferenceAndKeychain(ctx context.Context, reference, keychainID string) (*share.Share, error) {
 	args := m.Mock.Called(ctx, reference, keychainID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

@@ -96,6 +96,7 @@ func (s *Server) Start(ctx context.Context) error {
 	u := r.PathPrefix("/shares").Subrouter()
 	u.Use(authMdw.AuthenticateUser)
 	u.HandleFunc("", shareHdl.GetShare).Methods(http.MethodGet)
+	u.HandleFunc("/{reference}", shareHdl.GetShareByReference).Methods(http.MethodGet)
 
 	u.HandleFunc("", shareHdl.RegisterShare).Methods(http.MethodPost)
 	u.HandleFunc("", shareHdl.DeleteShare).Methods(http.MethodDelete)

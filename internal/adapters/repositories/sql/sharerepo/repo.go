@@ -82,7 +82,23 @@ func (r *repository) ListByKeychainID(ctx context.Context, keychainID string) ([
 	return shares, nil
 }
 
-func (r *repository) GetByReference(ctx context.Context, reference, keychainID string) (*share.Share, error) {
+func (r *repository) GetByReference(ctx context.Context, reference string) (*share.Share, error) {
+	r.logger.InfoContext(ctx, "getting share", slog.String("reference", reference))
+
+	dbShr := &Share{}
+	err := r.db.Preload("PasskeyReference").Where("reference = ?", reference).First(dbShr).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainErrors.ErrShareNotFound
+		}
+		r.logger.ErrorContext(ctx, "error getting share", logger.Error(err))
+		return nil, err
+	}
+
+	return r.parser.toDomain(dbShr), nil
+}
+
+func (r *repository) GetByReferenceAndKeychain(ctx context.Context, reference, keychainID string) (*share.Share, error) {
 	r.logger.InfoContext(ctx, "getting share", slog.String("reference", reference))
 
 	dbShr := &Share{}
