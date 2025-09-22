@@ -33,6 +33,7 @@ linters:
 issues:
   exclude-files:
     - ".*_test\\.go"
+    - "wire_gen.go"
   exclude-dirs:
     - "internal/adapters/repositories/mocks"
 
