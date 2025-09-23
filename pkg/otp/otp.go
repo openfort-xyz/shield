@@ -69,12 +69,19 @@ type OnboardingTracker struct {
 	clock                 Clock
 }
 
+// OnboardingTrackerConfig holds configuration for the onboarding tracker
+type OnboardingTrackerConfig struct {
+	WindowMS              int64
+	OTPGenerationWindowMS int64
+	MaxAttempts           int
+}
+
 // NewOnboardingTracker creates a new onboarding tracker
-func NewOnboardingTracker(windowMS int64, otpGenerationWindowMS int64, maxAttempts int, clock Clock) *OnboardingTracker {
+func NewOnboardingTracker(config OnboardingTrackerConfig, clock Clock) *OnboardingTracker {
 	return &OnboardingTracker{
-		windowMS:              windowMS,
-		otpGenerationWindowMS: otpGenerationWindowMS,
-		maxAttempts:           maxAttempts,
+		windowMS:              config.WindowMS,
+		otpGenerationWindowMS: config.OTPGenerationWindowMS,
+		maxAttempts:           config.MaxAttempts,
 		failedAttempts:        make(map[string][]int64),
 		lastTimeOtpGenerated:  make(map[string]int64),
 		clock:                 clock,

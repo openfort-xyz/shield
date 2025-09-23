@@ -41,7 +41,12 @@ func TestOtp(t *testing.T) {
 		encryptionPartsRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 		encryptionPartsRepo.On("Update", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		otpOnbTracker := NewOnboardingTracker(DefaultSecurityConfig.UserOnboardingWindowMS, DefaultSecurityConfig.MaxUserOnboardAttempts, &tClock)
+		config := OnboardingTrackerConfig{
+			WindowMS:              DefaultSecurityConfig.UserOnboardingWindowMS,
+			OTPGenerationWindowMS: DefaultSecurityConfig.OTPGenerationWindowMS,
+			MaxAttempts:           DefaultSecurityConfig.MaxUserOnboardAttempts,
+		}
+		otpOnbTracker := NewOnboardingTracker(config, &tClock)
 
 		otpService, err := NewInMemoryOTPService(encryptionPartsRepo, otpOnbTracker, DefaultSecurityConfig, &tClock)
 		if err != nil {
@@ -90,7 +95,12 @@ func TestOtp(t *testing.T) {
 		encryptionPartsRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 		encryptionPartsRepo.On("Update", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		otpOnbTracker := NewOnboardingTracker(DefaultSecurityConfig.UserOnboardingWindowMS, DefaultSecurityConfig.MaxUserOnboardAttempts, &tClock)
+		config := OnboardingTrackerConfig{
+			WindowMS:              DefaultSecurityConfig.UserOnboardingWindowMS,
+			OTPGenerationWindowMS: DefaultSecurityConfig.OTPGenerationWindowMS,
+			MaxAttempts:           DefaultSecurityConfig.MaxUserOnboardAttempts,
+		}
+		otpOnbTracker := NewOnboardingTracker(config, &tClock)
 
 		otpService, err := NewInMemoryOTPService(encryptionPartsRepo, otpOnbTracker, DefaultSecurityConfig, &tClock)
 		if err != nil {
@@ -136,7 +146,12 @@ func TestOtp(t *testing.T) {
 		encryptionPartsRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 		encryptionPartsRepo.On("Update", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		otpOnbTracker := NewOnboardingTracker(DefaultSecurityConfig.UserOnboardingWindowMS, DefaultSecurityConfig.MaxUserOnboardAttempts, &tClock)
+		config := OnboardingTrackerConfig{
+			WindowMS:              DefaultSecurityConfig.UserOnboardingWindowMS,
+			OTPGenerationWindowMS: DefaultSecurityConfig.OTPGenerationWindowMS,
+			MaxAttempts:           DefaultSecurityConfig.MaxUserOnboardAttempts,
+		}
+		otpOnbTracker := NewOnboardingTracker(config, &tClock)
 
 		otpService, err := NewInMemoryOTPService(encryptionPartsRepo, otpOnbTracker, DefaultSecurityConfig, &tClock)
 		if err != nil {
@@ -184,7 +199,12 @@ func TestOtpBruteForce(t *testing.T) {
 		encryptionPartsRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 		encryptionPartsRepo.On("Update", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		otpOnbTracker := NewOnboardingTracker(DefaultSecurityConfig.UserOnboardingWindowMS, DefaultSecurityConfig.MaxUserOnboardAttempts, &tClock)
+		config := OnboardingTrackerConfig{
+			WindowMS:              DefaultSecurityConfig.UserOnboardingWindowMS,
+			OTPGenerationWindowMS: DefaultSecurityConfig.OTPGenerationWindowMS,
+			MaxAttempts:           DefaultSecurityConfig.MaxUserOnboardAttempts,
+		}
+		otpOnbTracker := NewOnboardingTracker(config, &tClock)
 
 		otpService, err := NewInMemoryOTPService(encryptionPartsRepo, otpOnbTracker, DefaultSecurityConfig, &tClock)
 		if err != nil {
@@ -236,7 +256,12 @@ func TestOtpBruteForce(t *testing.T) {
 		encryptionPartsRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 		encryptionPartsRepo.On("Update", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		otpOnbTracker := NewOnboardingTracker(DefaultSecurityConfig.UserOnboardingWindowMS, DefaultSecurityConfig.MaxUserOnboardAttempts, &tClock)
+		config := OnboardingTrackerConfig{
+			WindowMS:              DefaultSecurityConfig.UserOnboardingWindowMS,
+			OTPGenerationWindowMS: DefaultSecurityConfig.OTPGenerationWindowMS,
+			MaxAttempts:           DefaultSecurityConfig.MaxUserOnboardAttempts,
+		}
+		otpOnbTracker := NewOnboardingTracker(config, &tClock)
 
 		otpService, err := NewInMemoryOTPService(encryptionPartsRepo, otpOnbTracker, DefaultSecurityConfig, &tClock)
 		if err != nil {

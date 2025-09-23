@@ -291,19 +291,11 @@ func ProvideHealthzApplication() (*healthzapp.Application, error) {
 }
 
 func ProvideOnboardingTracker() (*otp.OnboardingTracker, error) {
-	int64_2 := _wireInt64Value
-	int2 := _wireIntValue
+	onboardingTrackerConfig := ProvideOnboardingTrackerConfig()
 	clock := ProvideClock()
-	onboardingTracker := otp.NewOnboardingTracker(int64_2, int2, clock)
+	onboardingTracker := otp.NewOnboardingTracker(onboardingTrackerConfig, clock)
 	return onboardingTracker, nil
 }
-
-var (
-	_wireInt64Value = otp.DefaultSecurityConfig.
-			UserOnboardingWindowMS
-	_wireIntValue = otp.DefaultSecurityConfig.
-			MaxUserOnboardAttempts
-)
 
 func ProvideOTPService() (*otp.InMemoryOTPService, error) {
 	encryptionPartsRepository, err := ProvideInMemoryEncryptionPartsRepository()
@@ -373,6 +365,14 @@ func ProvideRESTServer() (*rest.Server, error) {
 func ProvideClock() otp.Clock {
 	clock := otp.NewRealClock()
 	return &clock
+}
+
+func ProvideOnboardingTrackerConfig() otp.OnboardingTrackerConfig {
+	return otp.OnboardingTrackerConfig{
+		WindowMS:              otp.DefaultSecurityConfig.UserOnboardingWindowMS,
+		OTPGenerationWindowMS: otp.DefaultSecurityConfig.OTPGenerationWindowMS,
+		MaxAttempts:           otp.DefaultSecurityConfig.MaxUserOnboardAttempts,
+	}
 }
 
 func NewNotificationService() (services.NotificationsService, error) {

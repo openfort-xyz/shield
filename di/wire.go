@@ -228,11 +228,18 @@ func ProvideClock() otp.Clock {
 	return &clock
 }
 
+func ProvideOnboardingTrackerConfig() otp.OnboardingTrackerConfig {
+	return otp.OnboardingTrackerConfig{
+		WindowMS:              otp.DefaultSecurityConfig.UserOnboardingWindowMS,
+		OTPGenerationWindowMS: otp.DefaultSecurityConfig.OTPGenerationWindowMS,
+		MaxAttempts:           otp.DefaultSecurityConfig.MaxUserOnboardAttempts,
+	}
+}
+
 func ProvideOnboardingTracker() (t *otp.OnboardingTracker, err error) {
 	wire.Build(
 		otp.NewOnboardingTracker,
-		wire.Value(otp.DefaultSecurityConfig.UserOnboardingWindowMS),
-		wire.Value(otp.DefaultSecurityConfig.MaxUserOnboardAttempts),
+		ProvideOnboardingTrackerConfig,
 		ProvideClock,
 	)
 
