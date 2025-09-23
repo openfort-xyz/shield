@@ -18,13 +18,15 @@ type sessionBuilder struct {
 	encryptionPartsRepo    repositories.EncryptionPartsRepository
 	projectRepo            repositories.ProjectRepository
 	reconstructionStrategy strategies.ReconstructionStrategy
+	requireOTPCheck        bool
 }
 
-func NewEncryptionKeyBuilder(encryptionPartsRepo repositories.EncryptionPartsRepository, projectRepository repositories.ProjectRepository, reconstructionStrategy strategies.ReconstructionStrategy) builders.EncryptionKeyBuilder {
+func NewEncryptionKeyBuilder(encryptionPartsRepo repositories.EncryptionPartsRepository, projectRepository repositories.ProjectRepository, reconstructionStrategy strategies.ReconstructionStrategy, requireOTPCheck bool) builders.EncryptionKeyBuilder {
 	return &sessionBuilder{
 		encryptionPartsRepo:    encryptionPartsRepo,
 		projectRepo:            projectRepository,
 		reconstructionStrategy: reconstructionStrategy,
+		requireOTPCheck:        requireOTPCheck,
 	}
 }
 
@@ -40,6 +42,10 @@ func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) 
 	var part share.EncryptionPart
 	if err := json.Unmarshal([]byte(data), &part); err != nil {
 		return err
+	}
+
+	if b.requireOTPCheck && !part.OTPVerified {
+		return domainErrors.ErrOTPVerificationRequired
 	}
 
 	err = b.encryptionPartsRepo.Delete(ctx, identifier)

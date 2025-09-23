@@ -342,6 +342,16 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 	}
 
 	if shr.RequiresEncryption() {
+		projID := contexter.GetProjectID(ctx)
+		project, err := a.projectRepo.Get(ctx, projID)
+		if err != nil {
+			return nil, fromDomainError(err)
+		}
+
+		if project.Enable2FA {
+			opt.requireOTPCheck = true
+		}
+
 		encryptionKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
 		if err != nil {
 			return nil, err
@@ -375,6 +385,15 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 	}
 
 	if shr.RequiresEncryption() {
+		project, err := a.projectRepo.Get(ctx, projID)
+		if err != nil {
+			return nil, fromDomainError(err)
+		}
+
+		if project.Enable2FA {
+			opt.requireOTPCheck = true
+		}
+
 		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return nil, err
@@ -413,11 +432,15 @@ func (a *ShareApplication) DeleteShare(ctx context.Context, reference *string) e
 func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, error) {
 	var builderType factories.EncryptionKeyBuilderType
 	var identifier string
+	otpCheckRequired := false
 	switch {
 	case opt.encryptionPart != nil && *opt.encryptionPart != "":
 		builderType = factories.Plain
 		identifier = *opt.encryptionPart
 	case opt.encryptionSession != nil && *opt.encryptionSession != "":
+		if opt.requireOTPCheck {
+			otpCheckRequired = true
+		}
 		builderType = factories.Session
 		identifier = *opt.encryptionSession
 	default:
@@ -430,7 +453,7 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 		return "", ErrInternal
 	}
 
-	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType, isMigrated)
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType, isMigrated, otpCheckRequired)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
 		return "", ErrInternal

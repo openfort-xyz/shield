@@ -16,6 +16,7 @@ var (
 	ErrEncryptionNotConfigured   = errors.New("encryption not configured")
 	ErrInvalidEncryptionPart     = errors.New("invalid encryption part")
 	ErrInvalidEncryptionSession  = errors.New("invalid encryption session")
+	ErrOTPVerificationRequired   = errors.New("otp verification required")
 	ErrInternal                  = errors.New("internal error")
 )
 
@@ -42,6 +43,10 @@ func fromDomainError(err error) error {
 
 	if errors.Is(err, domainErrors.ErrInvalidEncryptionSession) {
 		return ErrInvalidEncryptionSession
+	}
+
+	if errors.Is(err, domainErrors.ErrOTPVerificationRequired) {
+		return ErrOTPVerificationRequired
 	}
 	return ErrInternal
 }

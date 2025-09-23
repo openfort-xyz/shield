@@ -6,10 +6,12 @@ import (
 	"errors"
 	"log/slog"
 	"reflect"
+	"time"
 
 	pem "go.openfort.xyz/shield/internal/adapters/authenticators/identity/custom_identity"
 
 	"github.com/google/uuid"
+	"github.com/tidwall/buntdb"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/pkg/otp"
@@ -365,7 +367,7 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 		return ErrInternal
 	}
 
-	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(factories.Plain, isMigrated)
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(factories.Plain, isMigrated, false)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
 		return ErrInternal
@@ -427,29 +429,23 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string, userId string, otpCode *string) (string, error) {
 	a.logger.InfoContext(ctx, "registering encryption session")
 
-	projectID := contexter.GetProjectID(ctx)
+	otpVerified := false
 
-	project, err := a.projectRepo.Get(ctx, projectID)
-	if err != nil {
-		return "", fromDomainError(err)
-	}
-
-	if project.Enable2FA {
-		if otpCode == nil {
-			return "", ErrOTPRequired
-		}
-
+	if otpCode != nil {
 		_, err := a.otpService.VerifyOTP(ctx, userId, *otpCode)
 		if err != nil {
 			return "", err
 		}
+
+		otpVerified = true
 	}
 
 	sessionID := uuid.NewString()
 
 	encPartData := share.EncryptionPart{
-		EncPart: encryptionPart,
-		UserID:  userId,
+		EncPart:     encryptionPart,
+		UserID:      userId,
+		OTPVerified: otpVerified,
 	}
 	encPartDataBytes, err := json.Marshal(encPartData)
 	if err != nil {
@@ -457,7 +453,11 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 		return "", fromDomainError(err)
 	}
 
-	err = a.encryptionPartsRepo.Set(ctx, sessionID, string(encPartDataBytes), nil)
+	options := buntdb.SetOptions{
+		Expires: true,
+		TTL:     time.Duration(5*60*1000) * time.Millisecond, // 5 minutes TTL
+	}
+	err = a.encryptionPartsRepo.Set(ctx, sessionID, string(encPartDataBytes), &options)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to set encryption part", logger.Error(err))
 		return "", fromDomainError(err)

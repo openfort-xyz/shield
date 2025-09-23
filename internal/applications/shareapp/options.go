@@ -3,6 +3,7 @@ package shareapp
 type options struct {
 	encryptionPart    *string
 	encryptionSession *string
+	requireOTPCheck   bool
 }
 
 type Option func(*options)
