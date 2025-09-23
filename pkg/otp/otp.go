@@ -33,6 +33,7 @@ type SecurityConfig struct {
 	UserOnboardingWindowMS int64
 	MaxUserOnboardAttempts int
 	OTPExpiryMS            int64
+	OTPGenerationWindowMS  int64
 }
 
 var DefaultSecurityConfig = SecurityConfig{
@@ -40,6 +41,7 @@ var DefaultSecurityConfig = SecurityConfig{
 	UserOnboardingWindowMS: 6 * 60 * 60 * 1000, // 6 hours
 	MaxUserOnboardAttempts: 3,
 	OTPExpiryMS:            5 * 60 * 1000, // 5 minutes
+	OTPGenerationWindowMS:  60 * 1000,     // 1 minute
 }
 
 type Clock interface {
@@ -58,20 +60,24 @@ func (c *RealClock) Now() time.Time {
 
 // OnboardingTracker tracks failed onboarding attempts with rate limiting
 type OnboardingTracker struct {
-	windowMS    int64
-	maxAttempts int
-	attempts    map[string][]int64
-	mu          sync.RWMutex
-	clock       Clock
+	windowMS              int64
+	otpGenerationWindowMS int64
+	maxAttempts           int
+	failedAttempts        map[string][]int64
+	lastTimeOtpGenerated  map[string]int64
+	mu                    sync.RWMutex
+	clock                 Clock
 }
 
 // NewOnboardingTracker creates a new onboarding tracker
-func NewOnboardingTracker(windowMS int64, maxAttempts int, clock Clock) *OnboardingTracker {
+func NewOnboardingTracker(windowMS int64, otpGenerationWindowMS int64, maxAttempts int, clock Clock) *OnboardingTracker {
 	return &OnboardingTracker{
-		windowMS:    windowMS,
-		maxAttempts: maxAttempts,
-		attempts:    make(map[string][]int64),
-		clock:       clock,
+		windowMS:              windowMS,
+		otpGenerationWindowMS: otpGenerationWindowMS,
+		maxAttempts:           maxAttempts,
+		failedAttempts:        make(map[string][]int64),
+		lastTimeOtpGenerated:  make(map[string]int64),
+		clock:                 clock,
 	}
 }
 
@@ -83,7 +89,7 @@ func (ot *OnboardingTracker) TrackAttempt(userID string) error {
 	now := ot.clock.Now().UnixMilli()
 
 	var validAttempts []int64
-	for _, timestamp := range ot.attempts[userID] {
+	for _, timestamp := range ot.failedAttempts[userID] {
 		if now-timestamp <= ot.windowMS {
 			validAttempts = append(validAttempts, timestamp)
 		}
@@ -97,10 +103,27 @@ func (ot *OnboardingTracker) TrackAttempt(userID string) error {
 	return nil
 }
 
-func (ot *OnboardingTracker) AddAttempt(userID string) {
-	attempts := ot.attempts[userID]
+func (ot *OnboardingTracker) CheckLatestGenerationTime(userID string) error {
+	lastTime, ok := ot.lastTimeOtpGenerated[userID]
+
+	if ok {
+		now := ot.clock.Now().UnixMilli()
+		if now-lastTime <= ot.otpGenerationWindowMS {
+			return errors.ErrOTPRateLimitExceeded
+		}
+	}
+
+	return nil
+}
+
+func (ot *OnboardingTracker) SaveOtpCreationTime(userID string) {
+	ot.lastTimeOtpGenerated[userID] = ot.clock.Now().UnixMilli()
+}
+
+func (ot *OnboardingTracker) AddFailedAttempt(userID string) {
+	attempts := ot.failedAttempts[userID]
 	attempts = append(attempts, ot.clock.Now().UnixMilli())
-	ot.attempts[userID] = attempts
+	ot.failedAttempts[userID] = attempts
 }
 
 // CleanupOldRecords removes tracking data older than the window
@@ -111,7 +134,7 @@ func (ot *OnboardingTracker) CleanupOldRecords() {
 	now := ot.clock.Now().UnixMilli()
 	cleanedCount := 0
 
-	for key, attempts := range ot.attempts {
+	for key, attempts := range ot.failedAttempts {
 		var validAttempts []int64
 		for _, timestamp := range attempts {
 			if now-timestamp <= ot.windowMS {
@@ -120,10 +143,16 @@ func (ot *OnboardingTracker) CleanupOldRecords() {
 		}
 
 		if len(validAttempts) == 0 {
-			delete(ot.attempts, key)
+			delete(ot.failedAttempts, key)
 			cleanedCount++
 		} else {
-			ot.attempts[key] = validAttempts
+			ot.failedAttempts[key] = validAttempts
+		}
+	}
+
+	for key, t := range ot.lastTimeOtpGenerated {
+		if now-t > ot.otpGenerationWindowMS {
+			delete(ot.lastTimeOtpGenerated, key)
 		}
 	}
 
@@ -189,6 +218,10 @@ func NewInMemoryOTPService(partsRepo repositories.EncryptionPartsRepository, sec
 //
 // Returns 9-digit numeric OTP string
 func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (string, error) {
+	if err := s.securityService.CheckLatestGenerationTime(userID); err != nil {
+		return "", err
+	}
+
 	if err := s.securityService.TrackAttempt(userID); err != nil {
 		return "", err
 	}
@@ -217,6 +250,8 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 	if err != nil {
 		return "", err
 	}
+
+	s.securityService.SaveOtpCreationTime(userID)
 
 	return otpCode, nil
 }
@@ -261,7 +296,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 			}
 
 			// prevent brute forcing
-			s.securityService.AddAttempt(userID)
+			s.securityService.AddFailedAttempt(userID)
 
 			return nil, errors.ErrOTPInvalidated
 		}
