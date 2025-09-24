@@ -16,6 +16,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt/encryptionpartsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/keychainrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/notificationsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
@@ -100,6 +101,15 @@ func ProvideSQLShareRepository() (repositories.ShareRepository, error) {
 	}
 	shareRepository := sharerepo.New(client)
 	return shareRepository, nil
+}
+
+func ProvideSQLNotificationsRepository() (repositories.NotificationsRepository, error) {
+	client, err := ProvideSQL()
+	if err != nil {
+		return nil, err
+	}
+	notificationsRepository := notificationsrepo.New(client)
+	return notificationsRepository, nil
 }
 
 func ProvideInMemoryEncryptionPartsRepository() (repositories.EncryptionPartsRepository, error) {
@@ -235,6 +245,10 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
+	notificationsRepository, err := ProvideSQLNotificationsRepository()
+	if err != nil {
+		return nil, err
+	}
 	encryptionFactory, err := ProvideEncryptionFactory()
 	if err != nil {
 		return nil, err
@@ -251,7 +265,7 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, notificationsService)
+	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, notificationsRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, notificationsService)
 	return projectApplication, nil
 }
 

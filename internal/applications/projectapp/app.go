@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tidwall/buntdb"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	"go.openfort.xyz/shield/internal/core/domain/notifications"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/pkg/otp"
 	"go.openfort.xyz/shield/pkg/random"
@@ -33,6 +34,7 @@ type ProjectApplication struct {
 	providerSvc         services.ProviderService
 	providerRepo        repositories.ProviderRepository
 	sharesRepo          repositories.ShareRepository
+	notificationsRepo   repositories.NotificationsRepository
 	logger              *slog.Logger
 	encryptionFactory   factories.EncryptionFactory
 	encryptionPartsRepo repositories.EncryptionPartsRepository
@@ -42,13 +44,25 @@ type ProjectApplication struct {
 
 const OTP_EMAIL_SUBJECT = "Openfort OTP"
 
-func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRepository, providerSvc services.ProviderService, providerRepo repositories.ProviderRepository, sharesRepo repositories.ShareRepository, encryptionFactory factories.EncryptionFactory, encryptionPartsRepo repositories.EncryptionPartsRepository, otpService *otp.InMemoryOTPService, notificationService services.NotificationsService) *ProjectApplication {
+func New(
+	projectSvc services.ProjectService,
+	projectRepo repositories.ProjectRepository,
+	providerSvc services.ProviderService,
+	providerRepo repositories.ProviderRepository,
+	sharesRepo repositories.ShareRepository,
+	notificationsRepo repositories.NotificationsRepository,
+	encryptionFactory factories.EncryptionFactory,
+	encryptionPartsRepo repositories.EncryptionPartsRepository,
+	otpService *otp.InMemoryOTPService,
+	notificationService services.NotificationsService,
+) *ProjectApplication {
 	return &ProjectApplication{
 		projectSvc:          projectSvc,
 		projectRepo:         projectRepo,
 		providerSvc:         providerSvc,
 		providerRepo:        providerRepo,
 		sharesRepo:          sharesRepo,
+		notificationsRepo:   notificationsRepo,
 		logger:              logger.New("project_application"),
 		encryptionFactory:   encryptionFactory,
 		encryptionPartsRepo: encryptionPartsRepo,
@@ -201,7 +215,12 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ema
 			return ErrEmailIsInvalid
 		}
 
-		err := a.notificationService.SendEmail(ctx, *email, OTP_EMAIL_SUBJECT, otpCode, userId)
+		price, err := a.notificationService.SendEmail(ctx, *email, OTP_EMAIL_SUBJECT, otpCode, userId)
+		if err != nil {
+			return err
+		}
+
+		err = a.notificationsRepo.Save(ctx, &notifications.Notification{ProjectID: projectID, NotifType: notifications.EmailNotificationType, Price: price})
 		if err != nil {
 			return err
 		}
@@ -212,7 +231,12 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ema
 			return ErrPhoneNumberIsInvalid
 		}
 
-		err := a.notificationService.SendSMS(ctx, *phone, otpCode)
+		price, err := a.notificationService.SendSMS(ctx, *phone, otpCode)
+		if err != nil {
+			return err
+		}
+
+		err = a.notificationsRepo.Save(ctx, &notifications.Notification{ProjectID: projectID, NotifType: notifications.SMSNotificationType, Price: price})
 		if err != nil {
 			return err
 		}

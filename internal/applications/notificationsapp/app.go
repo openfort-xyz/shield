@@ -39,14 +39,15 @@ func NewNotificationApp() (*NotificationApplication, error) {
 	}, nil
 }
 
-func (c *NotificationApplication) SendEmail(ctx context.Context, toEmail string, subject string, body string, userId string) error {
-	err := c.emailProvider.SendEmail(ctx, toEmail, subject, body, userId)
+func (c *NotificationApplication) SendEmail(ctx context.Context, toEmail string, subject string, body string, userId string) (price float32, err error) {
+	// do not track prices per email yet because there is subscription based payments
+	err = c.emailProvider.SendEmail(ctx, toEmail, subject, body, userId)
 
-	return err
+	return price, err
 }
 
-func (c *NotificationApplication) SendSMS(ctx context.Context, to string, message string) error {
-	err := c.smsProvider.SendSMS(ctx, to, message)
+func (c *NotificationApplication) SendSMS(ctx context.Context, to string, message string) (price float32, err error) {
+	price, err = c.smsProvider.SendSMS(ctx, to, message)
 
-	return err
+	return price, err
 }

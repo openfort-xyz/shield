@@ -38,8 +38,14 @@ func NewClient(config Config) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) SendSMS(ctx context.Context, to string, message string) error {
-	_, err := c.apiClient.Sms.Send(context.Background(), to, message, "")
+func (c *Client) SendSMS(ctx context.Context, to string, message string) (float32, error) {
+	response, err := c.apiClient.Sms.Send(context.Background(), to, message, "")
+	if err != nil {
+		return 0, err
+	}
 
-	return err
+	// take first element from the response here is save because this function
+	// sends only one message,
+	// and such as there is no error present means that we do have response
+	return response.Collection[0].Points, nil
 }

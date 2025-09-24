@@ -14,6 +14,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt/encryptionpartsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/keychainrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/notificationsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
@@ -89,6 +90,15 @@ func ProvideSQLKeychainRepository() (r repositories.KeychainRepository, err erro
 func ProvideSQLShareRepository() (r repositories.ShareRepository, err error) {
 	wire.Build(
 		sharerepo.New,
+		ProvideSQL,
+	)
+
+	return
+}
+
+func ProvideSQLNotificationsRepository() (r repositories.NotificationsRepository, err error) {
+	wire.Build(
+		notificationsrepo.New,
 		ProvideSQL,
 	)
 
@@ -185,6 +195,7 @@ func ProvideProjectApplication() (a *projectapp.ProjectApplication, err error) {
 		ProvideProviderService,
 		ProvideSQLProviderRepository,
 		ProvideSQLShareRepository,
+		ProvideSQLNotificationsRepository,
 		ProvideEncryptionFactory,
 		ProvideInMemoryEncryptionPartsRepository,
 		ProvideOTPService,
