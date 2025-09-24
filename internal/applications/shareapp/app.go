@@ -258,7 +258,17 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 		}
 
 		if shr.RequiresEncryption() {
-			encryptionKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
+			projID := contexter.GetProjectID(ctx)
+			project, err := a.projectRepo.Get(ctx, projID)
+			if err != nil {
+				return nil, fromDomainError(err)
+			}
+
+			if project.Enable2FA {
+				opt.requireOTPCheck = true
+			}
+
+			encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
 			if err != nil {
 				return nil, err
 			}
@@ -286,11 +296,21 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 
 	var encryptionKey *string
 
+	projID := contexter.GetProjectID(ctx)
+	project, err := a.projectRepo.Get(ctx, projID)
+	if err != nil {
+		return nil, fromDomainError(err)
+	}
+
+	if project.Enable2FA {
+		opt.requireOTPCheck = true
+	}
+
 	for _, shr := range shrs {
 		if shr.RequiresEncryption() {
 			// Reconstruct encryption key just once
 			if encryptionKey == nil {
-				retrievedKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
+				retrievedKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
 				encryptionKey = &retrievedKey
 				if err != nil {
 					return nil, err
@@ -352,7 +372,7 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 			opt.requireOTPCheck = true
 		}
 
-		encryptionKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
+		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return nil, err
 		}
