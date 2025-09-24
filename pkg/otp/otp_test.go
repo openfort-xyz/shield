@@ -303,4 +303,51 @@ func TestOtpBruteForce(t *testing.T) {
 
 		ass.Nil(err)
 	})
+
+	t.Run("Bruteforce OTP generation for user", func(t *testing.T) {
+		ctx := context.TODO()
+		ass := assert.New(t)
+
+		tClock := TestClock{}
+		testStartTime := time.Now()
+
+		tClock.SetNewTime(testStartTime)
+
+		encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+		encryptionPartsRepo.ExpectedCalls = nil
+		encryptionPartsRepo.On("Set", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		encryptionPartsRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
+		encryptionPartsRepo.On("Update", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		config := OnboardingTrackerConfig{
+			WindowMS:              DefaultSecurityConfig.UserOnboardingWindowMS,
+			OTPGenerationWindowMS: DefaultSecurityConfig.OTPGenerationWindowMS,
+			MaxAttempts:           DefaultSecurityConfig.MaxUserOnboardAttempts,
+		}
+		otpOnbTracker := NewOnboardingTracker(config, &tClock)
+
+		otpService, err := NewInMemoryOTPService(encryptionPartsRepo, otpOnbTracker, DefaultSecurityConfig, &tClock)
+		if err != nil {
+			panic(err)
+		}
+
+		testUserID := "testUserID12345"
+
+		_, err = otpService.GenerateOTP(ctx, testUserID)
+		if err != nil {
+			panic(err)
+		}
+
+		tClock.SetNewTime(testStartTime.Add(10 * time.Second))
+
+		_, err = otpService.GenerateOTP(ctx, testUserID)
+
+		ass.ErrorIs(err, errors.ErrOTPRateLimitExceeded)
+
+		tClock.SetNewTime(tClock.Now().Add(51 * time.Second))
+
+		_, err = otpService.GenerateOTP(ctx, testUserID)
+
+		ass.Nil(err)
+	})
 }
