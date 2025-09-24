@@ -2,7 +2,6 @@ package projectapp
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -14,14 +13,12 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/providermockrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/domain/otp"
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 	"go.openfort.xyz/shield/internal/core/services/projectsvc"
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/pkg/contexter"
-	pkgOtp "go.openfort.xyz/shield/pkg/otp"
 	"go.openfort.xyz/shield/pkg/random"
 )
 
@@ -1109,117 +1106,6 @@ func TestProjectApplication_RegisterEncryptionSession(t *testing.T) {
 			tt.mock()
 			ass := assert.New(t)
 			_, err := app.RegisterEncryptionSession(ctx, "encryptionPart", "irrelevant", nil)
-			ass.Equal(tt.wantErr, err)
-		})
-	}
-}
-
-func TestProjectApplication_RegisterEncryptionSessionWithOtp(t *testing.T) {
-	ctx := contexter.WithProjectID(context.Background(), "project_id")
-	ctx = contexter.WithUserID(ctx, "user_id")
-	shareRepo := new(sharemockrepo.MockShareRepository)
-	projectRepo := new(projectmockrepo.MockProjectRepository)
-	providerRepo := new(providermockrepo.MockProviderRepository)
-	projectService := projectsvc.New(projectRepo)
-	providerService := providersvc.New(providerRepo)
-	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
-	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-
-	clk := pkgOtp.NewRealClock()
-
-	otpOnbTracker := pkgOtp.NewOnboardingTracker(pkgOtp.DefaultSecurityConfig.UserOnboardingWindowMS, pkgOtp.DefaultSecurityConfig.MaxUserOnboardAttempts, &clk)
-
-	otpService, err := pkgOtp.NewInMemoryOTPService(encryptionPartsRepo, otpOnbTracker, pkgOtp.DefaultSecurityConfig, &clk)
-	if err != nil {
-		panic(err)
-	}
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, encryptionFactory, encryptionPartsRepo, otpService, nil)
-
-	userId := "userID12345"
-
-	tc := []struct {
-		name        string
-		wantErr     error
-		otpCode     *string
-		mock        func()
-		generateOtp func() *string
-	}{
-		{
-			name:    "success",
-			wantErr: nil,
-			mock: func() {
-				encryptionPartsRepo.ExpectedCalls = nil
-				encryptionPartsRepo.On("Set", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				projectRepo.ExpectedCalls = nil
-				project := project.Project{
-					ID:        "project_id",
-					Enable2FA: false,
-				}
-				projectRepo.On("Get", mock.Anything, "project_id").Return(&project, nil)
-			},
-			generateOtp: func() *string { return nil },
-		},
-		{
-			name:    "error",
-			wantErr: ErrOTPRequired,
-			mock: func() {
-				encryptionPartsRepo.ExpectedCalls = nil
-				encryptionPartsRepo.On("Set", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				projectRepo.ExpectedCalls = nil
-				project := project.Project{
-					ID:        "project_id",
-					Enable2FA: true,
-				}
-				projectRepo.On("Get", mock.Anything, "project_id").Return(&project, nil)
-			},
-			generateOtp: func() *string { return nil },
-		},
-		{
-			name:    "success",
-			wantErr: nil,
-			mock: func() {
-				encryptionPartsRepo.ExpectedCalls = nil
-				encryptionPartsRepo.On("Set", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				encryptionPartsRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
-				encryptionPartsRepo.On("Update", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				projectRepo.ExpectedCalls = nil
-				project := project.Project{
-					ID:        "project_id",
-					Enable2FA: true,
-				}
-				projectRepo.On("Get", mock.Anything, "project_id").Return(&project, nil)
-			},
-			generateOtp: func() *string {
-
-				// call directly through the service because handler function will return OTP code
-				otpCode, err := otpService.GenerateOTP(ctx, userId)
-				if err != nil {
-					panic(err)
-				}
-
-				otpReq := otp.Request{
-					OTP:            otpCode,
-					CreatedAt:      clk.Now().UnixMilli(),
-					FailedAttempts: 0,
-				}
-				marshaledReq, err := json.Marshal(otpReq)
-				if err != nil {
-					panic(err)
-				}
-
-				encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
-
-				return &otpCode
-			},
-		},
-	}
-
-	for _, tt := range tc {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.mock()
-			otpCode := tt.generateOtp()
-			ass := assert.New(t)
-			_, err := app.RegisterEncryptionSession(ctx, "encryptionPart", userId, otpCode)
 			ass.Equal(tt.wantErr, err)
 		})
 	}
