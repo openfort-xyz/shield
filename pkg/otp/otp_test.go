@@ -55,7 +55,7 @@ func TestOtp(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		newOtp, err := otpService.GenerateOTP(ctx, testUserID)
+		newOtp, err := otpService.GenerateOTP(ctx, testUserID, false)
 		if err != nil {
 			panic(err)
 		}
@@ -109,7 +109,7 @@ func TestOtp(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		newOtp, err := otpService.GenerateOTP(ctx, testUserID)
+		newOtp, err := otpService.GenerateOTP(ctx, testUserID, false)
 		if err != nil {
 			panic(err)
 		}
@@ -160,7 +160,7 @@ func TestOtp(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		newOtp, err := otpService.GenerateOTP(ctx, testUserID)
+		newOtp, err := otpService.GenerateOTP(ctx, testUserID, false)
 		if err != nil {
 			panic(err)
 		}
@@ -213,7 +213,7 @@ func TestOtpBruteForce(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		newOtp, err := otpService.GenerateOTP(ctx, testUserID)
+		newOtp, err := otpService.GenerateOTP(ctx, testUserID, false)
 		if err != nil {
 			panic(err)
 		}
@@ -236,7 +236,7 @@ func TestOtpBruteForce(t *testing.T) {
 			ass.ErrorIs(err, errors.ErrOTPInvalidated)
 		}
 
-		_, err = otpService.GenerateOTP(ctx, testUserID)
+		_, err = otpService.GenerateOTP(ctx, testUserID, false)
 
 		ass.ErrorIs(err, errors.ErrOTPRateLimitExceeded)
 	})
@@ -270,7 +270,7 @@ func TestOtpBruteForce(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		newOtp, err := otpService.GenerateOTP(ctx, testUserID)
+		newOtp, err := otpService.GenerateOTP(ctx, testUserID, false)
 		if err != nil {
 			panic(err)
 		}
@@ -293,13 +293,13 @@ func TestOtpBruteForce(t *testing.T) {
 			ass.ErrorIs(err, errors.ErrOTPInvalidated)
 		}
 
-		_, err = otpService.GenerateOTP(ctx, testUserID)
+		_, err = otpService.GenerateOTP(ctx, testUserID, false)
 
 		ass.ErrorIs(err, errors.ErrOTPRateLimitExceeded)
 
 		tClock.SetNewTime(tClock.Now().Add(7 * time.Hour))
 
-		_, err = otpService.GenerateOTP(ctx, testUserID)
+		_, err = otpService.GenerateOTP(ctx, testUserID, false)
 
 		ass.Nil(err)
 	})
@@ -333,20 +333,20 @@ func TestOtpBruteForce(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		_, err = otpService.GenerateOTP(ctx, testUserID)
+		_, err = otpService.GenerateOTP(ctx, testUserID, false)
 		if err != nil {
 			panic(err)
 		}
 
 		tClock.SetNewTime(testStartTime.Add(10 * time.Second))
 
-		_, err = otpService.GenerateOTP(ctx, testUserID)
+		_, err = otpService.GenerateOTP(ctx, testUserID, false)
 
 		ass.ErrorIs(err, errors.ErrOTPRateLimitExceeded)
 
 		tClock.SetNewTime(tClock.Now().Add(51 * time.Second))
 
-		_, err = otpService.GenerateOTP(ctx, testUserID)
+		_, err = otpService.GenerateOTP(ctx, testUserID, false)
 
 		ass.Nil(err)
 	})
