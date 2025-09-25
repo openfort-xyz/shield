@@ -13,20 +13,22 @@ func newParser() *parser {
 
 func (p *parser) toDomain(notif *Notification) *notifications.Notification {
 	return &notifications.Notification{
-		ID:        notif.ID,
-		ProjectID: notif.ProjectID,
-		NotifType: notif.NotifType,
-		Price:     notif.Price,
-		SentAt:    notif.SentAt,
+		ID:             notif.ID,
+		ProjectID:      notif.ProjectID,
+		ExternalUserID: notif.ExternalUserID,
+		NotifType:      notif.NotifType,
+		Price:          notif.Price,
+		SentAt:         notif.SentAt,
 	}
 }
 
 func (p *parser) toDatabase(notif *notifications.Notification) *Notification {
 	return &Notification{
-		ID:        notif.ID,
-		ProjectID: notif.ProjectID,
-		NotifType: notif.NotifType,
-		Price:     notif.Price,
-		SentAt:    notif.SentAt,
+		ID:             notif.ID,
+		ProjectID:      notif.ProjectID,
+		ExternalUserID: notif.ExternalUserID,
+		NotifType:      notif.NotifType,
+		Price:          notif.Price,
+		SentAt:         notif.SentAt,
 	}
 }

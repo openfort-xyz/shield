@@ -277,7 +277,7 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ski
 			return err
 		}
 
-		err = a.notificationsRepo.Save(ctx, &notifications.Notification{ProjectID: projectID, NotifType: notifications.EmailNotificationType, Price: price})
+		err = a.notificationsRepo.Save(ctx, &notifications.Notification{ProjectID: projectID, ExternalUserID: userId, NotifType: notifications.EmailNotificationType, Price: price})
 		if err != nil {
 			return err
 		}
@@ -293,7 +293,7 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ski
 			return err
 		}
 
-		err = a.notificationsRepo.Save(ctx, &notifications.Notification{ProjectID: projectID, NotifType: notifications.SMSNotificationType, Price: price})
+		err = a.notificationsRepo.Save(ctx, &notifications.Notification{ProjectID: projectID, ExternalUserID: userId, NotifType: notifications.SMSNotificationType, Price: price})
 		if err != nil {
 			return err
 		}

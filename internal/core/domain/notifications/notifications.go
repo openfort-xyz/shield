@@ -8,9 +8,10 @@ const (
 )
 
 type Notification struct {
-	ID        int
-	ProjectID string
-	NotifType string
-	Price     float32
-	SentAt    time.Time
+	ID             int
+	ProjectID      string
+	ExternalUserID string
+	NotifType      string
+	Price          float32
+	SentAt         time.Time
 }
