@@ -181,7 +181,7 @@ func (h *Handler) RequestOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.app.GenerateOTP(ctx, req.UserId, req.Email, req.Phone)
+	err = h.app.GenerateOTP(ctx, req.UserId, req.DangerouslySkipVerification, req.Email, req.Phone)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return

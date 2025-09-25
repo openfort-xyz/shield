@@ -18,6 +18,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/usercontactrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/healthzapp"
 	"go.openfort.xyz/shield/internal/applications/notificationsapp"
@@ -99,6 +100,15 @@ func ProvideSQLShareRepository() (r repositories.ShareRepository, err error) {
 func ProvideSQLNotificationsRepository() (r repositories.NotificationsRepository, err error) {
 	wire.Build(
 		notificationsrepo.New,
+		ProvideSQL,
+	)
+
+	return
+}
+
+func ProvideSQLUserContactRepository() (r repositories.UserContactRepository, err error) {
+	wire.Build(
+		usercontactrepo.New,
 		ProvideSQL,
 	)
 
@@ -196,6 +206,7 @@ func ProvideProjectApplication() (a *projectapp.ProjectApplication, err error) {
 		ProvideSQLProviderRepository,
 		ProvideSQLShareRepository,
 		ProvideSQLNotificationsRepository,
+		ProvideSQLUserContactRepository,
 		ProvideEncryptionFactory,
 		ProvideInMemoryEncryptionPartsRepository,
 		ProvideOTPService,

@@ -224,7 +224,7 @@ func NewInMemoryOTPService(partsRepo repositories.EncryptionPartsRepository, sec
 // 3. Stores OTP with metadata for verification tracking
 //
 // Returns 9-digit numeric OTP string
-func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (string, error) {
+func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string, skipVerification bool) (string, error) {
 	if err := s.securityService.CheckLatestGenerationTime(userID); err != nil {
 		return "", err
 	}
@@ -239,9 +239,10 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string) (st
 	}
 
 	request := &otp.Request{
-		OTP:            otpCode,
-		CreatedAt:      s.clock.Now().UnixMilli(),
-		FailedAttempts: 0,
+		OTP:              otpCode,
+		CreatedAt:        s.clock.Now().UnixMilli(),
+		FailedAttempts:   0,
+		SkipVerification: skipVerification,
 	}
 
 	requestBytes, err := json.Marshal(request)
@@ -284,43 +285,45 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 		return nil, err
 	}
 
-	currentTime := s.clock.Now().UnixMilli()
-	if currentTime-request.CreatedAt > s.config.OTPExpiryMS {
-		err := s.partsRepo.Delete(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		return nil, errors.ErrOTPExpired
-	}
-
-	if request.OTP != otpCode {
-		request.FailedAttempts++
-
-		if request.FailedAttempts >= s.config.MaxFailedAttempts {
+	if !request.SkipVerification {
+		currentTime := s.clock.Now().UnixMilli()
+		if currentTime-request.CreatedAt > s.config.OTPExpiryMS {
 			err := s.partsRepo.Delete(ctx, userID)
 			if err != nil {
 				return nil, err
 			}
-
-			// prevent brute forcing
-			s.securityService.AddFailedAttempt(userID)
-
-			return nil, errors.ErrOTPInvalidated
+			return nil, errors.ErrOTPExpired
 		}
 
-		// Update failed attempts count
-		requestBytes, _ := json.Marshal(request)
+		if request.OTP != otpCode {
+			request.FailedAttempts++
 
-		options := buntdb.SetOptions{
-			Expires: true,
-			TTL:     time.Duration((s.config.OTPExpiryMS-(currentTime-request.CreatedAt))+1000) * time.Millisecond, // add some buffer to expiry time, just in case
-		}
-		err = s.partsRepo.Update(ctx, userID, string(requestBytes), &options)
-		if err != nil {
-			return nil, err
-		}
+			if request.FailedAttempts >= s.config.MaxFailedAttempts {
+				err := s.partsRepo.Delete(ctx, userID)
+				if err != nil {
+					return nil, err
+				}
 
-		return nil, errors.ErrOTPInvalid
+				// prevent brute forcing
+				s.securityService.AddFailedAttempt(userID)
+
+				return nil, errors.ErrOTPInvalidated
+			}
+
+			// Update failed attempts count
+			requestBytes, _ := json.Marshal(request)
+
+			options := buntdb.SetOptions{
+				Expires: true,
+				TTL:     time.Duration((s.config.OTPExpiryMS-(currentTime-request.CreatedAt))+1000) * time.Millisecond, // add some buffer to expiry time, just in case
+			}
+			err = s.partsRepo.Update(ctx, userID, string(requestBytes), &options)
+			if err != nil {
+				return nil, err
+			}
+
+			return nil, errors.ErrOTPInvalid
+		}
 	}
 
 	// OTP is valid, remove from storage

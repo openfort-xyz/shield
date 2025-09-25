@@ -20,6 +20,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/usercontactrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/healthzapp"
 	"go.openfort.xyz/shield/internal/applications/notificationsapp"
@@ -110,6 +111,15 @@ func ProvideSQLNotificationsRepository() (repositories.NotificationsRepository, 
 	}
 	notificationsRepository := notificationsrepo.New(client)
 	return notificationsRepository, nil
+}
+
+func ProvideSQLUserContactRepository() (repositories.UserContactRepository, error) {
+	client, err := ProvideSQL()
+	if err != nil {
+		return nil, err
+	}
+	userContactRepository := usercontactrepo.New(client)
+	return userContactRepository, nil
 }
 
 func ProvideInMemoryEncryptionPartsRepository() (repositories.EncryptionPartsRepository, error) {
@@ -249,6 +259,10 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
+	userContactRepository, err := ProvideSQLUserContactRepository()
+	if err != nil {
+		return nil, err
+	}
 	encryptionFactory, err := ProvideEncryptionFactory()
 	if err != nil {
 		return nil, err
@@ -265,7 +279,7 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, notificationsRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, notificationsService)
+	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, notificationsRepository, userContactRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, notificationsService)
 	return projectApplication, nil
 }
 

@@ -7,9 +7,10 @@ type CreateProjectRequest struct {
 }
 
 type GenerateOTPRequest struct {
-	UserId string  `json:"user_id"`
-	Email  *string `json:"email"`
-	Phone  *string `json:"phone"`
+	UserId                      string  `json:"user_id"`
+	DangerouslySkipVerification bool    `json:"dangerously_skip_verification"`
+	Email                       *string `json:"email"`
+	Phone                       *string `json:"phone"`
 }
 
 func (r *GenerateOTPRequest) ParametersValid() bool {

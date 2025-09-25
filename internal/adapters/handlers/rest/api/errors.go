@@ -63,6 +63,9 @@ var (
 	ErrOTPInvalid           = &Error{"Received otp is invalid", "OTP_INVALID", http.StatusBadRequest}
 	ErrOTPUserInfoMissing   = &Error{"Missing user information like email or phone number", "OTP_USER_INFO_MISSING", http.StatusBadRequest}
 	ErrProjectDoesntHave2FA = &Error{"Project doesn't support 2FA", "OTP_NOT_SUPPORTED", http.StatusBadRequest}
+	ErrOTPRecordNotFound    = &Error{"OTP record not found for user", "OTP_RECORD_NOT_FOUND", http.StatusNotFound}
+
+	ErrUserContactInformationMismatch = &Error{"User contact information mismatch", "USER_CONTACTS_MISMATCH", http.StatusBadRequest}
 
 	ErrEmailIsInvalid       = &Error{"Provided Email is invalid", "EMAIL_INVALID", http.StatusBadRequest}
 	ErrPhoneNumberIsInvalid = &Error{"Provided phone number is invalid", "PHONE_INVALID", http.StatusBadRequest}

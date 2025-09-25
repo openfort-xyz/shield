@@ -2,8 +2,10 @@ package projectapp
 
 import (
 	"context"
+	"crypto/sha512"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"reflect"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/tidwall/buntdb"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
 	"go.openfort.xyz/shield/internal/core/domain/notifications"
+	"go.openfort.xyz/shield/internal/core/domain/usercontact"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
 	"go.openfort.xyz/shield/pkg/otp"
 	"go.openfort.xyz/shield/pkg/random"
@@ -35,6 +38,7 @@ type ProjectApplication struct {
 	providerRepo        repositories.ProviderRepository
 	sharesRepo          repositories.ShareRepository
 	notificationsRepo   repositories.NotificationsRepository
+	userContactRepo     repositories.UserContactRepository
 	logger              *slog.Logger
 	encryptionFactory   factories.EncryptionFactory
 	encryptionPartsRepo repositories.EncryptionPartsRepository
@@ -51,6 +55,7 @@ func New(
 	providerRepo repositories.ProviderRepository,
 	sharesRepo repositories.ShareRepository,
 	notificationsRepo repositories.NotificationsRepository,
+	userContactRepo repositories.UserContactRepository,
 	encryptionFactory factories.EncryptionFactory,
 	encryptionPartsRepo repositories.EncryptionPartsRepository,
 	otpService *otp.InMemoryOTPService,
@@ -63,6 +68,7 @@ func New(
 		providerRepo:        providerRepo,
 		sharesRepo:          sharesRepo,
 		notificationsRepo:   notificationsRepo,
+		userContactRepo:     userContactRepo,
 		logger:              logger.New("project_application"),
 		encryptionFactory:   encryptionFactory,
 		encryptionPartsRepo: encryptionPartsRepo,
@@ -189,7 +195,47 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	return providers, nil
 }
 
-func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, email *string, phone *string) error {
+func (a *ProjectApplication) verifyAndSaveUserContacts(ctx context.Context, userId string, email *string, phone *string) error {
+	if email != nil {
+		emailHash := sha512.Sum512([]byte(*email))
+		emailHashStr := fmt.Sprintf("%x", emailHash)
+
+		userContactInfo, err := a.userContactRepo.GetByUserID(ctx, userId)
+		if err != nil && err != domainErrors.ErrUserContactNotFound {
+			return err
+		} else if err == domainErrors.ErrUserContactNotFound {
+			err = a.userContactRepo.Save(ctx, &usercontact.UserContact{ExternalUserID: userId, Email: emailHashStr})
+			if err != nil {
+				return err
+			}
+		} else {
+			if userContactInfo.Email != "" && emailHashStr != userContactInfo.Email {
+				return ErrUserContactInformationMismatch
+			}
+		}
+	} else if phone != nil {
+		phoneHash := sha512.Sum512([]byte(*phone))
+		phoneHashStr := fmt.Sprintf("%x", phoneHash)
+
+		userContactInfo, err := a.userContactRepo.GetByUserID(ctx, userId)
+		if err != nil && err != domainErrors.ErrUserContactNotFound {
+			return err
+		} else if err == domainErrors.ErrUserContactNotFound {
+			err = a.userContactRepo.Save(ctx, &usercontact.UserContact{ExternalUserID: userId, Phone: phoneHashStr})
+			if err != nil {
+				return err
+			}
+		} else {
+			if userContactInfo.Phone != "" && phoneHashStr != userContactInfo.Phone {
+				return ErrUserContactInformationMismatch
+			}
+		}
+	}
+
+	return nil
+}
+
+func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, skipVerification bool, email *string, phone *string) error {
 	if reflect.ValueOf(a.notificationService).IsNil() {
 		return ErrMissingNotificationService
 	}
@@ -205,9 +251,20 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ema
 		return ErrProjectDoesntHave2FA
 	}
 
-	otpCode, err := a.otpService.GenerateOTP(ctx, userId)
+	err = a.verifyAndSaveUserContacts(ctx, userId, email, phone)
 	if err != nil {
 		return err
+	}
+
+	otpCode, err := a.otpService.GenerateOTP(ctx, userId, skipVerification)
+	if err != nil {
+		return err
+	}
+
+	// usually this flag will be used at sign up phase,
+	// if someone tries to use it during sign in verifications in other endpoints will fail
+	if skipVerification {
+		return nil
 	}
 
 	if email != nil {
@@ -452,16 +509,33 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 
 func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string, userId string, otpCode *string) (string, error) {
 	a.logger.InfoContext(ctx, "registering encryption session")
+	projectID := contexter.GetProjectID(ctx)
+
+	proj, err := a.projectRepo.Get(ctx, projectID)
+	if err != nil {
+		return "", err
+	}
 
 	otpVerified := false
 
-	if otpCode != nil {
-		_, err := a.otpService.VerifyOTP(ctx, userId, *otpCode)
+	if proj.Enable2FA {
+		// in case OTP was generated with `SkipVerification` flag we might send there empty string
+		code := ""
+		if otpCode != nil {
+			code = *otpCode
+		}
+
+		otpRequest, err := a.otpService.VerifyOTP(ctx, userId, code)
 		if err != nil {
+			if err == domainErrors.ErrDataInDBNotFound {
+				return "", ErrOTPRecordNotFound
+			}
 			return "", err
 		}
 
-		otpVerified = true
+		if !otpRequest.SkipVerification {
+			otpVerified = true
+		}
 	}
 
 	sessionID := uuid.NewString()
