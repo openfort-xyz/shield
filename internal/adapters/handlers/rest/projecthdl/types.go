@@ -3,6 +3,28 @@ package projecthdl
 type CreateProjectRequest struct {
 	Name                  string `json:"name"`
 	GenerateEncryptionKey bool   `json:"generate_encryption_key,omitempty"`
+	Enable2FA             *bool  `json:"enable_2fa"`
+}
+
+type GenerateOTPRequest struct {
+	UserId                      string  `json:"user_id"`
+	DangerouslySkipVerification bool    `json:"dangerously_skip_verification"`
+	Email                       *string `json:"email"`
+	Phone                       *string `json:"phone"`
+}
+
+func (r *GenerateOTPRequest) ParametersValid() bool {
+	if r.UserId == "" {
+		return false
+	}
+
+	if r.Email == nil && r.Phone == nil {
+		return false
+	} else if r.Email != nil && r.Phone != nil {
+		return false
+	} else {
+		return true
+	}
 }
 
 type CreateProjectResponse struct {
@@ -88,7 +110,9 @@ type RegisterEncryptionKeyResponse struct {
 }
 
 type RegisterEncryptionSessionRequest struct {
-	EncryptionPart string `json:"encryption_part"`
+	EncryptionPart string  `json:"encryption_part"`
+	UserID         string  `json:"user_id"`
+	OTPCode        *string `json:"otp_code"`
 }
 
 type RegisterEncryptionSessionResponse struct {

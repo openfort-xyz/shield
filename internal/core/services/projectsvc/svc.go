@@ -31,7 +31,7 @@ func New(repo repositories.ProjectRepository) services.ProjectService {
 	}
 }
 
-func (s *service) Create(ctx context.Context, name string) (*project.Project, error) {
+func (s *service) Create(ctx context.Context, name string, enable2fa bool) (*project.Project, error) {
 	s.logger.InfoContext(ctx, "creating project", slog.String("name", name))
 	apiSecret := uuid.NewString()
 	encryptedSecret, err := bcrypt.GenerateFromPassword([]byte(apiSecret), s.cost)
@@ -44,6 +44,7 @@ func (s *service) Create(ctx context.Context, name string) (*project.Project, er
 		Name:      name,
 		APIKey:    uuid.NewString(),
 		APISecret: string(encryptedSecret),
+		Enable2FA: enable2fa,
 	}
 
 	err = s.repo.Create(ctx, proj)

@@ -14,11 +14,14 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt/encryptionpartsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/keychainrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/notificationsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/usercontactrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/healthzapp"
+	"go.openfort.xyz/shield/internal/applications/notificationsapp"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
@@ -29,6 +32,7 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
+	"go.openfort.xyz/shield/pkg/otp"
 )
 
 func ProvideSQL() (c *sql.Client, err error) {
@@ -87,6 +91,24 @@ func ProvideSQLKeychainRepository() (r repositories.KeychainRepository, err erro
 func ProvideSQLShareRepository() (r repositories.ShareRepository, err error) {
 	wire.Build(
 		sharerepo.New,
+		ProvideSQL,
+	)
+
+	return
+}
+
+func ProvideSQLNotificationsRepository() (r repositories.NotificationsRepository, err error) {
+	wire.Build(
+		notificationsrepo.New,
+		ProvideSQL,
+	)
+
+	return
+}
+
+func ProvideSQLUserContactRepository() (r repositories.UserContactRepository, err error) {
+	wire.Build(
+		usercontactrepo.New,
 		ProvideSQL,
 	)
 
@@ -183,8 +205,12 @@ func ProvideProjectApplication() (a *projectapp.ProjectApplication, err error) {
 		ProvideProviderService,
 		ProvideSQLProviderRepository,
 		ProvideSQLShareRepository,
+		ProvideSQLNotificationsRepository,
+		ProvideSQLUserContactRepository,
 		ProvideEncryptionFactory,
 		ProvideInMemoryEncryptionPartsRepository,
+		ProvideOTPService,
+		ProvideNotificationService,
 	)
 
 	return
@@ -216,6 +242,56 @@ func ProvideHealthzApplication() (a *healthzapp.Application, err error) {
 		healthzapp.New,
 	)
 
+	return
+}
+
+func ProvideClock() otp.Clock {
+	clock := otp.NewRealClock()
+	return &clock
+}
+
+func ProvideOnboardingTrackerConfig() otp.OnboardingTrackerConfig {
+	return otp.OnboardingTrackerConfig{
+		WindowMS:              otp.DefaultSecurityConfig.UserOnboardingWindowMS,
+		OTPGenerationWindowMS: otp.DefaultSecurityConfig.OTPGenerationWindowMS,
+		MaxAttempts:           otp.DefaultSecurityConfig.MaxUserOnboardAttempts,
+	}
+}
+
+func ProvideOnboardingTracker() (t *otp.OnboardingTracker, err error) {
+	wire.Build(
+		otp.NewOnboardingTracker,
+		ProvideOnboardingTrackerConfig,
+		ProvideClock,
+	)
+
+	return
+}
+
+func ProvideOTPService() (s *otp.InMemoryOTPService, err error) {
+	wire.Build(
+		otp.NewInMemoryOTPService,
+		ProvideInMemoryEncryptionPartsRepository,
+		ProvideOnboardingTracker,
+		wire.Value(otp.DefaultSecurityConfig),
+		ProvideClock,
+	)
+
+	return
+}
+
+func NewNotificationService() (services.NotificationsService, error) {
+	app, err := notificationsapp.NewNotificationApp()
+	if err != nil {
+		return nil, err
+	}
+	return app, nil
+}
+
+func ProvideNotificationService() (c services.NotificationsService, err error) {
+	wire.Build(
+		NewNotificationService,
+	)
 	return
 }
 

@@ -2,15 +2,25 @@ package projectapp
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
+	"reflect"
+	"time"
 
 	pem "go.openfort.xyz/shield/internal/adapters/authenticators/identity/custom_identity"
 
 	"github.com/google/uuid"
+	"github.com/tidwall/buntdb"
 	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	"go.openfort.xyz/shield/internal/core/domain/notifications"
+	"go.openfort.xyz/shield/internal/core/domain/usercontact"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"go.openfort.xyz/shield/pkg/otp"
 	"go.openfort.xyz/shield/pkg/random"
+	"go.openfort.xyz/shield/pkg/validation"
 
 	"go.openfort.xyz/shield/internal/core/domain/project"
 	"go.openfort.xyz/shield/internal/core/domain/provider"
@@ -27,28 +37,50 @@ type ProjectApplication struct {
 	providerSvc         services.ProviderService
 	providerRepo        repositories.ProviderRepository
 	sharesRepo          repositories.ShareRepository
+	notificationsRepo   repositories.NotificationsRepository
+	userContactRepo     repositories.UserContactRepository
 	logger              *slog.Logger
 	encryptionFactory   factories.EncryptionFactory
 	encryptionPartsRepo repositories.EncryptionPartsRepository
+	otpService          *otp.InMemoryOTPService
+	notificationService services.NotificationsService
 }
 
-func New(projectSvc services.ProjectService, projectRepo repositories.ProjectRepository, providerSvc services.ProviderService, providerRepo repositories.ProviderRepository, sharesRepo repositories.ShareRepository, encryptionFactory factories.EncryptionFactory, encryptionPartsRepo repositories.EncryptionPartsRepository) *ProjectApplication {
+const OTP_EMAIL_SUBJECT = "Openfort OTP"
+
+func New(
+	projectSvc services.ProjectService,
+	projectRepo repositories.ProjectRepository,
+	providerSvc services.ProviderService,
+	providerRepo repositories.ProviderRepository,
+	sharesRepo repositories.ShareRepository,
+	notificationsRepo repositories.NotificationsRepository,
+	userContactRepo repositories.UserContactRepository,
+	encryptionFactory factories.EncryptionFactory,
+	encryptionPartsRepo repositories.EncryptionPartsRepository,
+	otpService *otp.InMemoryOTPService,
+	notificationService services.NotificationsService,
+) *ProjectApplication {
 	return &ProjectApplication{
 		projectSvc:          projectSvc,
 		projectRepo:         projectRepo,
 		providerSvc:         providerSvc,
 		providerRepo:        providerRepo,
 		sharesRepo:          sharesRepo,
+		notificationsRepo:   notificationsRepo,
+		userContactRepo:     userContactRepo,
 		logger:              logger.New("project_application"),
 		encryptionFactory:   encryptionFactory,
 		encryptionPartsRepo: encryptionPartsRepo,
+		otpService:          otpService,
+		notificationService: notificationService,
 	}
 }
 
-func (a *ProjectApplication) CreateProject(ctx context.Context, name string, opts ...ProjectOption) (*project.Project, error) {
+func (a *ProjectApplication) CreateProject(ctx context.Context, name string, enable2fa bool, opts ...ProjectOption) (*project.Project, error) {
 	a.logger.InfoContext(ctx, "creating project")
 
-	proj, err := a.projectSvc.Create(ctx, name)
+	proj, err := a.projectSvc.Create(ctx, name, enable2fa)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create project", logger.Error(err))
 		return nil, fromDomainError(err)
@@ -161,6 +193,115 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	}
 
 	return providers, nil
+}
+
+func (a *ProjectApplication) verifyAndSaveUserContacts(ctx context.Context, userId string, email *string, phone *string) error {
+	if email != nil {
+		emailHash := sha512.Sum512([]byte(*email))
+		emailHashStr := fmt.Sprintf("%x", emailHash)
+
+		userContactInfo, err := a.userContactRepo.GetByUserID(ctx, userId)
+		if err != nil && err != domainErrors.ErrUserContactNotFound {
+			return err
+		} else if err == domainErrors.ErrUserContactNotFound {
+			err = a.userContactRepo.Save(ctx, &usercontact.UserContact{ExternalUserID: userId, Email: emailHashStr})
+			if err != nil {
+				return err
+			}
+		} else {
+			if userContactInfo.Email != "" && emailHashStr != userContactInfo.Email {
+				return ErrUserContactInformationMismatch
+			}
+		}
+	} else if phone != nil {
+		phoneHash := sha512.Sum512([]byte(*phone))
+		phoneHashStr := fmt.Sprintf("%x", phoneHash)
+
+		userContactInfo, err := a.userContactRepo.GetByUserID(ctx, userId)
+		if err != nil && err != domainErrors.ErrUserContactNotFound {
+			return err
+		} else if err == domainErrors.ErrUserContactNotFound {
+			err = a.userContactRepo.Save(ctx, &usercontact.UserContact{ExternalUserID: userId, Phone: phoneHashStr})
+			if err != nil {
+				return err
+			}
+		} else {
+			if userContactInfo.Phone != "" && phoneHashStr != userContactInfo.Phone {
+				return ErrUserContactInformationMismatch
+			}
+		}
+	}
+
+	return nil
+}
+
+func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, skipVerification bool, email *string, phone *string) error {
+	if reflect.ValueOf(a.notificationService).IsNil() {
+		return ErrMissingNotificationService
+	}
+
+	projectID := contexter.GetProjectID(ctx)
+
+	project, err := a.projectRepo.Get(ctx, projectID)
+	if err != nil {
+		return fromDomainError(err)
+	}
+
+	if !project.Enable2FA {
+		return ErrProjectDoesntHave2FA
+	}
+
+	err = a.verifyAndSaveUserContacts(ctx, userId, email, phone)
+	if err != nil {
+		return err
+	}
+
+	otpCode, err := a.otpService.GenerateOTP(ctx, userId, skipVerification)
+	if err != nil {
+		return fromDomainError(err)
+	}
+
+	// usually this flag will be used at sign up phase,
+	// if someone tries to use it during sign in verifications in other endpoints will fail
+	if skipVerification {
+		return nil
+	}
+
+	if email != nil {
+		if !validation.IsValidEmail(*email) {
+			return ErrEmailIsInvalid
+		}
+
+		price, err := a.notificationService.SendEmail(ctx, *email, OTP_EMAIL_SUBJECT, otpCode, userId)
+		if err != nil {
+			return err
+		}
+
+		err = a.notificationsRepo.Save(ctx, &notifications.Notification{ProjectID: projectID, ExternalUserID: userId, NotifType: notifications.EmailNotificationType, Price: price})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	} else if phone != nil {
+		if !validation.IsValidPhoneNumber(*phone) {
+			return ErrPhoneNumberIsInvalid
+		}
+
+		price, err := a.notificationService.SendSMS(ctx, *phone, otpCode)
+		if err != nil {
+			return err
+		}
+
+		err = a.notificationsRepo.Save(ctx, &notifications.Notification{ProjectID: projectID, ExternalUserID: userId, NotifType: notifications.SMSNotificationType, Price: price})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	} else {
+		return ErrOTPUserInfoMissing
+	}
 }
 
 func (a *ProjectApplication) GetProviders(ctx context.Context) ([]*provider.Provider, error) {
@@ -307,7 +448,7 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 		return ErrInternal
 	}
 
-	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(factories.Plain, isMigrated)
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(factories.Plain, isMigrated, false)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
 		return ErrInternal
@@ -366,11 +507,55 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 	return nil
 }
 
-func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string) (string, error) {
+func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string, userId string, otpCode *string) (string, error) {
 	a.logger.InfoContext(ctx, "registering encryption session")
+	projectID := contexter.GetProjectID(ctx)
+
+	proj, err := a.projectRepo.Get(ctx, projectID)
+	if err != nil {
+		return "", err
+	}
+
+	otpVerified := false
+
+	if proj.Enable2FA {
+		// in case OTP was generated with `SkipVerification` flag we might send there empty string
+		code := ""
+		if otpCode != nil {
+			code = *otpCode
+		}
+
+		otpRequest, err := a.otpService.VerifyOTP(ctx, userId, code)
+		if err != nil {
+			if err == domainErrors.ErrDataInDBNotFound {
+				return "", ErrOTPRecordNotFound
+			}
+			return "", err
+		}
+
+		if !otpRequest.SkipVerification {
+			otpVerified = true
+		}
+	}
 
 	sessionID := uuid.NewString()
-	err := a.encryptionPartsRepo.Set(ctx, sessionID, encryptionPart)
+
+	encPartData := share.EncryptionPart{
+		EncPart:     encryptionPart,
+		UserID:      userId,
+		OTPVerified: otpVerified,
+	}
+	encPartDataBytes, err := json.Marshal(encPartData)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to serialize encryption part with signer ID", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+
+	options := buntdb.SetOptions{
+		Expires: true,
+		TTL:     time.Duration(5*60*1000) * time.Millisecond, // 5 minutes TTL
+	}
+	err = a.encryptionPartsRepo.Set(ctx, sessionID, string(encPartDataBytes), &options)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to set encryption part", logger.Error(err))
 		return "", fromDomainError(err)

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your OTP Code</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .otp-code {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            background-color: #f8f9ff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            border: 2px dashed #667eea;
+            margin: 30px 0;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+        }
+        .message {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 25px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #856404;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }
+        .valid-time {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Verification Code</h1>
+        </div>
+
+        <div class="content">
+            <p class="message">
+                Hello! Use the verification code below to complete your authentication:
+            </p>
+
+            <div class="otp-code">
+                {{.OTP}}
+            </div>
+
+            <div class="warning">
+                <strong>⚠️ Important:</strong> This code is valid for <span class="valid-time">5 minutes</span> only.
+                Do not share this code with anyone.
+            </div>
+
+            <p class="message">
+                If you didn't request this code, please ignore this email or contact support if you have concerns.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -258,7 +258,17 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 		}
 
 		if shr.RequiresEncryption() {
-			encryptionKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
+			projID := contexter.GetProjectID(ctx)
+			project, err := a.projectRepo.Get(ctx, projID)
+			if err != nil {
+				return nil, fromDomainError(err)
+			}
+
+			if project.Enable2FA {
+				opt.requireOTPCheck = true
+			}
+
+			encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
 			if err != nil {
 				return nil, err
 			}
@@ -286,11 +296,21 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 
 	var encryptionKey *string
 
+	projID := contexter.GetProjectID(ctx)
+	project, err := a.projectRepo.Get(ctx, projID)
+	if err != nil {
+		return nil, fromDomainError(err)
+	}
+
+	if project.Enable2FA {
+		opt.requireOTPCheck = true
+	}
+
 	for _, shr := range shrs {
 		if shr.RequiresEncryption() {
 			// Reconstruct encryption key just once
 			if encryptionKey == nil {
-				retrievedKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
+				retrievedKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
 				encryptionKey = &retrievedKey
 				if err != nil {
 					return nil, err
@@ -342,7 +362,17 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 	}
 
 	if shr.RequiresEncryption() {
-		encryptionKey, err := a.reconstructEncryptionKey(ctx, contexter.GetProjectID(ctx), opt)
+		projID := contexter.GetProjectID(ctx)
+		project, err := a.projectRepo.Get(ctx, projID)
+		if err != nil {
+			return nil, fromDomainError(err)
+		}
+
+		if project.Enable2FA {
+			opt.requireOTPCheck = true
+		}
+
+		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return nil, err
 		}
@@ -375,6 +405,15 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 	}
 
 	if shr.RequiresEncryption() {
+		project, err := a.projectRepo.Get(ctx, projID)
+		if err != nil {
+			return nil, fromDomainError(err)
+		}
+
+		if project.Enable2FA {
+			opt.requireOTPCheck = true
+		}
+
 		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return nil, err
@@ -413,11 +452,15 @@ func (a *ShareApplication) DeleteShare(ctx context.Context, reference *string) e
 func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, error) {
 	var builderType factories.EncryptionKeyBuilderType
 	var identifier string
+	otpCheckRequired := false
 	switch {
 	case opt.encryptionPart != nil && *opt.encryptionPart != "":
 		builderType = factories.Plain
 		identifier = *opt.encryptionPart
 	case opt.encryptionSession != nil && *opt.encryptionSession != "":
+		if opt.requireOTPCheck {
+			otpCheckRequired = true
+		}
 		builderType = factories.Session
 		identifier = *opt.encryptionSession
 	default:
@@ -430,7 +473,7 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 		return "", ErrInternal
 	}
 
-	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType, isMigrated)
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType, isMigrated, otpCheckRequired)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
 		return "", ErrInternal

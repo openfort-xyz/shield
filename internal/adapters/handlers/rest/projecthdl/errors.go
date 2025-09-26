@@ -11,6 +11,7 @@ func fromApplicationError(err error) *api.Error {
 	if err == nil {
 		return nil
 	}
+
 	switch {
 	case errors.Is(err, projectapp.ErrProjectNotFound):
 		return api.ErrProjectNotFound
@@ -40,6 +41,30 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrJWKPemConflict
 	case errors.Is(err, projectapp.ErrInvalidPemCertificate):
 		return api.ErrInvalidPemCertificate
+	case errors.Is(err, projectapp.ErrOTPRequired):
+		return api.ErrOTPRequired
+	case errors.Is(err, projectapp.ErrOTPRateLimitExceeded):
+		return api.ErrOTPRateLimitExceeded
+	case errors.Is(err, projectapp.ErrOTPExpired):
+		return api.ErrOTPExpired
+	case errors.Is(err, projectapp.ErrOTPInvalidated):
+		return api.ErrOTPInvalidated
+	case errors.Is(err, projectapp.ErrOTPInvalid):
+		return api.ErrOTPInvalid
+	case errors.Is(err, projectapp.ErrOTPUserInfoMissing):
+		return api.ErrOTPUserInfoMissing
+	case errors.Is(err, projectapp.ErrEmailIsInvalid):
+		return api.ErrEmailIsInvalid
+	case errors.Is(err, projectapp.ErrPhoneNumberIsInvalid):
+		return api.ErrPhoneNumberIsInvalid
+	case errors.Is(err, projectapp.ErrMissingNotificationService):
+		return api.ErrMissingNotificationService
+	case errors.Is(err, projectapp.ErrProjectDoesntHave2FA):
+		return api.ErrProjectDoesntHave2FA
+	case errors.Is(err, projectapp.ErrOTPRecordNotFound):
+		return api.ErrOTPRecordNotFound
+	case errors.Is(err, projectapp.ErrUserContactInformationMismatch):
+		return api.ErrUserContactInformationMismatch
 	default:
 		return api.ErrInternal
 	}

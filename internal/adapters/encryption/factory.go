@@ -25,7 +25,7 @@ func NewEncryptionFactory(encryptionPartsRepo repositories.EncryptionPartsReposi
 	}
 }
 
-func (e *encryptionFactory) CreateEncryptionKeyBuilder(builderType factories.EncryptionKeyBuilderType, projectMigrated bool) (builders.EncryptionKeyBuilder, error) {
+func (e *encryptionFactory) CreateEncryptionKeyBuilder(builderType factories.EncryptionKeyBuilderType, projectMigrated bool, otpRequired bool) (builders.EncryptionKeyBuilder, error) {
 	var reconstructionStrategy strategies.ReconstructionStrategy
 	if projectMigrated {
 		reconstructionStrategy = sssrec.NewSSSReconstructionStrategy()
@@ -36,7 +36,7 @@ func (e *encryptionFactory) CreateEncryptionKeyBuilder(builderType factories.Enc
 	case factories.Plain:
 		return plnbldr.NewEncryptionKeyBuilder(e.projectRepo, reconstructionStrategy), nil
 	case factories.Session:
-		return sessbldr.NewEncryptionKeyBuilder(e.encryptionPartsRepo, e.projectRepo, reconstructionStrategy), nil
+		return sessbldr.NewEncryptionKeyBuilder(e.encryptionPartsRepo, e.projectRepo, reconstructionStrategy, otpRequired), nil
 	}
 
 	return nil, errors.ErrInvalidEncryptionKeyBuilderType

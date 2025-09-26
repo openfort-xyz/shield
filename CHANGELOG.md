@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.22]
+### What
+This release adds OTP as an optional secutify feature for the projects. If 2FA is enabled for the project Shield will require an OTP during encrypted session creation.
+
+OTP may be sent either with email or SMS.
+
 ## [v0.2.21]
 ### What
 This release fixes a bug which happens only in case one external user has two shield accounts and each of that accounts has own keychain. Usually it's not happening though.

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/stretchr/testify/mock"
+	"github.com/tidwall/buntdb"
 	"go.openfort.xyz/shield/internal/core/ports/repositories"
 )
 
@@ -21,7 +22,12 @@ func (m *MockEncryptionPartsRepository) Get(ctx context.Context, sessionID strin
 	return args.Get(0).(string), args.Error(1)
 }
 
-func (m *MockEncryptionPartsRepository) Set(ctx context.Context, sessionID, part string) error {
+func (m *MockEncryptionPartsRepository) Set(ctx context.Context, sessionID, part string, options *buntdb.SetOptions) error {
+	args := m.Mock.Called(ctx, sessionID, part)
+	return args.Error(0)
+}
+
+func (m *MockEncryptionPartsRepository) Update(ctx context.Context, sessionID, part string, options *buntdb.SetOptions) error {
 	args := m.Mock.Called(ctx, sessionID, part)
 	return args.Error(0)
 }

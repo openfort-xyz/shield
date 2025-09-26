@@ -30,6 +30,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrInvalidEncryptionPart
 	case errors.Is(err, shareapp.ErrInvalidEncryptionSession):
 		return api.ErrInvalidEncryptionSession
+	case errors.Is(err, shareapp.ErrOTPVerificationRequired):
+		return api.ErrOTPRequired
 	default:
 		return api.ErrInternal
 	}

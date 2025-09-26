@@ -16,11 +16,14 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/repositories/bunt/encryptionpartsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/keychainrepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/notificationsrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/providerrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/sharerepo"
+	"go.openfort.xyz/shield/internal/adapters/repositories/sql/usercontactrepo"
 	"go.openfort.xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"go.openfort.xyz/shield/internal/applications/healthzapp"
+	"go.openfort.xyz/shield/internal/applications/notificationsapp"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shamirjob"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
@@ -31,6 +34,7 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/providersvc"
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
+	"go.openfort.xyz/shield/pkg/otp"
 )
 
 // Injectors from wire.go:
@@ -98,6 +102,24 @@ func ProvideSQLShareRepository() (repositories.ShareRepository, error) {
 	}
 	shareRepository := sharerepo.New(client)
 	return shareRepository, nil
+}
+
+func ProvideSQLNotificationsRepository() (repositories.NotificationsRepository, error) {
+	client, err := ProvideSQL()
+	if err != nil {
+		return nil, err
+	}
+	notificationsRepository := notificationsrepo.New(client)
+	return notificationsRepository, nil
+}
+
+func ProvideSQLUserContactRepository() (repositories.UserContactRepository, error) {
+	client, err := ProvideSQL()
+	if err != nil {
+		return nil, err
+	}
+	userContactRepository := usercontactrepo.New(client)
+	return userContactRepository, nil
 }
 
 func ProvideInMemoryEncryptionPartsRepository() (repositories.EncryptionPartsRepository, error) {
@@ -233,6 +255,14 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
+	notificationsRepository, err := ProvideSQLNotificationsRepository()
+	if err != nil {
+		return nil, err
+	}
+	userContactRepository, err := ProvideSQLUserContactRepository()
+	if err != nil {
+		return nil, err
+	}
 	encryptionFactory, err := ProvideEncryptionFactory()
 	if err != nil {
 		return nil, err
@@ -241,7 +271,15 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, encryptionFactory, encryptionPartsRepository)
+	inMemoryOTPService, err := ProvideOTPService()
+	if err != nil {
+		return nil, err
+	}
+	notificationsService, err := ProvideNotificationService()
+	if err != nil {
+		return nil, err
+	}
+	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, notificationsRepository, userContactRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, notificationsService)
 	return projectApplication, nil
 }
 
@@ -280,6 +318,43 @@ func ProvideHealthzApplication() (*healthzapp.Application, error) {
 	return application, nil
 }
 
+func ProvideOnboardingTracker() (*otp.OnboardingTracker, error) {
+	onboardingTrackerConfig := ProvideOnboardingTrackerConfig()
+	clock := ProvideClock()
+	onboardingTracker := otp.NewOnboardingTracker(onboardingTrackerConfig, clock)
+	return onboardingTracker, nil
+}
+
+func ProvideOTPService() (*otp.InMemoryOTPService, error) {
+	encryptionPartsRepository, err := ProvideInMemoryEncryptionPartsRepository()
+	if err != nil {
+		return nil, err
+	}
+	onboardingTracker, err := ProvideOnboardingTracker()
+	if err != nil {
+		return nil, err
+	}
+	securityConfig := _wireSecurityConfigValue
+	clock := ProvideClock()
+	inMemoryOTPService, err := otp.NewInMemoryOTPService(encryptionPartsRepository, onboardingTracker, securityConfig, clock)
+	if err != nil {
+		return nil, err
+	}
+	return inMemoryOTPService, nil
+}
+
+var (
+	_wireSecurityConfigValue = otp.DefaultSecurityConfig
+)
+
+func ProvideNotificationService() (services.NotificationsService, error) {
+	notificationsService, err := NewNotificationService()
+	if err != nil {
+		return nil, err
+	}
+	return notificationsService, nil
+}
+
 func ProvideRESTServer() (*rest.Server, error) {
 	config, err := rest.GetConfigFromEnv()
 	if err != nil {
@@ -311,4 +386,27 @@ func ProvideRESTServer() (*rest.Server, error) {
 	}
 	server := rest.New(config, projectApplication, shareApplication, authenticationFactory, identityFactory, userService, application)
 	return server, nil
+}
+
+// wire.go:
+
+func ProvideClock() otp.Clock {
+	clock := otp.NewRealClock()
+	return &clock
+}
+
+func ProvideOnboardingTrackerConfig() otp.OnboardingTrackerConfig {
+	return otp.OnboardingTrackerConfig{
+		WindowMS:              otp.DefaultSecurityConfig.UserOnboardingWindowMS,
+		OTPGenerationWindowMS: otp.DefaultSecurityConfig.OTPGenerationWindowMS,
+		MaxAttempts:           otp.DefaultSecurityConfig.MaxUserOnboardAttempts,
+	}
+}
+
+func NewNotificationService() (services.NotificationsService, error) {
+	app, err := notificationsapp.NewNotificationApp()
+	if err != nil {
+		return nil, err
+	}
+	return app, nil
 }
