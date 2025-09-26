@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS shld_user_contacts (
     phone CHAR(128)
 );
 
-CREATE INDEX idx_usr_contacts_extrnl_usr_id ON shld_user_contacts(external_user_id);
+ALTER TABLE shld_user_contacts ADD CONSTRAINT uk_external_user_id UNIQUE (external_user_id);
 
 -- +goose StatementBegin
 -- +goose StatementEnd
