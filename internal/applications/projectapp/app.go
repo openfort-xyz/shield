@@ -258,7 +258,7 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ski
 
 	otpCode, err := a.otpService.GenerateOTP(ctx, userId, skipVerification)
 	if err != nil {
-		return err
+		return fromDomainError(err)
 	}
 
 	// usually this flag will be used at sign up phase,
