@@ -10,7 +10,7 @@ type Project struct {
 	RateLimit      int64
 }
 
-type ProjectWithRateLimit struct {
+type WithRateLimit struct {
 	ID             string
 	Name           string
 	APIKey         string

@@ -32,12 +32,12 @@ func (m *MockProjectRepository) Get(ctx context.Context, projectID string) (*pro
 	return args.Get(0).(*project.Project), args.Error(1)
 }
 
-func (m *MockProjectRepository) GetWithRateLimit(ctx context.Context, projectID string) (*project.ProjectWithRateLimit, error) {
+func (m *MockProjectRepository) GetWithRateLimit(ctx context.Context, projectID string) (*project.WithRateLimit, error) {
 	args := m.Mock.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*project.ProjectWithRateLimit), args.Error(1)
+	return args.Get(0).(*project.WithRateLimit), args.Error(1)
 }
 
 func (m *MockProjectRepository) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {

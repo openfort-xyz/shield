@@ -77,7 +77,7 @@ func (r *repository) Get(ctx context.Context, projectID string) (*project.Projec
 	return r.parser.toDomain(dbProj), nil
 }
 
-func (r *repository) GetWithRateLimit(ctx context.Context, projectID string) (*project.ProjectWithRateLimit, error) {
+func (r *repository) GetWithRateLimit(ctx context.Context, projectID string) (*project.WithRateLimit, error) {
 	r.logger.InfoContext(ctx, "getting project with rate limit")
 
 	dbProj := &ProjectWithRateLimit{}
