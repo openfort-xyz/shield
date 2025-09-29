@@ -23,6 +23,7 @@ var (
 	ErrInvalidPemCertificate          = errors.New("invalid PEM certificate")
 	ErrOTPRequired                    = errors.New("OTP is required for this request")
 	ErrOTPRateLimitExceeded           = errors.New("rate limit exceeded for user")
+	ErrOTPProjectRateLimit            = errors.New("rate limit per project exceeded")
 	ErrOTPFailedToGenerate            = errors.New("failed to generate OTP")
 	ErrOTPFailedToMarshal             = errors.New("failed to marshal OTP request")
 	ErrOTPExpired                     = errors.New("otp was expired")

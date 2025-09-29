@@ -48,6 +48,19 @@ func (r *repository) Create(ctx context.Context, proj *project.Project) error {
 	return nil
 }
 
+func (r *repository) SaveProjectRateLimits(ctx context.Context, rateLimits *project.RateLimit) error {
+	r.logger.InfoContext(ctx, "saving rate limits for project", slog.String("project", rateLimits.ProjectID))
+
+	dbRateLimits := r.parser.toDatabaseRateLimits(rateLimits)
+	err := r.db.Create(dbRateLimits).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error saving project rate limits", logger.Error(err))
+		return err
+	}
+
+	return nil
+}
+
 func (r *repository) Get(ctx context.Context, projectID string) (*project.Project, error) {
 	r.logger.InfoContext(ctx, "getting project")
 
@@ -62,6 +75,26 @@ func (r *repository) Get(ctx context.Context, projectID string) (*project.Projec
 	}
 
 	return r.parser.toDomain(dbProj), nil
+}
+
+func (r *repository) GetWithRateLimit(ctx context.Context, projectID string) (*project.ProjectWithRateLimit, error) {
+	r.logger.InfoContext(ctx, "getting project with rate limit")
+
+	dbProj := &ProjectWithRateLimit{}
+	err := r.db.Table("shld_projects").
+		Select("shld_projects.*, shld_rate_limit.requests_per_minute").
+		Joins("LEFT JOIN shld_rate_limit ON shld_projects.id = shld_rate_limit.project_id").
+		Where("shld_projects.id = ?", projectID).
+		First(dbProj).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainErrors.ErrProjectNotFound
+		}
+		r.logger.ErrorContext(ctx, "error getting project", logger.Error(err))
+		return nil, err
+	}
+
+	return r.parser.toDomainWithRateLimit(dbProj), nil
 }
 
 func (r *repository) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {

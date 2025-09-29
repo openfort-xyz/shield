@@ -8,7 +8,9 @@ import (
 
 type ProjectRepository interface {
 	Create(ctx context.Context, project *project.Project) error
+	SaveProjectRateLimits(ctx context.Context, rateLimits *project.RateLimit) error
 	Get(ctx context.Context, projectID string) (*project.Project, error)
+	GetWithRateLimit(ctx context.Context, projectID string) (*project.ProjectWithRateLimit, error)
 	GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error)
 	Delete(ctx context.Context, projectID string) error
 

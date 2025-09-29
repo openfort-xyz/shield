@@ -57,6 +57,22 @@ func (s *service) Create(ctx context.Context, name string, enable2fa bool) (*pro
 	return proj, nil
 }
 
+func (s *service) SaveProjectRateLimits(ctx context.Context, projectID string, rateLimit int64) error {
+	s.logger.InfoContext(ctx, "save project rate limits", slog.String("project", projectID))
+
+	projectRateLimit := &project.RateLimit{
+		ProjectID:         projectID,
+		RequestsPerMinute: rateLimit,
+	}
+
+	err := s.repo.SaveProjectRateLimits(ctx, projectRateLimit)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to save project rate limits", logger.Error(err))
+	}
+
+	return err
+}
+
 func (s *service) SetEncryptionPart(ctx context.Context, projectID, part string) error {
 	s.logger.InfoContext(ctx, "setting encryption part", slog.String("project_id", projectID))
 	ep, err := s.repo.GetEncryptionPart(ctx, projectID)
