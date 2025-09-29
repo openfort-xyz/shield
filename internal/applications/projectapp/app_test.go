@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -24,6 +25,18 @@ import (
 	"go.openfort.xyz/shield/pkg/random"
 )
 
+type TestClock struct {
+	currentTime time.Time
+}
+
+func (tc *TestClock) Now() time.Time {
+	return tc.currentTime
+}
+
+func (tc *TestClock) SetNewTime(t time.Time) {
+	tc.currentTime = t
+}
+
 func TestProjectApplication_CreateProject(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
@@ -36,7 +49,8 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
 
 	tc := []struct {
 		name     string
@@ -55,6 +69,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
+				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -70,6 +85,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
+				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", nil)
 				projectRepo.On("SetEncryptionPart", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				projectRepo.On("CreateMigration", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -82,6 +98,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(errors.New("repository error"))
+				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -94,6 +111,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
+				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", errors.New("repository error"))
 				projectRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 			},
@@ -108,6 +126,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
+				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, mock.Anything).Return("", errors.New("repository error"))
 				projectRepo.On("Delete", mock.Anything, mock.Anything).Return(errors.New("repository error"))
 			},
@@ -144,7 +163,8 @@ func TestProjectApplication_GetProject(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
 	projOK := &project.Project{
 		ID:             "project-id",
 		Name:           "project name",
@@ -211,7 +231,8 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
 	validPEM := "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1ljaGMp9BrY6KQtUIWhw\ng2weyyF65zzNFR9VCxyxk7M/NCTvash6nJO4HwZ+/51YO6kZFr0JDdIMrMmNu/pE\na4FfvmAQJ+vDdc8LSwS7IWAp9y04MZVVFLEQzbToQ3kqkaJV5KsbKuADjm3JCXng\nkeOvuS04AeO4W2lB5BqQ+wX5TjAZ9P7xusJUd2ovk1kWVKeJDTxpAImpVhK2nLZ3\nFV/TWWVYutYFU1wmoRRyOeypTP4ZSPhKB5s6PqQuyl9KPqiWz7ESL9zAW3/yxONb\nEPc9pB8w/qXcW++g6iCYN66xH4punt7KuismzQwGysgnMyK6UnNuOJyJznPzAvB+\nQwIDAQAB\n-----END PUBLIC KEY-----\n"
 
 	tc := []struct {
@@ -401,7 +422,8 @@ func TestProjectApplication_GetProviders(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
 	providers := []*provider.Provider{
 		{
 			ID:        "provider-id",
@@ -475,7 +497,8 @@ func TestProjectApplication_GetProviderDetail(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
 
 	prov := &provider.Provider{
 		ID:        "provider-id",
@@ -563,7 +586,8 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
 	validPEM := "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1ljaGMp9BrY6KQtUIWhw\ng2weyyF65zzNFR9VCxyxk7M/NCTvash6nJO4HwZ+/51YO6kZFr0JDdIMrMmNu/pE\na4FfvmAQJ+vDdc8LSwS7IWAp9y04MZVVFLEQzbToQ3kqkaJV5KsbKuADjm3JCXng\nkeOvuS04AeO4W2lB5BqQ+wX5TjAZ9P7xusJUd2ovk1kWVKeJDTxpAImpVhK2nLZ3\nFV/TWWVYutYFU1wmoRRyOeypTP4ZSPhKB5s6PqQuyl9KPqiWz7ESL9zAW3/yxONb\nEPc9pB8w/qXcW++g6iCYN66xH4punt7KuismzQwGysgnMyK6UnNuOJyJznPzAvB+\nQwIDAQAB\n-----END PUBLIC KEY-----\n"
 
 	openfortProvider := &provider.Provider{
@@ -798,7 +822,8 @@ func TestProjectApplication_RemoveProvider(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
 
 	openfortProvider := &provider.Provider{
 		ID:        "provider-id",
@@ -892,7 +917,8 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
 
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
@@ -1030,7 +1056,8 @@ func TestProjectApplication_RegisterEncryptionKey(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
 
 	tc := []struct {
 		name    string
@@ -1096,7 +1123,8 @@ func TestProjectApplication_RegisterEncryptionSession(t *testing.T) {
 	providerService := providersvc.New(providerRepo)
 	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
-	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
 
 	tc := []struct {
 		name    string
