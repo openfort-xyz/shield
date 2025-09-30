@@ -19,11 +19,29 @@ func (p *parser) toDomain(proj *Project) *project.Project {
 	}
 }
 
+func (p *parser) toDomainWithRateLimit(proj *ProjectWithRateLimit) *project.WithRateLimit {
+	return &project.WithRateLimit{
+		ID:        proj.ID,
+		Name:      proj.Name,
+		APIKey:    proj.APIKey,
+		APISecret: proj.APISecret,
+		Enable2FA: proj.Enable2FA,
+		RateLimit: proj.RateLimit,
+	}
+}
+
 func (p *parser) toDatabase(proj *project.Project) *Project {
 	return &Project{
 		ID:        proj.ID,
 		Name:      proj.Name,
 		APIKey:    proj.APIKey,
 		APISecret: proj.APISecret,
+	}
+}
+
+func (p *parser) toDatabaseRateLimits(rateLimits *project.RateLimit) *RateLimit {
+	return &RateLimit{
+		ProjectID:         rateLimits.ProjectID,
+		RequestsPerMinute: rateLimits.RequestsPerMinute,
 	}
 }

@@ -58,6 +58,7 @@ var (
 
 	ErrOTPRequired          = &Error{"OTP is required for this request", "OTP_MISSING", http.StatusPreconditionRequired}
 	ErrOTPRateLimitExceeded = &Error{"Rate limit exceeded for user to generate OTP", "OTP_RATE_LIMIT", http.StatusTooManyRequests}
+	ErrOTPProjectRateLimit  = &Error{"Rate limit per project exceeded to generate OTP", "OTP_PER_PROJECT_LIMIT", http.StatusTooManyRequests}
 	ErrOTPExpired           = &Error{"OTP is expired", "OTP_EXPIRED", http.StatusUnprocessableEntity}
 	ErrOTPInvalidated       = &Error{"OTP invalidated after max failed attempts", "OTP_INVALIDATED", http.StatusBadRequest}
 	ErrOTPInvalid           = &Error{"Received otp is invalid", "OTP_INVALID", http.StatusBadRequest}

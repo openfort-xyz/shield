@@ -44,9 +44,13 @@ type ProjectApplication struct {
 	encryptionPartsRepo repositories.EncryptionPartsRepository
 	otpService          *otp.InMemoryOTPService
 	notificationService services.NotificationsService
+	rateLimiter         *RequestTracker
 }
 
 const OTP_EMAIL_SUBJECT = "Openfort OTP"
+
+// 50 request per minute
+const DEFAULT_PROJECT_OTP_RATE_LIMIT = 50
 
 func New(
 	projectSvc services.ProjectService,
@@ -60,6 +64,7 @@ func New(
 	encryptionPartsRepo repositories.EncryptionPartsRepository,
 	otpService *otp.InMemoryOTPService,
 	notificationService services.NotificationsService,
+	rateLimiter *RequestTracker,
 ) *ProjectApplication {
 	return &ProjectApplication{
 		projectSvc:          projectSvc,
@@ -74,6 +79,7 @@ func New(
 		encryptionPartsRepo: encryptionPartsRepo,
 		otpService:          otpService,
 		notificationService: notificationService,
+		rateLimiter:         rateLimiter,
 	}
 }
 
@@ -84,6 +90,12 @@ func (a *ProjectApplication) CreateProject(ctx context.Context, name string, ena
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create project", logger.Error(err))
 		return nil, fromDomainError(err)
+	}
+
+	err = a.projectSvc.SaveProjectRateLimits(ctx, proj.ID, DEFAULT_PROJECT_OTP_RATE_LIMIT)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to save project rate limits", logger.Error(err))
+		return nil, err
 	}
 
 	var o projectOptions
@@ -242,7 +254,7 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ski
 
 	projectID := contexter.GetProjectID(ctx)
 
-	project, err := a.projectRepo.Get(ctx, projectID)
+	project, err := a.projectRepo.GetWithRateLimit(ctx, projectID)
 	if err != nil {
 		return fromDomainError(err)
 	}
@@ -254,6 +266,11 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ski
 	err = a.verifyAndSaveUserContacts(ctx, userId, email, phone)
 	if err != nil {
 		return err
+	}
+
+	allow := a.rateLimiter.TrackRequest(projectID, project.RateLimit)
+	if !allow {
+		return ErrOTPProjectRateLimit
 	}
 
 	otpCode, err := a.otpService.GenerateOTP(ctx, userId, skipVerification)

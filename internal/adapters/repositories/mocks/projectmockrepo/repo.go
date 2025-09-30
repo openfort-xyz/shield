@@ -19,12 +19,25 @@ func (m *MockProjectRepository) Create(ctx context.Context, proj *project.Projec
 	return args.Error(0)
 }
 
+func (m *MockProjectRepository) SaveProjectRateLimits(ctx context.Context, rateLimits *project.RateLimit) error {
+	args := m.Mock.Called(ctx, rateLimits)
+	return args.Error(0)
+}
+
 func (m *MockProjectRepository) Get(ctx context.Context, projectID string) (*project.Project, error) {
 	args := m.Mock.Called(ctx, projectID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*project.Project), args.Error(1)
+}
+
+func (m *MockProjectRepository) GetWithRateLimit(ctx context.Context, projectID string) (*project.WithRateLimit, error) {
+	args := m.Mock.Called(ctx, projectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*project.WithRateLimit), args.Error(1)
 }
 
 func (m *MockProjectRepository) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {

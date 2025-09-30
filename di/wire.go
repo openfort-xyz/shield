@@ -4,6 +4,8 @@
 package di
 
 import (
+	"time"
+
 	"github.com/google/wire"
 	"go.openfort.xyz/shield/internal/adapters/authenticators"
 	"go.openfort.xyz/shield/internal/adapters/authenticators/identity"
@@ -211,6 +213,7 @@ func ProvideProjectApplication() (a *projectapp.ProjectApplication, err error) {
 		ProvideInMemoryEncryptionPartsRepository,
 		ProvideOTPService,
 		ProvideNotificationService,
+		ProvideProjectRateLimiter,
 	)
 
 	return
@@ -245,9 +248,19 @@ func ProvideHealthzApplication() (a *healthzapp.Application, err error) {
 	return
 }
 
-func ProvideClock() otp.Clock {
-	clock := otp.NewRealClock()
-	return &clock
+type clockImpl struct{}
+
+func (c clockImpl) Now() time.Time {
+	return time.Now()
+}
+
+// Two different function which return same struct under different interfaces
+// because wire quires this. At compile time it expects to receive exact interface from exact package
+func ProvideOTPClock() otp.Clock {
+	return clockImpl{}
+}
+func ProvideProjectClock() projectapp.Clock {
+	return clockImpl{}
 }
 
 func ProvideOnboardingTrackerConfig() otp.OnboardingTrackerConfig {
@@ -262,7 +275,7 @@ func ProvideOnboardingTracker() (t *otp.OnboardingTracker, err error) {
 	wire.Build(
 		otp.NewOnboardingTracker,
 		ProvideOnboardingTrackerConfig,
-		ProvideClock,
+		ProvideOTPClock,
 	)
 
 	return
@@ -274,7 +287,16 @@ func ProvideOTPService() (s *otp.InMemoryOTPService, err error) {
 		ProvideInMemoryEncryptionPartsRepository,
 		ProvideOnboardingTracker,
 		wire.Value(otp.DefaultSecurityConfig),
-		ProvideClock,
+		ProvideOTPClock,
+	)
+
+	return
+}
+
+func ProvideProjectRateLimiter() (s *projectapp.RequestTracker, err error) {
+	wire.Build(
+		projectapp.NewRequestTracker,
+		ProvideProjectClock,
 	)
 
 	return

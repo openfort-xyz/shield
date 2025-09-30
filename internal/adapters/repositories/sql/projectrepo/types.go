@@ -17,8 +17,30 @@ type Project struct {
 	Enable2FA bool           `gorm:"column:enable_2fa"`
 }
 
+type ProjectWithRateLimit struct {
+	ID        string         `gorm:"column:id;primaryKey"`
+	Name      string         `gorm:"column:name"`
+	APIKey    string         `gorm:"column:api_key"`
+	APISecret string         `gorm:"column:api_secret"`
+	CreatedAt time.Time      `gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt time.Time      `gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`
+	Enable2FA bool           `gorm:"column:enable_2fa"`
+	RateLimit int64          `gorm:"column:requests_per_minute"`
+}
+
 func (Project) TableName() string {
 	return "shld_projects"
+}
+
+type RateLimit struct {
+	ID                int64  `gorm:"column:id;primaryKey"`
+	ProjectID         string `gorm:"column:project_id"`
+	RequestsPerMinute int64  `gorm:"column:requests_per_minute"`
+}
+
+func (RateLimit) TableName() string {
+	return "shld_rate_limit"
 }
 
 type EncryptionPart struct {

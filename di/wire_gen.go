@@ -35,6 +35,7 @@ import (
 	"go.openfort.xyz/shield/internal/core/services/sharesvc"
 	"go.openfort.xyz/shield/internal/core/services/usersvc"
 	"go.openfort.xyz/shield/pkg/otp"
+	"time"
 )
 
 // Injectors from wire.go:
@@ -279,7 +280,11 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, notificationsRepository, userContactRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, notificationsService)
+	requestTracker, err := ProvideProjectRateLimiter()
+	if err != nil {
+		return nil, err
+	}
+	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, notificationsRepository, userContactRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, notificationsService, requestTracker)
 	return projectApplication, nil
 }
 
@@ -320,7 +325,7 @@ func ProvideHealthzApplication() (*healthzapp.Application, error) {
 
 func ProvideOnboardingTracker() (*otp.OnboardingTracker, error) {
 	onboardingTrackerConfig := ProvideOnboardingTrackerConfig()
-	clock := ProvideClock()
+	clock := ProvideOTPClock()
 	onboardingTracker := otp.NewOnboardingTracker(onboardingTrackerConfig, clock)
 	return onboardingTracker, nil
 }
@@ -335,7 +340,7 @@ func ProvideOTPService() (*otp.InMemoryOTPService, error) {
 		return nil, err
 	}
 	securityConfig := _wireSecurityConfigValue
-	clock := ProvideClock()
+	clock := ProvideOTPClock()
 	inMemoryOTPService, err := otp.NewInMemoryOTPService(encryptionPartsRepository, onboardingTracker, securityConfig, clock)
 	if err != nil {
 		return nil, err
@@ -346,6 +351,12 @@ func ProvideOTPService() (*otp.InMemoryOTPService, error) {
 var (
 	_wireSecurityConfigValue = otp.DefaultSecurityConfig
 )
+
+func ProvideProjectRateLimiter() (*projectapp.RequestTracker, error) {
+	clock := ProvideProjectClock()
+	requestTracker := projectapp.NewRequestTracker(clock)
+	return requestTracker, nil
+}
 
 func ProvideNotificationService() (services.NotificationsService, error) {
 	notificationsService, err := NewNotificationService()
@@ -390,9 +401,20 @@ func ProvideRESTServer() (*rest.Server, error) {
 
 // wire.go:
 
-func ProvideClock() otp.Clock {
-	clock := otp.NewRealClock()
-	return &clock
+type clockImpl struct{}
+
+func (c clockImpl) Now() time.Time {
+	return time.Now()
+}
+
+// Two different function which return same struct under different interfaces
+// because wire quires this. At compile time it expects to receive exact interface from exact package
+func ProvideOTPClock() otp.Clock {
+	return clockImpl{}
+}
+
+func ProvideProjectClock() projectapp.Clock {
+	return clockImpl{}
 }
 
 func ProvideOnboardingTrackerConfig() otp.OnboardingTrackerConfig {

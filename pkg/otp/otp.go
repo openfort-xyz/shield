@@ -225,12 +225,17 @@ func NewInMemoryOTPService(partsRepo repositories.EncryptionPartsRepository, sec
 //
 // Returns 9-digit numeric OTP string
 func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string, skipVerification bool) (string, error) {
-	if err := s.securityService.CheckLatestGenerationTime(userID); err != nil {
-		return "", err
-	}
+	// we do not rate limit requests where we skip verification
+	// because in this case we don't send OTP anyway,
+	// and after such requests users can only create new accounts but not recover existing ones
+	if !skipVerification {
+		if err := s.securityService.CheckLatestGenerationTime(userID); err != nil {
+			return "", err
+		}
 
-	if err := s.securityService.TrackAttempt(userID); err != nil {
-		return "", err
+		if err := s.securityService.TrackAttempt(userID); err != nil {
+			return "", err
+		}
 	}
 
 	otpCode, err := s.createRandomOTP()
