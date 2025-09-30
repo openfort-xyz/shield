@@ -82,7 +82,7 @@ func (r *repository) GetWithRateLimit(ctx context.Context, projectID string) (*p
 
 	dbProj := &ProjectWithRateLimit{}
 	err := r.db.Table("shld_projects").
-		Select("shld_projects.*, shld_rate_limit.requests_per_minute").
+		Select("shld_projects.*, shld_rate_limit.email_requests_per_hour, shld_rate_limit.sms_requests_per_hour").
 		Joins("LEFT JOIN shld_rate_limit ON shld_projects.id = shld_rate_limit.project_id").
 		Where("shld_projects.id = ?", projectID).
 		First(dbProj).Error

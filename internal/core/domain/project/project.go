@@ -7,7 +7,8 @@ type Project struct {
 	APISecret      string
 	EncryptionPart string
 	Enable2FA      bool
-	RateLimit      int64
+	SMSRateLimit   int64
+	EmailRateLimit int64
 }
 
 type WithRateLimit struct {
@@ -17,10 +18,12 @@ type WithRateLimit struct {
 	APISecret      string
 	EncryptionPart string
 	Enable2FA      bool
-	RateLimit      int64
+	SMSRateLimit   int64
+	EmailRateLimit int64
 }
 
 type RateLimit struct {
-	ProjectID         string
-	RequestsPerMinute int64
+	ProjectID            string
+	SMSRequestsPerHour   int64
+	EmailRequestsPerHour int64
 }

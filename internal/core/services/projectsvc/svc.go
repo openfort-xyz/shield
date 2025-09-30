@@ -57,12 +57,13 @@ func (s *service) Create(ctx context.Context, name string, enable2fa bool) (*pro
 	return proj, nil
 }
 
-func (s *service) SaveProjectRateLimits(ctx context.Context, projectID string, rateLimit int64) error {
+func (s *service) SaveProjectRateLimits(ctx context.Context, projectID string, smsRateLimit int64, emailRateLimit int64) error {
 	s.logger.InfoContext(ctx, "save project rate limits", slog.String("project", projectID))
 
 	projectRateLimit := &project.RateLimit{
-		ProjectID:         projectID,
-		RequestsPerMinute: rateLimit,
+		ProjectID:            projectID,
+		SMSRequestsPerHour:   smsRateLimit,
+		EmailRequestsPerHour: emailRateLimit,
 	}
 
 	err := s.repo.SaveProjectRateLimits(ctx, projectRateLimit)

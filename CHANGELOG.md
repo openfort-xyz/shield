@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.24]
+### What
+This release changes project OTP generation rate limiting from minute window to hour window.
+Also rate limiting of OTP generation per user was dropped because it was excessive.
+
 ## [v0.2.22]
 ### What
 This release adds OTP as an optional secutify feature for the projects. If 2FA is enabled for the project Shield will require an OTP during encrypted session creation.

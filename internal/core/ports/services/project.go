@@ -8,6 +8,6 @@ import (
 
 type ProjectService interface {
 	Create(ctx context.Context, name string, enable2fa bool) (*project.Project, error)
-	SaveProjectRateLimits(ctx context.Context, projectID string, rateLimit int64) error
+	SaveProjectRateLimits(ctx context.Context, projectID string, smsRateLimit int64, emaiRateLimit int64) error
 	SetEncryptionPart(ctx context.Context, projectID, part string) error
 }
