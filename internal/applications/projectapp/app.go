@@ -49,8 +49,11 @@ type ProjectApplication struct {
 
 const OTP_EMAIL_SUBJECT = "Openfort OTP"
 
-// 50 request per minute
-const DEFAULT_PROJECT_OTP_RATE_LIMIT = 50
+// 2 request per hour
+const DEFAULT_PROJECT_SMS_OTP_RATE_LIMIT = 2
+
+// 120 request per hour
+const DEFAULT_PROJECT_EMAIL_OTP_RATE_LIMIT = 120
 
 func New(
 	projectSvc services.ProjectService,
@@ -92,7 +95,7 @@ func (a *ProjectApplication) CreateProject(ctx context.Context, name string, ena
 		return nil, fromDomainError(err)
 	}
 
-	err = a.projectSvc.SaveProjectRateLimits(ctx, proj.ID, DEFAULT_PROJECT_OTP_RATE_LIMIT)
+	err = a.projectSvc.SaveProjectRateLimits(ctx, proj.ID, DEFAULT_PROJECT_SMS_OTP_RATE_LIMIT, DEFAULT_PROJECT_EMAIL_OTP_RATE_LIMIT)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to save project rate limits", logger.Error(err))
 		return nil, err
@@ -263,14 +266,28 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ski
 		return ErrProjectDoesntHave2FA
 	}
 
+	// we do not rate limit requests where we skip verification
+	// because in this case we don't send OTP anyway,
+	// and after such requests users can only create new accounts but not recover existing ones
+	if !skipVerification {
+		allow := false
+
+		if email != nil {
+			allow = a.rateLimiter.TrackRequest(projectID, project.EmailRateLimit)
+		} else if phone != nil {
+			allow = a.rateLimiter.TrackRequest(projectID, project.SMSRateLimit)
+		} else {
+			return ErrNoUserContactInformationProvided
+		}
+
+		if !allow {
+			return ErrOTPRateLimitExceeded
+		}
+	}
+
 	err = a.verifyAndSaveUserContacts(ctx, userId, email, phone)
 	if err != nil {
 		return err
-	}
-
-	allow := a.rateLimiter.TrackRequest(projectID, project.RateLimit)
-	if !allow {
-		return ErrOTPProjectRateLimit
 	}
 
 	otpCode, err := a.otpService.GenerateOTP(ctx, userId, skipVerification)

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"time"
 
 	env "github.com/caarlos0/env/v10"
 )
@@ -115,7 +116,7 @@ func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, 
 				Name:  userId,
 			},
 		},
-		Subject:     subject,
+		Subject:     fmt.Sprintf("%v - %s", subject, time.Now().Format("Jan 02, 15:04")),
 		TextContent: textContent,
 		HTMLContent: htmlContent,
 	}

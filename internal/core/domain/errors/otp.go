@@ -3,7 +3,7 @@ package errors
 import "errors"
 
 var (
-	ErrOTPRateLimitExceeded = errors.New("rate limit exceeded for user")
+	ErrOTPRateLimitExceeded = errors.New("rate limit exceeded")
 	ErrOTPFailedToGenerate  = errors.New("failed to generate OTP")
 	ErrOTPFailedToMarshal   = errors.New("failed to marshal OTP request")
 	ErrOTPExpired           = errors.New("otp was expired")

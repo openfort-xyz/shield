@@ -45,8 +45,6 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrOTPRequired
 	case errors.Is(err, projectapp.ErrOTPRateLimitExceeded):
 		return api.ErrOTPRateLimitExceeded
-	case errors.Is(err, projectapp.ErrOTPProjectRateLimit):
-		return api.ErrOTPProjectRateLimit
 	case errors.Is(err, projectapp.ErrOTPExpired):
 		return api.ErrOTPExpired
 	case errors.Is(err, projectapp.ErrOTPInvalidated):
@@ -67,6 +65,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrOTPRecordNotFound
 	case errors.Is(err, projectapp.ErrUserContactInformationMismatch):
 		return api.ErrUserContactInformationMismatch
+	case errors.Is(err, projectapp.ErrNoUserContactInformationProvided):
+		return api.ErrOTPUserInfoMissing
 	default:
 		return api.ErrInternal
 	}

@@ -18,13 +18,10 @@ func (r *GenerateOTPRequest) ParametersValid() bool {
 		return false
 	}
 
-	if r.Email == nil && r.Phone == nil {
-		return false
-	} else if r.Email != nil && r.Phone != nil {
-		return false
-	} else {
-		return true
-	}
+	hasEmail := r.Email != nil
+	hasPhone := r.Phone != nil
+
+	return hasEmail != hasPhone
 }
 
 type CreateProjectResponse struct {

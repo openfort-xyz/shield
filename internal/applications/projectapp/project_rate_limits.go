@@ -49,7 +49,7 @@ func (rt *RequestTracker) TrackRequest(projectID string, rateLimit int64) bool {
 	defer rt.mu.Unlock()
 
 	now := rt.clock.Now()
-	currentWindow := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), 0, 0, now.Location())
+	currentWindow := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, now.Location())
 
 	data, exists := rt.requests[projectID]
 	if !exists || data.window.Before(currentWindow) {
@@ -78,7 +78,7 @@ func (rt *RequestTracker) GetRequestCount(projectID string) int64 {
 	}
 
 	now := rt.clock.Now()
-	currentWindow := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), 0, 0, now.Location())
+	currentWindow := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, now.Location())
 
 	if data.window.Before(currentWindow) {
 		return 0
@@ -108,7 +108,7 @@ func (rt *RequestTracker) cleanupOldEntries() {
 	defer rt.mu.Unlock()
 
 	now := rt.clock.Now()
-	currentWindow := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), 0, 0, now.Location())
+	currentWindow := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, now.Location())
 
 	for projectID, data := range rt.requests {
 		if data.window.Before(currentWindow) {
