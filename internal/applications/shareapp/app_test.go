@@ -862,6 +862,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
 				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, plainShare).Return(nil)
@@ -876,6 +877,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
 				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, encryptedShare).Return(nil)
@@ -933,6 +935,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
 				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
+				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
 				shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
