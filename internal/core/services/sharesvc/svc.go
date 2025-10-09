@@ -35,10 +35,17 @@ func New(repo repositories.ShareRepository, keychainRepo repositories.KeychainRe
 	}
 }
 
-func (s *service) Create(ctx context.Context, shr *share.Share, opts ...services.ShareOption) error {
+func (s *service) Create(ctx context.Context, shr *share.Share, opts ...services.ShareOption) (err error) {
 	s.logger.InfoContext(ctx, "creating share", slog.String("user_id", shr.UserID))
 
-	shrRepo, err := s.Find(ctx, shr.UserID, shr.KeychainID, shr.Reference)
+	var shrRepo *share.Share
+
+	if shr.Reference != nil {
+		shrRepo, err = s.FindByReference(ctx, *shr.Reference)
+	} else {
+		shrRepo, err = s.Find(ctx, shr.UserID, shr.KeychainID, shr.Reference)
+	}
+
 	if err != nil && !errors.Is(err, domainErrors.ErrShareNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get share", logger.Error(err))
 		return err
@@ -85,6 +92,19 @@ func (s *service) Create(ctx context.Context, shr *share.Share, opts ...services
 	}
 
 	return nil
+
+}
+
+func (s *service) FindByReference(ctx context.Context, reference string) (*share.Share, error) {
+	s.logger.InfoContext(ctx, "finding share by reference", slog.String("reference", reference))
+
+	shr, err := s.repo.GetByReference(ctx, reference)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to get share by reference", logger.Error(err))
+		return nil, err
+	}
+
+	return shr, nil
 }
 
 func (s *service) Find(ctx context.Context, userID string, keychainID, reference *string) (*share.Share, error) {
