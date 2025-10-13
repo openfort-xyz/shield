@@ -33,7 +33,7 @@ func NewEncryptionKeyBuilder(encryptionPartsRepo repositories.EncryptionPartsRep
 func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) error {
 	data, err := b.encryptionPartsRepo.Get(ctx, identifier)
 	if err != nil {
-		if errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
+		if errors.Is(err, domainErrors.ErrDataInDBNotFound) {
 			return domainErrors.ErrInvalidEncryptionSession
 		}
 		return err
