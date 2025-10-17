@@ -40,6 +40,11 @@ func (m *MockProjectRepository) GetWithRateLimit(ctx context.Context, projectID 
 	return args.Get(0).(*project.WithRateLimit), args.Error(1)
 }
 
+func (m *MockProjectRepository) UpdateAPISecret(ctx context.Context, projectID, encryptedSecret string) error {
+	args := m.Mock.Called(ctx, projectID, encryptedSecret)
+	return args.Error(0)
+}
+
 func (m *MockProjectRepository) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {
 	args := m.Mock.Called(ctx, apiKey)
 	if args.Get(0) == nil {
