@@ -82,6 +82,39 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// RestAPISecret resets a project's API secret
+// @Summary Reset API secret
+// @Description Reset a project's API secret
+// @Tags Project
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 200 {object} ResetAPISecretResponse "API secret reset successfully"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/reset-api-secret [post]
+func (h *Handler) ResetAPISecret(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "resetting api secret")
+
+	newAPISecret, err := h.app.ResetAPISecret(ctx)
+
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	resp, err := json.Marshal(ResetAPISecretResponse{
+		APISecret: newAPISecret,
+	})
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}
+
 // GetProject retrieves a project
 // @Summary Get a project
 // @Description Get details of a project

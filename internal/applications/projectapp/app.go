@@ -2,7 +2,9 @@ package projectapp
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +13,7 @@ import (
 	"time"
 
 	pem "go.openfort.xyz/shield/internal/adapters/authenticators/identity/custom_identity"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/google/uuid"
 	"github.com/tidwall/buntdb"
@@ -122,6 +125,28 @@ func (a *ProjectApplication) CreateProject(ctx context.Context, name string, ena
 	}
 
 	return proj, nil
+}
+
+func (a *ProjectApplication) ResetAPISecret(ctx context.Context) (string, error) {
+	a.logger.InfoContext(ctx, "resetting API secret")
+	projectID := contexter.GetProjectID(ctx)
+	newAPISecretBytes := make([]byte, 32)
+	_, err := rand.Read(newAPISecretBytes)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to generate new API secret", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+	encryptedSecret, err := bcrypt.GenerateFromPassword(newAPISecretBytes, bcrypt.DefaultCost)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to encrypt new API secret", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+	err = a.projectRepo.UpdateAPISecret(ctx, projectID, string(encryptedSecret))
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to update API secret", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+	return hex.EncodeToString(newAPISecretBytes), nil
 }
 
 func (a *ProjectApplication) GetProject(ctx context.Context) (*project.Project, error) {
