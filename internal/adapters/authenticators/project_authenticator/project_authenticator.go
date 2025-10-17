@@ -2,6 +2,7 @@ package projauth
 
 import (
 	"context"
+	"encoding/hex"
 	"log/slog"
 
 	"go.openfort.xyz/shield/internal/core/domain/authentication"
@@ -29,6 +30,15 @@ func NewProjectAuthenticator(repository repositories.ProjectRepository, apiKey, 
 	}
 }
 
+func getApiSecretBytes(apiSecret string) []byte {
+	hex32bytes, err := hex.DecodeString(apiSecret)
+	if err != nil {
+		// Old legacy api secrets are UUIDs and new secrets are hex-encoded 32 bytes
+		return []byte(apiSecret)
+	}
+	return hex32bytes
+}
+
 func (a *ProjectAuthenticator) Authenticate(ctx context.Context) (*authentication.Authentication, error) {
 	a.logger.InfoContext(ctx, "authenticating api key")
 
@@ -38,7 +48,9 @@ func (a *ProjectAuthenticator) Authenticate(ctx context.Context) (*authenticatio
 		return nil, err
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(proj.APISecret), []byte(a.apiSecret))
+	apiSecretBytes := getApiSecretBytes(a.apiSecret)
+
+	err = bcrypt.CompareHashAndPassword([]byte(proj.APISecret), apiSecretBytes)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to authenticate api secret", logger.Error(err))
 		return nil, err
