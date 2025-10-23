@@ -96,6 +96,16 @@ func (h *Handler) ResetAPISecret(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "resetting api secret")
 
+	// This endpoint requires changes in API to keep secrets between services consistent
+	// Making it available w/o API can create non-recoverable projects, so for now we disable it
+	// Ideally, this workflow could be invoked from the API and would look something like this:
+	// User -> api/reset-shield-secret -> {API calls shield/reset-api-secret} -> shield returns new secret to API -> API updates its records and shows new secret to user}
+	// The curly braces mean transaction: either all calls succeed or none does and no side effects are applied
+	if true {
+		w.WriteHeader(http.StatusNotImplemented)
+		return
+	}
+
 	newAPISecret, err := h.app.ResetAPISecret(ctx)
 
 	if err != nil {
@@ -110,7 +120,6 @@ func (h *Handler) ResetAPISecret(w http.ResponseWriter, r *http.Request) {
 		api.RespondWithError(w, api.ErrInternal)
 		return
 	}
-
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(resp)
 }
