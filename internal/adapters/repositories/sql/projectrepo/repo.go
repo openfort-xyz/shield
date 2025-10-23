@@ -77,6 +77,19 @@ func (r *repository) Get(ctx context.Context, projectID string) (*project.Projec
 	return r.parser.toDomain(dbProj), nil
 }
 
+func (r *repository) UpdateAPISecret(ctx context.Context, projectID, encryptedSecret string) error {
+	r.logger.InfoContext(ctx, "updating API secret", slog.String("project_id", projectID))
+
+	err := r.db.Model(&Project{}).Where("id = ?", projectID).Update("api_secret", encryptedSecret).Error
+
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error updating API secret", logger.Error(err))
+		return err
+	}
+
+	return nil
+}
+
 func (r *repository) GetWithRateLimit(ctx context.Context, projectID string) (*project.WithRateLimit, error) {
 	r.logger.InfoContext(ctx, "getting project with rate limit")
 

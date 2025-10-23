@@ -90,6 +90,10 @@ type GetProviderResponse struct {
 	KeyType         KeyType `json:"key_type,omitempty"`
 }
 
+type ResetAPISecretResponse struct {
+	APISecret string `json:"api_secret"`
+}
+
 type UpdateProviderRequest struct {
 	PublishableKey  string  `json:"publishable_key,omitempty"`
 	JWK             string  `json:"jwk,omitempty"`

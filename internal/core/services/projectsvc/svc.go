@@ -2,6 +2,8 @@ package projectsvc
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"log/slog"
 
@@ -33,8 +35,13 @@ func New(repo repositories.ProjectRepository) services.ProjectService {
 
 func (s *service) Create(ctx context.Context, name string, enable2fa bool) (*project.Project, error) {
 	s.logger.InfoContext(ctx, "creating project", slog.String("name", name))
-	apiSecret := uuid.NewString()
-	encryptedSecret, err := bcrypt.GenerateFromPassword([]byte(apiSecret), s.cost)
+	apiSecretBytes := make([]byte, 32)
+	_, err := rand.Read(apiSecretBytes)
+	if err != nil {
+		// Shouldn't happen (error is returned for legacy reasons and it's unlikely we'll ever see it)
+		return nil, err
+	}
+	encryptedSecret, err := bcrypt.GenerateFromPassword(apiSecretBytes, s.cost)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to encrypt secret", logger.Error(err))
 		return nil, err
@@ -53,7 +60,7 @@ func (s *service) Create(ctx context.Context, name string, enable2fa bool) (*pro
 		return nil, err
 	}
 
-	proj.APISecret = apiSecret
+	proj.APISecret = hex.EncodeToString(apiSecretBytes)
 	return proj, nil
 }
 
