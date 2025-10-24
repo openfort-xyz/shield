@@ -19,7 +19,7 @@ require (
 	github.com/rs/cors v1.11.0
 	github.com/smsapi/smsapi-go v0.0.0-20250114133301-1aa5a5466a36
 	github.com/spf13/cobra v1.8.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/buntdb v1.3.1
 	go.openfort.xyz/metrics v0.0.7
 	go.openfort.xyz/shamir-secret-sharing-go v0.0.1
