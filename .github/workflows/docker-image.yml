@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
 
       - name: Set up SSH key
         uses: shimataro/ssh-key-action@v2
@@ -29,22 +29,26 @@ jobs:
         run: git config --global url.ssh://git@github.com/.insteadOf https://github.com/
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
       - name: Build and push Docker image
         id: build
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
           context: .
           file: Dockerfile
           push: true
-          tags: openfort/shield:${{ github.event.release.tag_name }}
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
+            ghcr.io/${{ github.repository }}:latest
+            openfort/shield:${{ github.event.release.tag_name }}
+            openfort/shield:latest
 
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a
         with:
           subject-name: docker.io/openfort/shield
           subject-digest: ${{ steps.build.outputs.digest }}
