@@ -16,7 +16,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/mileusna/useragent v1.3.5
 	github.com/pressly/goose v2.7.0+incompatible
-	github.com/rs/cors v1.11.0
+	github.com/rs/cors v1.11.1
 	github.com/smsapi/smsapi-go v0.0.0-20250114133301-1aa5a5466a36
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.10.0
