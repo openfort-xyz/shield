@@ -71,22 +71,9 @@ A **project** serves as a container for a group of users and its shares and auth
 
 #### **4. User Authentication and Providers**
 
-Users are automatically associated with a project based on the provided API key. To authenticate users (using access tokens), the project must register a provider. There are two types of providers:
+Users are automatically associated with a project based on the provided API key. To authenticate users (using access tokens), the project must register a provider. When registering a provider, OIDC-compatible information must be supplied, such as a JWK URL or a PEM certification along with its key type.
 
-1. **Openfort Provider:**
-  - The project integrates with Openfort to validate user credentials.
-  - When using this provider:
-    - Specify `X-Auth-Provider: openfort` in the request.
-    - If Openfort authentication is using Third Party provide `X-Openfort-Provider` and `X-Openfort-Token-Type` headers for user authentication details.
 
-2. **Custom Provider:**
-  - The project provides OIDC-compatible information, such as a JWK URL or a PEM certificate and key type.
-  - When using this provider:
-    - Specify `X-Auth-Provider: custom` in the request.
-
-**Important Notes:**
-- The `X-Auth-Provider` header is mandatory for the Shares API to specify which authentication method is being used.
-- For Openfort, `X-Openfort-Provider` and `X-Openfort-Token-Type` are required headers to detail the specific authentication context.
 
 ## Endpoints
 ### **1. Share API Endpoints**
@@ -97,7 +84,6 @@ Users are automatically associated with a project based on the provided API key.
 - **Request:**
   - **Type:** `RegisterShareRequest`
     - Mandatory header `Authorization` with access token and `X-API-Key` with project's api key
-    - Mandatory header `X-Auth-Provider` and optional `X-Openfort-Provider` and `X-Openfort-Token-Type` for user authentication
     - Optional headers `X-Encryption-Part` and `X-Encryption-Session` to specify encryption details.
   - **Example:**
     ```json
@@ -129,7 +115,6 @@ Users are automatically associated with a project based on the provided API key.
 - **Endpoint:** `PUT /shares`
 - **Request:**
   - Mandatory header `Authorization` with access token and `X-API-Key` with project's api key
-  - Mandatory header `X-Auth-Provider` and optional `X-Openfort-Provider` and `X-Openfort-Token-Type` for user authentication
   - Optional headers `X-Encryption-Part` and `X-Encryption-Session` to specify encryption details.
   - **Type:** `UpdateShareRequest`
   - **Example:**
@@ -176,7 +161,6 @@ Users are automatically associated with a project based on the provided API key.
 - **Request:**
   - No request body required.
   - Mandatory header `Authorization` with access token and `X-API-Key` with project's api key
-  - Mandatory header `X-Auth-Provider` and optional `X-Openfort-Provider` and `X-Openfort-Token-Type` for user authentication
   - Optional headers `X-Encryption-Part` and `X-Encryption-Session` to specify encryption details.
 - **Response:**
   - **Success:** HTTP `204 No Content` indicating the share was successfully deleted.
@@ -195,7 +179,6 @@ Users are automatically associated with a project based on the provided API key.
 - **Request:**
   - No request body required.
   - Mandatory header `Authorization` with access token and `X-API-Key` with project's api key
-  - Mandatory header `X-Auth-Provider` and optional `X-Openfort-Provider` and `X-Openfort-Token-Type` for user authentication
   - Optional headers `X-Encryption-Part` and `X-Encryption-Session` to specify encryption details.
 - **Response:**
   - **Type:** `GetShareResponse`
@@ -281,42 +264,29 @@ Users are automatically associated with a project based on the provided API key.
   - The client sends a request to retrieve the project details.
   - The handler fetches and returns the project information in the response.
 
-#### **2.3 Add Providers**
+#### **2.3 Add Provider**
 
-- **Endpoint:** `POST /project/providers`
+- **Endpoint:** `POST /project/v2/providers`
 - **Request:**
   - Mandatory headers `X-API-Key` with project's api key and `X-API-Secret` with project's api secret
-  - **Type:** `AddProvidersRequest`
+  - **Type:** `AddProviderV2Request`
   - **Example:**
     ```json
     {
-      "providers": {
-        "openfort": {
-          "publishable_key": "openfort_publishable_key"
-        },
-        "custom": {
-          "jwk": "custom_jwk",
-          "pem": "custom_pem",
-          "key_type": "rsa"
+        "provider": {
+                "jwk": "http://api:3000/.well-known/jwks.json",
+                "cookie_field_name": "ssId",
+                "PEM": "---BEGIN RSA PUBLIC KEY---....",
+                "key_type": "RSA"
         }
-      }
     }
     ```
 - **Response:**
-  - **Type:** `AddProvidersResponse`
+  - **Type:** `AddProviderV2Response`
   - **Example:**
     ```json
     {
-      "providers": [
-        {
-          "provider_id": "openfort_provider_id",
-          "type": "openfort"
-        },
-        {
-          "provider_id": "custom_provider_id",
-          "type": "custom"
-        }
-      ]
+        "provider_id": "03d9de6e-2e83-42be-8c73-27524a515cbf"
     }
     ```
   - **Success:** HTTP `200 OK` with the list of added providers.
@@ -329,83 +299,52 @@ Users are automatically associated with a project based on the provided API key.
   - The handler processes the request to add providers to the project.
   - The response includes details of the added providers.
 
-#### **2.4 Get Providers**
-
-- **Endpoint:** `GET /project/providers`
-- **Request:**
-  - No request body required.
-  - Mandatory headers `X-API-Key` with project's api key and `X-API-Secret` with project's api secret
-- **Response:**
-  - **Type:** `GetProvidersResponse`
-  - **Example:**
-    ```json
-    {
-      "providers": [
-        {
-          "provider_id": "openfort_provider_id",
-          "type": "openfort"
-        },
-        {
-          "provider_id": "custom_provider_id",
-          "type": "custom"
-        }
-      ]
-    }
-    ```
-  - **Success:** HTTP `200 OK` with the list of providers.
-  - **Failure:**
-    - `500 Internal Server Error` for any server-side issues.
-
-- **How it Works:**
-  - The client sends a request to retrieve all providers associated with the project.
-  - The handler fetches and returns the list of providers in the response.
-
 #### **2.5 Get Provider**
 
-- **Endpoint:** `GET /project/providers/{provider}`
+- **Endpoint:** `GET /project/v2/providers`
 - **Request:**
   - No request body required.
   - Mandatory headers `X-API-Key` with project's api key and `X-API-Secret` with project's api secret
 - **Response:**
-  - **Type:** `GetProviderResponse`
+  - **Type:** `GetProviderV2Response`
   - **Example:**
     ```json
     {
       "provider_id": "custom_provider_id",
-      "type": "custom",
       "jwk": "custom_jwk",
       "pem": "custom_pem",
+      "cookie_field_name": "custom_cookie_field_name",
       "key_type": "rsa"
     }
     ```
-  - **Success:** HTTP `200 OK` with the provider details.
+  - **Success:** HTTP `200 OK` with the provider details (empty JSON if the provider has not been set yet)
   - **Failure:**
-    - `404 Not Found` if the provider is not found.
     - `500 Internal Server Error` for any server-side issues.
 
 - **How it Works:**
-  - The client sends a request to retrieve details of a specific provider by its ID.
+  - The client sends a request to retrieve details of their project's provider.
   - The handler fetches and returns the provider details.
 
 #### **2.6 Update Provider**
 
-- **Endpoint:** `PUT /project/providers/{provider}`
+- **Endpoint:** `PUT /project/v2/providers`
 - **Request:**
   - Mandatory headers `X-API-Key` with project's api key and `X-API-Secret` with project's api secret
-  - **Type:** `UpdateProviderRequest`
+  - **Type:** `UpdateProviderV2Request`
   - **Example:**
     ```json
     {
-      "publishable_key": "new_publishable_key",
-      "jwk": "new_jwk",
-      "pem": "new_pem",
-      "key_type": "ecdsa"
+      "jwk": "custom_jwk",
+      "pem": "custom_pem",
+      "cookie_field_name": "custom_cookie_field_name",
+      "key_type": "rsa"
     }
     ```
 - **Response:**
   - **Success:** HTTP `200 OK` indicating the provider was updated successfully.
   - **Failure:**
     - `400 Bad Request` if the request body is invalid.
+    - `404 Not Found` if the project hasn't set up a provider yet
     - `500 Internal Server Error` for any server-side issues.
 
 - **How it Works:**
@@ -415,14 +354,14 @@ Users are automatically associated with a project based on the provided API key.
 
 #### **2.7 Delete Provider**
 
-- **Endpoint:** `DELETE /project/providers/{provider}`
+- **Endpoint:** `DELETE /project/v2/providers`
 - **Request:**
   - No request body required.
   - Mandatory headers `X-API-Key` with project's api key and `X-API-Secret` with project's api secret
 - **Response:**
   - **Success:** HTTP `200 OK` indicating the provider was successfully deleted.
   - **Failure:**
-    - `404 Not Found` if the provider does not exist.
+    - `404 Not Found` if the project hasn't set up a provider yet
     - `500 Internal Server Error` for any server-side issues.
 
 - **How it Works:**
