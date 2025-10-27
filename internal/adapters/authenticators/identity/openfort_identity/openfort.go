@@ -62,7 +62,12 @@ func (a *OpenfortIdentityFactory) GetCookieFieldName() string {
 }
 
 func (o *OpenfortIdentityFactory) accessToken(_ context.Context, token string) (string, error) {
-	return jwk.Validate(token, fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey))
+	jwksUrls := []string{
+		fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey),
+		fmt.Sprintf("%s/api/auth/jwks", o.baseURL),
+	}
+
+	return jwk.Validate(token, jwksUrls)
 }
 
 func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authenticationProvider, tokenType string) (string, error) {

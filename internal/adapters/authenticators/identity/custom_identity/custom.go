@@ -41,7 +41,7 @@ func (c *CustomIdentityFactory) Identify(ctx context.Context, token string) (str
 	case c.config.PEM != "" && c.config.KeyType != provider.KeyTypeUnknown:
 		externalUserID, err = c.validatePEM(token)
 	case c.config.JWK != "":
-		externalUserID, err = jwk.Validate(token, c.config.JWK)
+		externalUserID, err = jwk.Validate(token, []string{c.config.JWK})
 	default:
 		return "", errors.ErrProviderMisconfigured
 	}
