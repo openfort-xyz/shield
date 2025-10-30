@@ -64,7 +64,7 @@ func (a *OpenfortIdentityFactory) GetCookieFieldName() string {
 func (o *OpenfortIdentityFactory) accessToken(_ context.Context, token string) (string, error) {
 	jwksUrls := []string{
 		fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey),
-		fmt.Sprintf("%s/api/auth/jwks", o.baseURL),
+		fmt.Sprintf("%s/iam/v2/auth/jwks", o.baseURL),
 	}
 
 	return jwk.Validate(token, jwksUrls)
