@@ -5,8 +5,8 @@ import (
 	jwt "github.com/golang-jwt/jwt/v5"
 )
 
-func Validate(token, jwkURL string) (string, error) {
-	k, err := keyfunc.NewDefault([]string{jwkURL})
+func Validate(token string, jwkURLs []string) (string, error) {
+	k, err := keyfunc.NewDefault(jwkURLs)
 	if err != nil {
 		return "", err
 	}
