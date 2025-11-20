@@ -1,6 +1,6 @@
 module go.openfort.xyz/shield
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.24.5
 
@@ -24,7 +24,7 @@ require (
 	go.openfort.xyz/metrics v0.0.7
 	go.openfort.xyz/shamir-secret-sharing-go v0.0.1
 	go.uber.org/ratelimit v0.3.1
-	golang.org/x/crypto v0.40.0
+	golang.org/x/crypto v0.45.0
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.10
 )
@@ -62,9 +62,9 @@ require (
 	github.com/tidwall/tinyqueue v0.1.1 // indirect
 	go.openfort.xyz/jsonrpc v0.0.5 // indirect
 	go.openfort.xyz/pubsub v0.0.18 // indirect
-	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241209162323-e6fa225c2576 // indirect
 	google.golang.org/grpc v1.69.0 // indirect
