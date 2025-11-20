@@ -56,7 +56,7 @@ func (o *OpenfortIdentityFactory) Identify(ctx context.Context, token string) (s
 
 	isJwt := jwk.IsJWT(token)
 
-	if isJwt {
+	if !isJwt {
 		return o.accessToken(ctx, token)
 	} else {
 		return o.jwtToken(ctx, token)
@@ -70,7 +70,7 @@ func (a *OpenfortIdentityFactory) GetCookieFieldName() string {
 func (o *OpenfortIdentityFactory) accessToken(ctx context.Context, token string) (string, error) {
 	url := fmt.Sprintf("%s/iam/v2/auth/get-session", o.baseURL)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
@@ -189,26 +189,26 @@ type linkedAccount struct {
 }
 
 type AuthSession struct {
-	ExpiresAt string `json:"expires_at"`
+	ExpiresAt string `json:"expiresAt"`
 	Token     string `json:"token"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-	IpAddress string `json:"ip_address"`
-	UserAgent string `json:"user_agent"`
-	UserId    string `json:"user_id"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+	IpAddress string `json:"ipAddress"`
+	UserAgent string `json:"userAgent"`
+	UserId    string `json:"userId"`
 	Id        string `json:"id"`
 }
 
 type AuthUser struct {
 	Name                string `json:"name"`
 	Email               string `json:"email"`
-	EmailVerified       bool   `json:"email_verified"`
+	EmailVerified       bool   `json:"emailVerified"`
 	Image               string `json:"image"`
-	CreatedAt           string `json:"created_at"`
-	UpdatedAt           string `json:"updated_at"`
-	IsAnonymous         bool   `json:"is_anonymous"`
-	PhoneNumber         string `json:"phone_number"`
-	PhoneNumberVerified bool   `json:"phone_number_verified"`
+	CreatedAt           string `json:"createdAt"`
+	UpdatedAt           string `json:"updatedAt"`
+	IsAnonymous         bool   `json:"isAnonymous"`
+	PhoneNumber         string `json:"phoneNumber"`
+	PhoneNumberVerified bool   `json:"phoneNumberVerified"`
 	Id                  string `json:"id"`
 }
 
