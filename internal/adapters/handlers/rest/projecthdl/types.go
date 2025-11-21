@@ -41,6 +41,10 @@ type AddProvidersRequest struct {
 	Providers ProvidersRequest `json:"providers"`
 }
 
+type AddProviderV2Request struct {
+	Provider CustomProvider `json:"provider"`
+}
+
 type ProvidersRequest struct {
 	Openfort *OpenfortProvider `json:"openfort,omitempty"`
 	Custom   *CustomProvider   `json:"custom,omitempty"`
@@ -71,6 +75,10 @@ type AddProvidersResponse struct {
 	Providers []*ProviderResponse `json:"providers"`
 }
 
+type AddProviderV2Response struct {
+	ProviderID string `json:"provider_id"`
+}
+
 type ProviderResponse struct {
 	ProviderID string `json:"provider_id"`
 	Type       string `json:"type"`
@@ -78,6 +86,14 @@ type ProviderResponse struct {
 
 type GetProvidersResponse struct {
 	Providers []*ProviderResponse `json:"providers"`
+}
+
+type GetProviderV2Response struct {
+	ProviderID      string  `json:"provider_id"`
+	JWK             string  `json:"jwk,omitempty"`
+	PEM             string  `json:"pem,omitempty"`
+	CookieFieldName *string `json:"cookie_field_name,omitempty"`
+	KeyType         KeyType `json:"key_type,omitempty"`
 }
 
 type GetProviderResponse struct {
@@ -96,6 +112,13 @@ type ResetAPISecretResponse struct {
 
 type UpdateProviderRequest struct {
 	PublishableKey  string  `json:"publishable_key,omitempty"`
+	JWK             string  `json:"jwk,omitempty"`
+	PEM             string  `json:"pem,omitempty"`
+	CookieFieldName *string `json:"cookie_field_name,omitempty"`
+	KeyType         KeyType `json:"key_type,omitempty"`
+}
+
+type UpdateProviderV2Request struct {
 	JWK             string  `json:"jwk,omitempty"`
 	PEM             string  `json:"pem,omitempty"`
 	CookieFieldName *string `json:"cookie_field_name,omitempty"`
