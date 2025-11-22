@@ -77,6 +77,7 @@ func (o *OpenfortIdentityFactory) accessToken(ctx context.Context, token string)
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("x-project-key", o.publishableKey)
 	client := http.Client{Timeout: time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
