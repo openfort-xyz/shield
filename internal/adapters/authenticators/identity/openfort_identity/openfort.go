@@ -54,18 +54,67 @@ func (o *OpenfortIdentityFactory) Identify(ctx context.Context, token string) (s
 		return o.thirdParty(ctx, token, *o.authenticationProvider, *o.tokenType)
 	}
 
-	return o.accessToken(ctx, token)
+	isJwt := jwk.IsJWT(token)
+
+	if !isJwt {
+		return o.accessToken(ctx, token)
+	} else {
+		return o.jwtToken(ctx, token)
+	}
 }
 
 func (a *OpenfortIdentityFactory) GetCookieFieldName() string {
 	return ""
 }
 
-func (o *OpenfortIdentityFactory) accessToken(_ context.Context, token string) (string, error) {
-	jwksUrls := []string{
-		fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey),
-		fmt.Sprintf("%s/iam/v2/auth/jwks", o.baseURL),
+func (o *OpenfortIdentityFactory) accessToken(ctx context.Context, token string) (string, error) {
+	url := fmt.Sprintf("%s/iam/v2/auth/get-session", o.baseURL)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
 	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("x-project-key", o.publishableKey)
+	client := http.Client{Timeout: time.Minute}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode/100 != 2 {
+		o.logger.ErrorContext(ctx, "unexpected status code", slog.Int("status_code", resp.StatusCode))
+		return "", domainErrors.ErrUnexpectedStatusCode
+	}
+
+	rawResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var response SessionResponse
+	if err := json.Unmarshal(rawResponse, &response); err != nil {
+		return "", err
+	}
+
+	expiresAt, err := time.Parse(time.RFC3339, response.Session.ExpiresAt)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse expires_at: %w", err)
+	}
+
+	if time.Now().After(expiresAt) {
+		return "", domainErrors.ErrSessionExpired
+	}
+
+	return response.User.Id, nil
+}
+
+func (o *OpenfortIdentityFactory) jwtToken(_ context.Context, token string) (string, error) {
+	jwksUrls := []string{fmt.Sprintf("%s/iam/v1/%s/jwks.json", o.baseURL, o.publishableKey)}
 
 	return jwk.Validate(token, jwksUrls)
 }
@@ -138,4 +187,33 @@ type linkedAccount struct {
 	UpdatedAt      int64  `json:"updated_at,omitempty"`
 	Address        string `json:"address,omitempty"`
 	Metadata       string `json:"metadata,omitempty"`
+}
+
+type AuthSession struct {
+	ExpiresAt string `json:"expiresAt"`
+	Token     string `json:"token"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+	IpAddress string `json:"ipAddress"`
+	UserAgent string `json:"userAgent"`
+	UserId    string `json:"userId"`
+	Id        string `json:"id"`
+}
+
+type AuthUser struct {
+	Name                string `json:"name"`
+	Email               string `json:"email"`
+	EmailVerified       bool   `json:"emailVerified"`
+	Image               string `json:"image"`
+	CreatedAt           string `json:"createdAt"`
+	UpdatedAt           string `json:"updatedAt"`
+	IsAnonymous         bool   `json:"isAnonymous"`
+	PhoneNumber         string `json:"phoneNumber"`
+	PhoneNumberVerified bool   `json:"phoneNumberVerified"`
+	Id                  string `json:"id"`
+}
+
+type SessionResponse struct {
+	Session AuthSession
+	User    AuthUser
 }

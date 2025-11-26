@@ -12,4 +12,5 @@ var (
 	ErrUnexpectedStatusCode   = errors.New("unexpected status code")
 	ErrCertTypeNotSupported   = errors.New("certificate type not supported")
 	ErrProviderMisconfigured  = errors.New("provider misconfigured")
+	ErrSessionExpired         = errors.New("session expired")
 )
