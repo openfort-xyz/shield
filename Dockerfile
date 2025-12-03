@@ -1,4 +1,4 @@
-FROM golang:1.24.5-alpine as builder
+FROM golang:1.24.5-alpine AS builder
 RUN apk add --no-cache ca-certificates
 WORKDIR /app
 COPY . .
