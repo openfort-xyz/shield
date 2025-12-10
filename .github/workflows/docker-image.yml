@@ -28,6 +28,9 @@ jobs:
       - name: Set up Git
         run: git config --global url.ssh://git@github.com/.insteadOf https://github.com/
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
         with:
