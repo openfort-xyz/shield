@@ -100,7 +100,8 @@ type GetSharesEncryptionForReferencesResponse struct {
 }
 
 type GetSharesEncryptionForUsersRequest struct {
-	UserIDs []string `json:"user_ids"`
+	UserIDs   []string `json:"user_ids"`
+	Reference *string  `json:"reference"`
 }
 
 type GetSharesEncryptionForUsersResponse struct {
