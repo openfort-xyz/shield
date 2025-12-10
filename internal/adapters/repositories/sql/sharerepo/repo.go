@@ -285,9 +285,9 @@ func (r *repository) GetSharesEncryptionForProjectAndReferences(ctx context.Cont
 	return result, nil
 }
 
-func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context.Context, projectID string, userIDs []string) (map[string]share.RecoveryInfo, error) {
+func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context.Context, projectID string, userIDs []string, reference *string) (map[string]share.RecoveryInfo, error) {
 	var queryResult []InfoByUserID
-	err := r.db.Table("shld_shares").
+	req := r.db.Table("shld_shares").
 		Select("shld_external_users.external_user_id AS UserID, shld_shares.entropy AS Entropy, shld_passkey_references.passkey_id as PasskeyID, shld_passkey_references.passkey_env as PasskeyEnv").
 		Joins("LEFT JOIN shld_passkey_references ON shld_shares.id = shld_passkey_references.share_reference").
 		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
@@ -295,8 +295,13 @@ func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context
 		Where("shld_external_users.external_user_id IN ?", userIDs).
 		Where("shld_users.project_id = ?", projectID).
 		Where("shld_shares.deleted_at IS NULL").
-		Limit(len(userIDs)). // Prevent misuse: non-legacy users might have multiple accounts
-		Find(&queryResult).Error
+		Limit(len(userIDs)) // Prevent misuse: non-legacy users might have multiple accounts
+
+	if reference != nil {
+		req = req.Where("shld_shares.reference = ?", *reference)
+	}
+
+	err := req.Find(&queryResult).Error
 
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error getting encryption methods from users", logger.Error(err))

@@ -554,7 +554,7 @@ func (h *Handler) GetSharesEncryptionForUsers(w http.ResponseWriter, r *http.Req
 	// Also notice that this endpoint DOES return an entry for every requested asset, not only the existing ones
 	// This way, the response will still be exhaustive whilst making sure we're not giving too much extra information
 	// away for free
-	domainEncryptionTypes, err := h.app.GetSharesEncryptionForUsers(ctx, requestedUsers.UserIDs)
+	domainEncryptionTypes, err := h.app.GetSharesEncryptionForUsers(ctx, requestedUsers.UserIDs, requestedUsers.Reference)
 
 	if err != nil {
 		// Any error here must be the server's fault (the request is well-formed)

@@ -174,13 +174,13 @@ func (a *ShareApplication) GetSharesEncryptionForReferences(ctx context.Context,
 	return returnValue, nil
 }
 
-func (a *ShareApplication) GetSharesEncryptionForUsers(ctx context.Context, userIDs []string) (map[string]share.RecoveryInfo, error) {
+func (a *ShareApplication) GetSharesEncryptionForUsers(ctx context.Context, userIDs []string, reference *string) (map[string]share.RecoveryInfo, error) {
 	// Same as in GetSharesEncryptionForReferences (right above this one)
 	projectID := contexter.GetProjectID(ctx)
 	// Small clarification: by userID we mean external userID here
 	// That is, the requester doesn't care of the internal ID of users as it doesn't ever leave Shield
 	// They care about the inferred user ID (usually via publishable key/JWT token)
-	returnValue, err := a.shareRepo.GetSharesEncryptionForProjectAndExternalUserIDs(ctx, projectID, userIDs)
+	returnValue, err := a.shareRepo.GetSharesEncryptionForProjectAndExternalUserIDs(ctx, projectID, userIDs, reference)
 
 	if err != nil {
 		a.logger.ErrorContext(ctx, "Failed to retrieve encryption method for shares")
