@@ -3,18 +3,18 @@ package notificationsapp
 import (
 	"context"
 
-	"go.openfort.xyz/shield/pkg/brevo"
+	"go.openfort.xyz/shield/pkg/resend"
 	"go.openfort.xyz/shield/pkg/smsapi"
 )
 
 type NotificationApplication struct {
-	emailProvider brevo.Client
+	emailProvider resend.Client
 	smsProvider   smsapi.Client
 }
 
 func NewNotificationApp() (*NotificationApplication, error) {
-	brevoConfig, err := brevo.GetConfigFromEnv()
-	if err != nil || brevoConfig.BrevoAPIKey == "" {
+	resendConfig, err := resend.GetConfigFromEnv()
+	if err != nil || resendConfig.ResendAPIKey == "" {
 		return nil, err
 	}
 
@@ -23,7 +23,7 @@ func NewNotificationApp() (*NotificationApplication, error) {
 		return nil, err
 	}
 
-	brevoClient, err := brevo.NewClient(*brevoConfig)
+	resendClient, err := resend.NewClient(*resendConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func NewNotificationApp() (*NotificationApplication, error) {
 	}
 
 	return &NotificationApplication{
-		emailProvider: *brevoClient,
+		emailProvider: *resendClient,
 		smsProvider:   *smsApiClient,
 	}, nil
 }
