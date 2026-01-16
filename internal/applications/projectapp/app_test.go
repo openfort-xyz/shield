@@ -1160,3 +1160,77 @@ func TestProjectApplication_RegisterEncryptionSession(t *testing.T) {
 		})
 	}
 }
+
+func TestProjectApplication_Enable2FA(t *testing.T) {
+	ctx := contexter.WithProjectID(context.Background(), "project_id")
+	ctx = contexter.WithUserID(ctx, "user_id")
+	shareRepo := new(sharemockrepo.MockShareRepository)
+	projectRepo := new(projectmockrepo.MockProjectRepository)
+	providerRepo := new(providermockrepo.MockProviderRepository)
+	notificationsRepo := new(notificationsmockrepo.MockNotificationsRepository)
+	userContactRepo := new(usercontactmockrepo.MockUserContactRepository)
+	projectService := projectsvc.New(projectRepo)
+	providerService := providersvc.New(providerRepo)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	rateLimiter := NewRequestTracker(&TestClock{})
+	app := New(projectService, projectRepo, providerService, providerRepo, shareRepo, notificationsRepo, userContactRepo, encryptionFactory, encryptionPartsRepo, nil, nil, rateLimiter)
+
+	tc := []struct {
+		name    string
+		wantErr error
+		mock    func()
+	}{
+		{
+			name:    "success",
+			wantErr: nil,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("Get", mock.Anything, "project_id").Return(&project.Project{ID: "project_id", Enable2FA: false}, nil)
+				projectRepo.On("Update2FA", mock.Anything, "project_id", true).Return(nil)
+			},
+		},
+		{
+			name:    "2FA already enabled",
+			wantErr: ErrProject2FAAlreadyEnabled,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("Get", mock.Anything, "project_id").Return(&project.Project{ID: "project_id", Enable2FA: true}, nil)
+			},
+		},
+		{
+			name:    "project not found",
+			wantErr: ErrProjectNotFound,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("Get", mock.Anything, "project_id").Return(nil, domainErrors.ErrProjectNotFound)
+			},
+		},
+		{
+			name:    "error getting project",
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("Get", mock.Anything, "project_id").Return(nil, errors.New("repository error"))
+			},
+		},
+		{
+			name:    "error updating 2FA",
+			wantErr: ErrInternal,
+			mock: func() {
+				projectRepo.ExpectedCalls = nil
+				projectRepo.On("Get", mock.Anything, "project_id").Return(&project.Project{ID: "project_id", Enable2FA: false}, nil)
+				projectRepo.On("Update2FA", mock.Anything, "project_id", true).Return(errors.New("repository error"))
+			},
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.mock()
+			ass := assert.New(t)
+			err := app.Enable2FA(ctx)
+			ass.Equal(tt.wantErr, err)
+		})
+	}
+}

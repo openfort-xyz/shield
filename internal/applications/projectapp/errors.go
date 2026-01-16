@@ -34,6 +34,7 @@ var (
 	ErrPhoneNumberIsInvalid             = errors.New("phone number is invalid")
 	ErrMissingNotificationService       = errors.New("cannot generate OTP because notification service is absent")
 	ErrProjectDoesntHave2FA             = errors.New("project doesn't have 2FA enabled")
+	ErrProject2FAAlreadyEnabled         = errors.New("project already has 2FA enabled")
 	ErrUserContactInformationMismatch   = errors.New("user contact information mismatch")
 	ErrNoUserContactInformationProvided = errors.New("no user contact information provided")
 	ErrInternal                         = errors.New("internal error")

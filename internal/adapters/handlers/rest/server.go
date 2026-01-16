@@ -94,6 +94,7 @@ func (s *Server) Start(ctx context.Context) error {
 	p.HandleFunc("/encrypt", projectHdl.EncryptProjectShares).Methods(http.MethodPost)
 	p.HandleFunc("/encryption-session", projectHdl.RegisterEncryptionSession).Methods(http.MethodPost)
 	p.HandleFunc("/encryption-key", projectHdl.RegisterEncryptionKey).Methods(http.MethodPost)
+	p.HandleFunc("/enable-2fa", projectHdl.Enable2FA).Methods(http.MethodPost)
 
 	u := r.PathPrefix("/shares").Subrouter()
 	u.Use(authMdw.AuthenticateUser)
