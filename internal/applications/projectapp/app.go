@@ -162,6 +162,32 @@ func (a *ProjectApplication) GetProject(ctx context.Context) (*project.Project, 
 	return proj, nil
 }
 
+func (a *ProjectApplication) Enable2FA(ctx context.Context) error {
+	a.logger.InfoContext(ctx, "enabling 2FA for project")
+	projectID := contexter.GetProjectID(ctx)
+
+	proj, err := a.projectRepo.Get(ctx, projectID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get project", logger.Error(err))
+		return fromDomainError(err)
+	}
+
+	// If 2FA is already enabled, return error
+	if proj.Enable2FA {
+		a.logger.InfoContext(ctx, "2FA already enabled for project", slog.String("project_id", projectID))
+		return ErrProject2FAAlreadyEnabled
+	}
+
+	err = a.projectRepo.Update2FA(ctx, projectID, true)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to update 2FA", logger.Error(err))
+		return fromDomainError(err)
+	}
+
+	a.logger.InfoContext(ctx, "2FA enabled successfully", slog.String("project_id", projectID))
+	return nil
+}
+
 func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderOption) ([]*provider.Provider, error) {
 	a.logger.InfoContext(ctx, "adding providers")
 	projectID := contexter.GetProjectID(ctx)

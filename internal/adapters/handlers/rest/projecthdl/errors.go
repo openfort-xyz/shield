@@ -61,6 +61,8 @@ func fromApplicationError(err error) *api.Error {
 		return api.ErrMissingNotificationService
 	case errors.Is(err, projectapp.ErrProjectDoesntHave2FA):
 		return api.ErrProjectDoesntHave2FA
+	case errors.Is(err, projectapp.ErrProject2FAAlreadyEnabled):
+		return api.ErrProject2FAAlreadyEnabled
 	case errors.Is(err, projectapp.ErrOTPRecordNotFound):
 		return api.ErrOTPRecordNotFound
 	case errors.Is(err, projectapp.ErrUserContactInformationMismatch):

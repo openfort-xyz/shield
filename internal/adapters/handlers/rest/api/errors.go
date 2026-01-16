@@ -61,9 +61,10 @@ var (
 	ErrOTPExpired           = &Error{"OTP is expired", "OTP_EXPIRED", http.StatusUnprocessableEntity}
 	ErrOTPInvalidated       = &Error{"OTP invalidated after max failed attempts", "OTP_INVALIDATED", http.StatusBadRequest}
 	ErrOTPInvalid           = &Error{"Received otp is invalid", "OTP_INVALID", http.StatusBadRequest}
-	ErrOTPUserInfoMissing   = &Error{"Missing user information like email or phone number", "OTP_USER_INFO_MISSING", http.StatusBadRequest}
-	ErrProjectDoesntHave2FA = &Error{"Project doesn't support 2FA", "OTP_NOT_SUPPORTED", http.StatusBadRequest}
-	ErrOTPRecordNotFound    = &Error{"OTP record not found for user", "OTP_RECORD_NOT_FOUND", http.StatusNotFound}
+	ErrOTPUserInfoMissing       = &Error{"Missing user information like email or phone number", "OTP_USER_INFO_MISSING", http.StatusBadRequest}
+	ErrProjectDoesntHave2FA     = &Error{"Project doesn't support 2FA", "OTP_NOT_SUPPORTED", http.StatusBadRequest}
+	ErrProject2FAAlreadyEnabled = &Error{"Project already has 2FA enabled", "OTP_ALREADY_ENABLED", http.StatusConflict}
+	ErrOTPRecordNotFound        = &Error{"OTP record not found for user", "OTP_RECORD_NOT_FOUND", http.StatusNotFound}
 
 	ErrUserContactInformationMismatch = &Error{"User contact information mismatch", "USER_CONTACTS_MISMATCH", http.StatusBadRequest}
 

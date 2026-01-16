@@ -505,3 +505,27 @@ func (h *Handler) RegisterEncryptionKey(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(resp)
 }
+
+// Enable2FA enables 2FA for a project
+// @Summary Enable 2FA
+// @Description Enable two-factor authentication for a project. Once enabled, 2FA cannot be disabled.
+// @Tags Project
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 200 "2FA enabled successfully"
+// @Failure 409 {object} api.Error "2FA already enabled"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/enable-2fa [post]
+func (h *Handler) Enable2FA(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "enabling 2FA")
+
+	err := h.app.Enable2FA(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

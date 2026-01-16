@@ -90,6 +90,19 @@ func (r *repository) UpdateAPISecret(ctx context.Context, projectID, encryptedSe
 	return nil
 }
 
+func (r *repository) Update2FA(ctx context.Context, projectID string, enable2FA bool) error {
+	r.logger.InfoContext(ctx, "updating 2FA", slog.String("project_id", projectID), slog.Bool("enable_2fa", enable2FA))
+
+	err := r.db.Model(&Project{}).Where("id = ?", projectID).Update("enable_2fa", enable2FA).Error
+
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error updating 2FA", logger.Error(err))
+		return err
+	}
+
+	return nil
+}
+
 func (r *repository) GetWithRateLimit(ctx context.Context, projectID string) (*project.WithRateLimit, error) {
 	r.logger.InfoContext(ctx, "getting project with rate limit")
 
