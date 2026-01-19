@@ -30,11 +30,13 @@ type CreateProjectResponse struct {
 	APIKey         string `json:"api_key"`
 	APISecret      string `json:"api_secret"`
 	EncryptionPart string `json:"encryption_part,omitempty"`
+	Enabled2FA     bool   `json:"enabled_2fa"`
 }
 
 type GetProjectResponse struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Enabled2FA bool   `json:"enabled_2fa"`
 }
 
 type AddProvidersRequest struct {

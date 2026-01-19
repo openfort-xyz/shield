@@ -33,13 +33,15 @@ func (p *parser) toCreateProjectResponse(proj *project.Project) *CreateProjectRe
 		APIKey:         proj.APIKey,
 		APISecret:      proj.APISecret,
 		EncryptionPart: proj.EncryptionPart,
+		Enabled2FA:     proj.Enable2FA,
 	}
 }
 
 func (p *parser) toGetProjectResponse(proj *project.Project) *GetProjectResponse {
 	return &GetProjectResponse{
-		ID:   proj.ID,
-		Name: proj.Name,
+		ID:         proj.ID,
+		Name:       proj.Name,
+		Enabled2FA: proj.Enable2FA,
 	}
 }
 
