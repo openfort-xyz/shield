@@ -37,6 +37,7 @@ func (p *parser) toDatabase(proj *project.Project) *Project {
 		Name:      proj.Name,
 		APIKey:    proj.APIKey,
 		APISecret: proj.APISecret,
+		Enable2FA: proj.Enable2FA,
 	}
 }
 
