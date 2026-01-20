@@ -20,8 +20,13 @@ func (r *GenerateOTPRequest) ParametersValid() bool {
 
 	hasEmail := r.Email != nil
 	hasPhone := r.Phone != nil
+	hasContact := hasEmail || hasPhone
 
-	return hasEmail != hasPhone
+	if r.DangerouslySkipVerification {
+		return !hasContact // skip verification requires no contact method
+	}
+
+	return hasEmail != hasPhone // exactly one contact method required
 }
 
 type CreateProjectResponse struct {

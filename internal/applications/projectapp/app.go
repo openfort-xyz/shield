@@ -336,11 +336,6 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ski
 		}
 	}
 
-	err = a.verifyAndSaveUserContacts(ctx, userId, email, phone)
-	if err != nil {
-		return err
-	}
-
 	otpCode, err := a.otpService.GenerateOTP(ctx, userId, skipVerification)
 	if err != nil {
 		return fromDomainError(err)
@@ -366,8 +361,6 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ski
 		if err != nil {
 			return err
 		}
-
-		return nil
 	} else if phone != nil {
 		if !validation.IsValidPhoneNumber(*phone) {
 			return ErrPhoneNumberIsInvalid
@@ -382,11 +375,16 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userId string, ski
 		if err != nil {
 			return err
 		}
-
-		return nil
 	} else {
 		return ErrOTPUserInfoMissing
 	}
+
+	err = a.verifyAndSaveUserContacts(ctx, userId, email, phone)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *ProjectApplication) GetProviders(ctx context.Context) ([]*provider.Provider, error) {
