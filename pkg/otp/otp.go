@@ -243,7 +243,7 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string, ski
 // 5. Cleans up successful/failed requests from memory
 //
 // Returns the OTP request if valid, containing authentication context
-func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode string) (*otp.Request, error) {
+func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID string, otpCode *string) (*otp.Request, error) {
 	val, err := s.partsRepo.Get(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -255,6 +255,10 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 	}
 
 	if !request.SkipVerification {
+		if otpCode == nil {
+			return nil, errors.ErrOTPMissing
+		}
+
 		currentTime := s.clock.Now().UnixMilli()
 		if currentTime-request.CreatedAt > s.config.OTPExpiryMS {
 			err := s.partsRepo.Delete(ctx, userID)
@@ -264,7 +268,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID, otpCode stri
 			return nil, errors.ErrOTPExpired
 		}
 
-		if request.OTP != otpCode {
+		if request.OTP != *otpCode {
 			request.FailedAttempts++
 
 			if request.FailedAttempts >= s.config.MaxFailedAttempts {

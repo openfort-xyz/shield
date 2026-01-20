@@ -604,18 +604,12 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 	otpVerified := false
 
 	if proj.Enable2FA {
-		// in case OTP was generated with `SkipVerification` flag we might send there empty string
-		code := ""
-		if otpCode != nil {
-			code = *otpCode
-		}
-
-		otpRequest, err := a.otpService.VerifyOTP(ctx, userId, code)
+		otpRequest, err := a.otpService.VerifyOTP(ctx, userId, otpCode)
 		if err != nil {
 			if err == domainErrors.ErrDataInDBNotFound {
-				return "", ErrOTPRecordNotFound
+				return "", ErrOTPRequired
 			}
-			return "", err
+			return "", fromDomainError(err)
 		}
 
 		if !otpRequest.SkipVerification {

@@ -30,6 +30,7 @@ var (
 	ErrOTPInvalid                       = errors.New("received otp is invalid")
 	ErrOTPUserInfoMissing               = errors.New("neither email nor phone number was provided")
 	ErrOTPRecordNotFound                = errors.New("otp record not found")
+	ErrOTPMissing                       = errors.New("otp is missing")
 	ErrEmailIsInvalid                   = errors.New("email is invalid")
 	ErrPhoneNumberIsInvalid             = errors.New("phone number is invalid")
 	ErrMissingNotificationService       = errors.New("cannot generate OTP because notification service is absent")
@@ -98,6 +99,10 @@ func fromDomainError(err error) error {
 
 	if errors.Is(err, domainErrors.ErrOTPInvalid) {
 		return ErrOTPInvalid
+	}
+
+	if errors.Is(err, domainErrors.ErrOTPMissing) {
+		return ErrOTPMissing
 	}
 
 	return ErrInternal

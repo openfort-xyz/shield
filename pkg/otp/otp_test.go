@@ -72,7 +72,7 @@ func TestOtp(t *testing.T) {
 
 		encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
 
-		verifyResp, err := otpService.VerifyOTP(ctx, testUserID, newOtp)
+		verifyResp, err := otpService.VerifyOTP(ctx, testUserID, &newOtp)
 		if err != nil {
 			panic(err)
 		}
@@ -126,7 +126,7 @@ func TestOtp(t *testing.T) {
 
 		encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
 
-		_, err = otpService.VerifyOTP(ctx, testUserID, newOtp)
+		_, err = otpService.VerifyOTP(ctx, testUserID, &newOtp)
 
 		ass.ErrorIs(err, errors.ErrOTPInvalid)
 	})
@@ -177,7 +177,7 @@ func TestOtp(t *testing.T) {
 
 		encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
 
-		_, err = otpService.VerifyOTP(ctx, testUserID, newOtp)
+		_, err = otpService.VerifyOTP(ctx, testUserID, &newOtp)
 
 		ass.ErrorIs(err, errors.ErrOTPExpired)
 	})
@@ -231,7 +231,7 @@ func TestOtpBruteForce(t *testing.T) {
 
 			encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
 
-			_, err = otpService.VerifyOTP(ctx, testUserID, newOtp)
+			_, err = otpService.VerifyOTP(ctx, testUserID, &newOtp)
 
 			ass.ErrorIs(err, errors.ErrOTPInvalidated)
 		}
@@ -288,7 +288,7 @@ func TestOtpBruteForce(t *testing.T) {
 
 			encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
 
-			_, err = otpService.VerifyOTP(ctx, testUserID, newOtp)
+			_, err = otpService.VerifyOTP(ctx, testUserID, &newOtp)
 
 			ass.ErrorIs(err, errors.ErrOTPInvalidated)
 		}
