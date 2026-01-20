@@ -56,12 +56,13 @@ var (
 	ErrMissingAuthProvider   = &Error{"Missing auth provider", "A_MISSING", http.StatusUnauthorized}
 	ErrInvalidAuthProvider   = &Error{"Invalid auth provider", "A_INVALID", http.StatusUnauthorized}
 
-	ErrOTPRequired          = &Error{"OTP is required for this request", "OTP_MISSING", http.StatusPreconditionRequired}
-	ErrOTPRateLimitExceeded = &Error{"Rate limit exceeded to generate OTP", "OTP_RATE_LIMIT", http.StatusTooManyRequests}
-	ErrOTPExpired           = &Error{"OTP is expired", "OTP_EXPIRED", http.StatusUnprocessableEntity}
-	ErrOTPInvalidated       = &Error{"OTP invalidated after max failed attempts", "OTP_INVALIDATED", http.StatusBadRequest}
-	ErrOTPInvalid           = &Error{"Received otp is invalid", "OTP_INVALID", http.StatusBadRequest}
+	ErrOTPRequired              = &Error{"OTP is required for this request", "OTP_MISSING", http.StatusPreconditionRequired}
+	ErrOTPRateLimitExceeded     = &Error{"Rate limit exceeded to generate OTP", "OTP_RATE_LIMIT", http.StatusTooManyRequests}
+	ErrOTPExpired               = &Error{"OTP is expired", "OTP_EXPIRED", http.StatusUnprocessableEntity}
+	ErrOTPInvalidated           = &Error{"OTP invalidated after max failed attempts", "OTP_INVALIDATED", http.StatusBadRequest}
+	ErrOTPInvalid               = &Error{"Received otp is invalid", "OTP_INVALID", http.StatusBadRequest}
 	ErrOTPUserInfoMissing       = &Error{"Missing user information like email or phone number", "OTP_USER_INFO_MISSING", http.StatusBadRequest}
+	ErrOTPMissing               = &Error{"OTP was requested but not sent", "OTP_REQUESTED_BUT_NOT_SENT", http.StatusBadRequest}
 	ErrProjectDoesntHave2FA     = &Error{"Project doesn't support 2FA", "OTP_NOT_SUPPORTED", http.StatusBadRequest}
 	ErrProject2FAAlreadyEnabled = &Error{"Project already has 2FA enabled", "OTP_ALREADY_ENABLED", http.StatusConflict}
 	ErrOTPRecordNotFound        = &Error{"OTP record not found for user", "OTP_RECORD_NOT_FOUND", http.StatusNotFound}
