@@ -110,7 +110,7 @@ func (o *OpenfortIdentityFactory) accessToken(ctx context.Context, token string)
 		return "", domainErrors.ErrSessionExpired
 	}
 
-	return response.User.Id, nil
+	return response.User.WalletId, nil
 }
 
 func (o *OpenfortIdentityFactory) jwtToken(_ context.Context, token string) (string, error) {
@@ -211,6 +211,7 @@ type AuthUser struct {
 	PhoneNumber         string `json:"phoneNumber"`
 	PhoneNumberVerified bool   `json:"phoneNumberVerified"`
 	Id                  string `json:"id"`
+	WalletId            string `json:"walletId"`
 }
 
 type SessionResponse struct {
