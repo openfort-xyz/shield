@@ -196,7 +196,6 @@ type AuthSession struct {
 	UpdatedAt string `json:"updatedAt"`
 	IpAddress string `json:"ipAddress"`
 	UserAgent string `json:"userAgent"`
-	UserId    string `json:"userId"`
 	Id        string `json:"id"`
 }
 
