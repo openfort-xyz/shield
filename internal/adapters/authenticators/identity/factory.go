@@ -30,10 +30,10 @@ func NewIdentityFactory(cfg *ofidty.Config, repo repositories.ProviderRepository
 	}
 }
 
-func (p *identityFactory) CreateCustomIdentity(ctx context.Context, apiKey string) (factories.Identity, error) {
-	prov, err := p.repo.GetByAPIKeyAndType(ctx, apiKey, provider.TypeCustom)
+func (p *identityFactory) CreateCustomIdentity(ctx context.Context, projectID string) (factories.Identity, error) {
+	prov, err := p.repo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
 	if err != nil {
-		if errors.Is(err, domainErrors.ErrProjectNotFound) {
+		if errors.Is(err, domainErrors.ErrProviderNotFound) {
 			return nil, domainErrors.ErrProviderNotConfigured
 		}
 		p.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
@@ -48,10 +48,10 @@ func (p *identityFactory) CreateCustomIdentity(ctx context.Context, apiKey strin
 	return cstmidty.NewCustomIdentityFactory(config), nil
 }
 
-func (p *identityFactory) CreateOpenfortIdentity(ctx context.Context, apiKey string, authenticationProvider, tokenType *string) (factories.Identity, error) {
-	prov, err := p.repo.GetByAPIKeyAndType(ctx, apiKey, provider.TypeOpenfort)
+func (p *identityFactory) CreateOpenfortIdentity(ctx context.Context, projectID string, authenticationProvider, tokenType *string) (factories.Identity, error) {
+	prov, err := p.repo.GetByProjectAndType(ctx, projectID, provider.TypeOpenfort)
 	if err != nil {
-		if errors.Is(err, domainErrors.ErrProjectNotFound) {
+		if errors.Is(err, domainErrors.ErrProviderNotFound) {
 			return nil, domainErrors.ErrProviderNotConfigured
 		}
 		p.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))

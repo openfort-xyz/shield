@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
@@ -29,13 +30,15 @@ type Middleware struct {
 	authenticationFactory factories.AuthenticationFactory
 	identityFactory       factories.IdentityFactory
 	userService           services.UserService
+	projectRepo           repositories.ProjectRepository
 }
 
-func New(authenticationFactory factories.AuthenticationFactory, identityFactory factories.IdentityFactory, userService services.UserService) *Middleware {
+func New(authenticationFactory factories.AuthenticationFactory, identityFactory factories.IdentityFactory, userService services.UserService, projectRepo repositories.ProjectRepository) *Middleware {
 	return &Middleware{
 		authenticationFactory: authenticationFactory,
 		identityFactory:       identityFactory,
 		userService:           userService,
+		projectRepo:           projectRepo,
 	}
 }
 
@@ -67,12 +70,6 @@ func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
 
 func (m *Middleware) PreRegisterUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		apiKey := r.Header.Get(APIKeyHeader)
-		if apiKey == "" {
-			api.RespondWithError(w, api.ErrMissingAPIKey)
-			return
-		}
-
 		userID := r.Header.Get(UserIDHeader)
 		if userID == "" {
 			api.RespondWithError(w, api.ErrMissingUserID)
@@ -85,13 +82,15 @@ func (m *Middleware) PreRegisterUser(next http.Handler) http.Handler {
 			return
 		}
 
+		projectID := contexter.GetProjectID(r.Context())
+
 		var identity factories.Identity
 		var err error
 		switch providerStr {
 		case AuthenticationTypeCustom:
-			identity, err = m.identityFactory.CreateCustomIdentity(r.Context(), apiKey)
+			identity, err = m.identityFactory.CreateCustomIdentity(r.Context(), projectID)
 		case AuthenticationTypeOpenfort:
-			identity, err = m.identityFactory.CreateOpenfortIdentity(r.Context(), apiKey, nil, nil)
+			identity, err = m.identityFactory.CreateOpenfortIdentity(r.Context(), projectID, nil, nil)
 		default:
 			api.RespondWithError(w, api.ErrInvalidAuthProvider)
 			return
@@ -101,7 +100,7 @@ func (m *Middleware) PreRegisterUser(next http.Handler) http.Handler {
 			return
 		}
 
-		usr, err := m.userService.GetOrCreate(r.Context(), contexter.GetProjectID(r.Context()), userID, identity.GetProviderID())
+		usr, err := m.userService.GetOrCreate(r.Context(), projectID, userID, identity.GetProviderID())
 		if err != nil {
 			api.RespondWithError(w, api.ErrPreRegisterUser)
 			return
@@ -160,12 +159,17 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 			return
 		}
 
+		proj, err := m.projectRepo.GetByAPIKey(r.Context(), apiKey)
+		if err != nil {
+			api.RespondWithError(w, api.ErrInvalidAPICredentials)
+			return
+		}
+
 		var identity factories.Identity
-		var err error
 
 		switch providerStr {
 		case AuthenticationTypeCustom:
-			identity, err = m.identityFactory.CreateCustomIdentity(r.Context(), apiKey)
+			identity, err = m.identityFactory.CreateCustomIdentity(r.Context(), proj.ID)
 		case AuthenticationTypeOpenfort:
 			var openfortProvider *string
 			if r.Header.Get(OpenfortProviderHeader) != "" {
@@ -177,7 +181,7 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 				openfortTokenType = new(string)
 				*openfortTokenType = r.Header.Get(OpenfortTokenTypeHeader)
 			}
-			identity, err = m.identityFactory.CreateOpenfortIdentity(r.Context(), apiKey, openfortProvider, openfortTokenType)
+			identity, err = m.identityFactory.CreateOpenfortIdentity(r.Context(), proj.ID, openfortProvider, openfortTokenType)
 		default:
 			api.RespondWithError(w, api.ErrInvalidAuthProvider)
 			return
@@ -209,7 +213,7 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 			return
 		}
 
-		authenticator := m.authenticationFactory.CreateUserAuthenticator(apiKey, token, identity)
+		authenticator := m.authenticationFactory.CreateUserAuthenticator(proj, token, identity)
 		authentication, err := authenticator.Authenticate(r.Context())
 		if err != nil {
 			api.RespondWithError(w, api.ErrInvalidToken)

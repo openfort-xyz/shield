@@ -5,8 +5,8 @@ import (
 )
 
 type IdentityFactory interface {
-	CreateCustomIdentity(ctx context.Context, apiKey string) (Identity, error)
-	CreateOpenfortIdentity(ctx context.Context, apiKey string, authenticationProvider, tokenType *string) (Identity, error)
+	CreateCustomIdentity(ctx context.Context, projectID string) (Identity, error)
+	CreateOpenfortIdentity(ctx context.Context, projectID string, authenticationProvider, tokenType *string) (Identity, error)
 }
 
 type Identity interface {

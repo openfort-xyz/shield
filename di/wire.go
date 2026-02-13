@@ -327,6 +327,7 @@ func ProvideRESTServer() (s *rest.Server, err error) {
 		ProvideUserService,
 		ProvideAuthenticationFactory,
 		ProvideIdentityFactory,
+		ProvideSQLProjectRepository,
 	)
 
 	return
