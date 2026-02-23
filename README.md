@@ -1,25 +1,12 @@
-# Shield
-
-![Openfort Protocol][banner-image]
+# Shield - Cold Recovery Share Storage Service
 
 <div align="center">
   <h4>
-    <a href="https://www.openfort.io/">
-      Website
-    </a>
-    <span> | </span>
-    <a href="https://www.openfort.io/docs">
-      Documentation
-    </a>
-    <span> | </span>
-    <a href="https://www.openfort.io/docs/reference/api/authentication">
-      API Docs
+    <a href="https://www.opensigner.dev">
+      OpenSigner Documentation
     </a>
   </h4>
 </div>
-
-[banner-image]: https://blog-cms.openfort.xyz/uploads/Shield_85938c811e.png
-
 
 
 [![Go Report Card](https://goreportcard.com/badge/go.openfort.xyz/shield)](https://goreportcard.com/report/go.openfort.xyz/shield)

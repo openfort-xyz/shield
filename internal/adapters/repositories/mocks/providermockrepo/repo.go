@@ -27,15 +27,6 @@ func (m *MockProviderRepository) GetByProjectAndType(ctx context.Context, projec
 	return args.Get(0).(*provider.Provider), args.Error(1)
 }
 
-func (m *MockProviderRepository) GetByAPIKeyAndType(ctx context.Context, apiKey string, providerType provider.Type) (*provider.Provider, error) {
-	args := m.Mock.Called(ctx, apiKey, providerType)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-
-	return args.Get(0).(*provider.Provider), args.Error(1)
-}
-
 func (m *MockProviderRepository) Get(ctx context.Context, id string) (*provider.Provider, error) {
 	args := m.Mock.Called(ctx, id)
 	if args.Get(0) == nil {

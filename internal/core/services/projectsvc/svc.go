@@ -64,6 +64,17 @@ func (s *service) Create(ctx context.Context, name string, enable2fa bool) (*pro
 	return proj, nil
 }
 
+func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {
+	s.logger.InfoContext(ctx, "getting project by api key")
+	proj, err := s.repo.GetByAPIKey(ctx, apiKey)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to get project by api key", logger.Error(err))
+		return nil, err
+	}
+
+	return proj, nil
+}
+
 func (s *service) SaveProjectRateLimits(ctx context.Context, projectID string, smsRateLimit int64, emailRateLimit int64) error {
 	s.logger.InfoContext(ctx, "save project rate limits", slog.String("project", projectID))
 

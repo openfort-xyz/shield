@@ -64,22 +64,6 @@ func (r *repository) GetByProjectAndType(ctx context.Context, projectID string, 
 	return r.parser.toDomainProvider(dbProv), nil
 }
 
-func (r *repository) GetByAPIKeyAndType(ctx context.Context, apiKey string, providerType provider.Type) (*provider.Provider, error) {
-	r.logger.InfoContext(ctx, "getting provider", slog.String("api_key", apiKey), slog.String("provider_type", providerType.String()))
-
-	dbProv := Provider{}
-	err := r.db.Preload("Custom").Preload("Openfort").Joins("INNER JOIN shld_projects sp on shld_providers.project_id = sp.id").Where("sp.api_key = ? AND shld_providers.type = ?", apiKey, r.parser.mapProviderTypeToDatabase[providerType]).First(&dbProv).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domainErrors.ErrProviderNotFound
-		}
-		r.logger.ErrorContext(ctx, "error getting provider", logger.Error(err))
-		return nil, err
-	}
-
-	return r.parser.toDomainProvider(dbProv), nil
-}
-
 func (r *repository) Get(ctx context.Context, id string) (*provider.Provider, error) {
 	r.logger.InfoContext(ctx, "getting provider", slog.String("provider_id", id))
 

@@ -38,6 +38,7 @@ type Server struct {
 	authenticationFactory factories.AuthenticationFactory
 	identityFactory       factories.IdentityFactory
 	userService           services.UserService
+	projectService        services.ProjectService
 }
 
 // New creates a new REST server
@@ -47,7 +48,8 @@ func New(cfg *Config,
 	authenticationFactory factories.AuthenticationFactory,
 	identityFactory factories.IdentityFactory,
 	userService services.UserService,
-	healthzApp *healthzapp.Application) *Server {
+	healthzApp *healthzapp.Application,
+	projectService services.ProjectService) *Server {
 	return &Server{
 		projectApp:            projectApp,
 		shareApp:              shareApp,
@@ -59,6 +61,7 @@ func New(cfg *Config,
 		authenticationFactory: authenticationFactory,
 		identityFactory:       identityFactory,
 		userService:           userService,
+		projectService:           projectService,
 	}
 }
 
@@ -67,7 +70,7 @@ func (s *Server) Start(ctx context.Context) error {
 	healthzHdl := healthzhdl.New(s.healthzApp)
 	projectHdl := projecthdl.New(s.projectApp)
 	shareHdl := sharehdl.New(s.shareApp)
-	authMdw := authmdw.New(s.authenticationFactory, s.identityFactory, s.userService)
+	authMdw := authmdw.New(s.authenticationFactory, s.identityFactory, s.userService, s.projectService)
 	rateLimiterMdw := ratelimitermdw.New(s.config.RPS)
 
 	r := mux.NewRouter()
