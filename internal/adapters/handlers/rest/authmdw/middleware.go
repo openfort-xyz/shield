@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
@@ -30,15 +29,15 @@ type Middleware struct {
 	authenticationFactory factories.AuthenticationFactory
 	identityFactory       factories.IdentityFactory
 	userService           services.UserService
-	projectRepo           repositories.ProjectRepository
+	projectService        services.ProjectService
 }
 
-func New(authenticationFactory factories.AuthenticationFactory, identityFactory factories.IdentityFactory, userService services.UserService, projectRepo repositories.ProjectRepository) *Middleware {
+func New(authenticationFactory factories.AuthenticationFactory, identityFactory factories.IdentityFactory, userService services.UserService, projectService services.ProjectService) *Middleware {
 	return &Middleware{
 		authenticationFactory: authenticationFactory,
 		identityFactory:       identityFactory,
 		userService:           userService,
-		projectRepo:           projectRepo,
+		projectService:        projectService,
 	}
 }
 
@@ -159,7 +158,7 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 			return
 		}
 
-		proj, err := m.projectRepo.GetByAPIKey(r.Context(), apiKey)
+		proj, err := m.projectService.GetByAPIKey(r.Context(), apiKey)
 		if err != nil {
 			api.RespondWithError(w, api.ErrInvalidAPICredentials)
 			return

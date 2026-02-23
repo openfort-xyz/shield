@@ -395,11 +395,11 @@ func ProvideRESTServer() (*rest.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	projectRepository, err := ProvideSQLProjectRepository()
+	projectService, err := ProvideProjectService()
 	if err != nil {
 		return nil, err
 	}
-	server := rest.New(config, projectApplication, shareApplication, authenticationFactory, identityFactory, userService, application, projectRepository)
+	server := rest.New(config, projectApplication, shareApplication, authenticationFactory, identityFactory, userService, application, projectService)
 	return server, nil
 }
 

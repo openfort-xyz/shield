@@ -22,7 +22,6 @@ import (
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
 	"go.openfort.xyz/shield/internal/core/ports/services"
 	"go.openfort.xyz/shield/pkg/logger"
 )
@@ -39,7 +38,7 @@ type Server struct {
 	authenticationFactory factories.AuthenticationFactory
 	identityFactory       factories.IdentityFactory
 	userService           services.UserService
-	projectRepo           repositories.ProjectRepository
+	projectService        services.ProjectService
 }
 
 // New creates a new REST server
@@ -50,7 +49,7 @@ func New(cfg *Config,
 	identityFactory factories.IdentityFactory,
 	userService services.UserService,
 	healthzApp *healthzapp.Application,
-	projectRepo repositories.ProjectRepository) *Server {
+	projectService services.ProjectService) *Server {
 	return &Server{
 		projectApp:            projectApp,
 		shareApp:              shareApp,
@@ -62,7 +61,7 @@ func New(cfg *Config,
 		authenticationFactory: authenticationFactory,
 		identityFactory:       identityFactory,
 		userService:           userService,
-		projectRepo:           projectRepo,
+		projectService:           projectService,
 	}
 }
 
@@ -71,7 +70,7 @@ func (s *Server) Start(ctx context.Context) error {
 	healthzHdl := healthzhdl.New(s.healthzApp)
 	projectHdl := projecthdl.New(s.projectApp)
 	shareHdl := sharehdl.New(s.shareApp)
-	authMdw := authmdw.New(s.authenticationFactory, s.identityFactory, s.userService, s.projectRepo)
+	authMdw := authmdw.New(s.authenticationFactory, s.identityFactory, s.userService, s.projectService)
 	rateLimiterMdw := ratelimitermdw.New(s.config.RPS)
 
 	r := mux.NewRouter()
