@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.5
 
 require (
-	github.com/MicahParks/keyfunc/v3 v3.3.3
+	github.com/MicahParks/keyfunc/v3 v3.7.0
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/codahale/sss v0.0.0-20160501174526-0cb9f6d3f7f1
 	github.com/go-sql-driver/mysql v1.8.1
@@ -32,7 +32,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/MicahParks/jwkset v0.6.0 // indirect
+	github.com/MicahParks/jwkset v0.11.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
