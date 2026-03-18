@@ -1,6 +1,7 @@
 package sharehdl
 
 import (
+	"github.com/google/uuid"
 	"go.openfort.xyz/shield/internal/core/domain/share"
 )
 
@@ -163,6 +164,77 @@ func (p *parser) fromDomain(s *share.Share) *Share {
 				OSVersion: s.PasskeyReference.PasskeyEnv.OSVersion,
 				Device:    s.PasskeyReference.PasskeyEnv.Device,
 			}
+		}
+	}
+
+	return shr
+}
+
+func (p *parser) fromDomainExport(s *share.Share) *ExportShareResponse {
+	resp := &ExportShareResponse{
+		Secret:               s.Secret,
+		Entropy:              p.mapDomainEntropy[s.Entropy],
+		ShareStorageMethodID: p.mapDomainStorageMethod[s.ShareStorageMethodID],
+	}
+
+	if s.Reference != nil {
+		resp.Reference = *s.Reference
+	}
+
+	if s.EncryptionParameters != nil {
+		resp.Salt = s.EncryptionParameters.Salt
+		resp.Iterations = s.EncryptionParameters.Iterations
+		resp.Length = s.EncryptionParameters.Length
+		resp.Digest = s.EncryptionParameters.Digest
+	}
+
+	if s.PasskeyReference != nil {
+		resp.PasskeyReference = &PasskeyReference{
+			PasskeyId: &s.PasskeyReference.PasskeyID,
+		}
+		if s.PasskeyReference.PasskeyEnv != nil {
+			resp.PasskeyReference.PasskeyEnv = &PasskeyEnv{
+				Name:      s.PasskeyReference.PasskeyEnv.Name,
+				OS:        s.PasskeyReference.PasskeyEnv.OS,
+				OSVersion: s.PasskeyReference.PasskeyEnv.OSVersion,
+				Device:    s.PasskeyReference.PasskeyEnv.Device,
+			}
+		}
+	}
+
+	return resp
+}
+
+func (p *parser) toImportDomain(s *ImportShareRequest) *share.Share {
+	shr := &share.Share{
+		UserID:               s.UserId,
+		Secret:               s.Secret,
+		Entropy:              p.mapEntropyDomain[s.Entropy],
+		ShareStorageMethodID: p.mapStorageMethodDomain[s.ShareStorageMethodID],
+	}
+
+	if s.Reference != "" {
+		shr.Reference = &s.Reference
+	}
+
+	if s.Salt != "" || s.Iterations != 0 || s.Length != 0 || s.Digest != "" {
+		shr.EncryptionParameters = &share.EncryptionParameters{
+			Salt:       s.Salt,
+			Iterations: s.Iterations,
+			Length:     s.Length,
+			Digest:     s.Digest,
+		}
+	}
+
+	if s.Entropy == EntropyPasskey && s.PasskeyReference != nil {
+		shr.PasskeyReference = &share.PasskeyReference{
+			PasskeyID: uuid.NewString(),
+		}
+		shr.PasskeyReference.PasskeyEnv = &share.PasskeyEnv{
+			Name:      s.PasskeyReference.Name,
+			OS:        s.PasskeyReference.OS,
+			OSVersion: s.PasskeyReference.OSVersion,
+			Device:    s.PasskeyReference.Device,
 		}
 	}
 

@@ -51,6 +51,14 @@ func (m *MockShareRepository) GetByReferenceAndKeychain(ctx context.Context, ref
 	return args.Get(0).(*share.Share), args.Error(1)
 }
 
+func (m *MockShareRepository) GetByReferenceAndProjectID(ctx context.Context, reference, projectID string) (*share.Share, error) {
+	args := m.Mock.Called(ctx, reference, projectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*share.Share), args.Error(1)
+}
+
 func (m *MockShareRepository) ListByKeychainID(ctx context.Context, keychainID string) ([]*share.Share, error) {
 	args := m.Mock.Called(ctx, keychainID)
 	if args.Get(0) == nil {

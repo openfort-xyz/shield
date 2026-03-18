@@ -19,6 +19,7 @@ import (
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/requestmdw"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/responsemdw"
 	"go.openfort.xyz/shield/internal/adapters/handlers/rest/sharehdl"
+	"go.openfort.xyz/shield/internal/adapters/handlers/rest/usrhdl"
 	"go.openfort.xyz/shield/internal/applications/projectapp"
 	"go.openfort.xyz/shield/internal/applications/shareapp"
 	"go.openfort.xyz/shield/internal/core/ports/factories"
@@ -61,7 +62,7 @@ func New(cfg *Config,
 		authenticationFactory: authenticationFactory,
 		identityFactory:       identityFactory,
 		userService:           userService,
-		projectService:           projectService,
+		projectService:        projectService,
 	}
 }
 
@@ -70,6 +71,7 @@ func (s *Server) Start(ctx context.Context) error {
 	healthzHdl := healthzhdl.New(s.healthzApp)
 	projectHdl := projecthdl.New(s.projectApp)
 	shareHdl := sharehdl.New(s.shareApp)
+	userHdl := usrhdl.New(s.userService)
 	authMdw := authmdw.New(s.authenticationFactory, s.identityFactory, s.userService, s.projectService)
 	rateLimiterMdw := ratelimitermdw.New(s.config.RPS)
 
@@ -99,6 +101,10 @@ func (s *Server) Start(ctx context.Context) error {
 	p.HandleFunc("/encryption-key", projectHdl.RegisterEncryptionKey).Methods(http.MethodPost)
 	p.HandleFunc("/enable-2fa", projectHdl.Enable2FA).Methods(http.MethodPost)
 
+	usr := r.PathPrefix("/user").Subrouter()
+	usr.Use(authMdw.AuthenticateAPISecret)
+	usr.HandleFunc("", userHdl.CreateUser).Methods(http.MethodPost)
+
 	u := r.PathPrefix("/shares").Subrouter()
 	u.Use(authMdw.AuthenticateUser)
 	u.HandleFunc("", shareHdl.GetShare).Methods(http.MethodGet)
@@ -117,6 +123,11 @@ func (s *Server) Start(ctx context.Context) error {
 	e.HandleFunc("", shareHdl.GetShareEncryption).Methods(http.MethodGet)
 	e.HandleFunc("/reference/bulk", shareHdl.GetSharesEncryptionForReferences).Methods(http.MethodPost)
 	e.HandleFunc("/user/bulk", shareHdl.GetSharesEncryptionForUsers).Methods(http.MethodPost)
+
+	m := r.PathPrefix("/shares/migration").Subrouter()
+	m.Use(authMdw.AuthenticateAPISecret)
+	m.HandleFunc("/export/{reference}", shareHdl.ExportShare).Methods(http.MethodGet)
+	m.HandleFunc("/import", shareHdl.ImportShare).Methods(http.MethodPost)
 
 	a := r.PathPrefix("/admin").Subrouter()
 	a.Use(authMdw.AuthenticateAPISecret)

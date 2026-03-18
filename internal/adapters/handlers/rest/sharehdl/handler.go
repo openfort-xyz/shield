@@ -592,6 +592,89 @@ func (h *Handler) GetSharesEncryptionForUsers(w http.ResponseWriter, r *http.Req
 	_, _ = w.Write(resp)
 }
 
+// ExportShare exports a share as-is from the database
+// @Summary Export share
+// @Description Export a share by reference without decryption
+// @Tags Share Migration
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param reference path string true "Share Reference"
+// @Success 200 {object} ExportShareResponse "Successful response"
+// @Failure 404 "Description: Not Found"
+// @Failure 500 "Description: Internal Server Error"
+// @Router /shares/migration/export/{reference} [get]
+func (h *Handler) ExportShare(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "exporting share")
+
+	reference := mux.Vars(r)["reference"]
+	if reference == "" {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("missing reference"))
+		return
+	}
+
+	shr, err := h.app.ExportShare(ctx, reference)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	resp, err := json.Marshal(h.parser.fromDomainExport(shr))
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}
+
+// ImportShare imports a share directly into the database
+// @Summary Import share
+// @Description Import a previously exported share
+// @Tags Share Migration
+// @Accept json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param importShareRequest body ImportShareRequest true "Import Share Request"
+// @Success 201 "Description: Share imported successfully"
+// @Failure 400 {object} api.Error "Bad Request"
+// @Failure 409 {object} api.Error "Conflict"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /shares/migration/import [post]
+func (h *Handler) ImportShare(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "importing share")
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+		return
+	}
+
+	var req ImportShareRequest
+	err = json.Unmarshal(body, &req)
+	if err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+
+	if req.Secret == "" {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("secret is required"))
+		return
+	}
+
+	shr := h.parser.toImportDomain(&req)
+	err = h.app.ImportShare(ctx, shr)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
 // GetShareStorageMethods list the available share storage methods
 // @Summary Get share storage methods
 // @Description Get the available share storage methods

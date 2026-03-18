@@ -56,6 +56,31 @@ type PasskeyReference struct {
 	PasskeyEnv *PasskeyEnv
 }
 
+type ExportShareResponse struct {
+	Secret               string               `json:"secret"`
+	Entropy              Entropy              `json:"entropy"`
+	Salt                 string               `json:"salt,omitempty"`
+	Iterations           int                  `json:"iterations,omitempty"`
+	Length               int                  `json:"length,omitempty"`
+	Digest               string               `json:"digest,omitempty"`
+	Reference            string               `json:"reference,omitempty"`
+	ShareStorageMethodID ShareStorageMethodID `json:"storage_method_id"`
+	PasskeyReference     *PasskeyReference    `json:"passkey_reference,omitempty"`
+}
+
+type ImportShareRequest struct {
+	UserId               string               `json:"user_id"`
+	Secret               string               `json:"secret"`
+	Entropy              Entropy              `json:"entropy"`
+	Salt                 string               `json:"salt,omitempty"`
+	Iterations           int                  `json:"iterations,omitempty"`
+	Length               int                  `json:"length,omitempty"`
+	Digest               string               `json:"digest,omitempty"`
+	Reference            string               `json:"reference,omitempty"`
+	ShareStorageMethodID ShareStorageMethodID `json:"storage_method_id"`
+	PasskeyReference     *PasskeyEnv          `json:"passkey_reference,omitempty"`
+}
+
 type GetShareEncryptionResponse struct {
 	Entropy    Entropy `json:"entropy"`
 	Salt       *string `json:"salt,omitempty"`

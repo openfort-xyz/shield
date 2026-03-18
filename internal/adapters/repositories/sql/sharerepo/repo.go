@@ -114,6 +114,26 @@ func (r *repository) GetByReferenceAndKeychain(ctx context.Context, reference, k
 	return r.parser.toDomain(dbShr), nil
 }
 
+func (r *repository) GetByReferenceAndProjectID(ctx context.Context, reference, projectID string) (*share.Share, error) {
+	r.logger.InfoContext(ctx, "getting share by reference and project", slog.String("reference", reference), slog.String("project_id", projectID))
+
+	dbShr := &Share{}
+	err := r.db.Preload("PasskeyReference").
+		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
+		Where("shld_shares.reference = ? AND shld_users.project_id = ?", reference, projectID).
+		Where("shld_shares.deleted_at IS NULL").
+		First(dbShr).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainErrors.ErrShareNotFound
+		}
+		r.logger.ErrorContext(ctx, "error getting share by reference and project", logger.Error(err))
+		return nil, err
+	}
+
+	return r.parser.toDomain(dbShr), nil
+}
+
 func (r *repository) GetByUserID(ctx context.Context, userID string) (*share.Share, error) {
 	r.logger.InfoContext(ctx, "getting share", slog.String("user_id", userID))
 
