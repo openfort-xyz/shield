@@ -520,6 +520,10 @@ func (a *ShareApplication) ExportShare(ctx context.Context, reference string) (*
 		return nil, fromDomainError(err)
 	}
 
+	if shr.Entropy == share.EntropyProject {
+		return nil, ErrShareNotFound
+	}
+
 	return shr, nil
 }
 
