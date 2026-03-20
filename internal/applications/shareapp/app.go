@@ -525,8 +525,20 @@ func (a *ShareApplication) ExportShare(ctx context.Context, reference string) (*
 
 func (a *ShareApplication) ImportShare(ctx context.Context, shr *share.Share) error {
 	a.logger.InfoContext(ctx, "importing share")
+	projID := contexter.GetProjectID(ctx)
 
-	err := a.shareRepo.Create(ctx, shr)
+	usr, err := a.userRepo.Get(ctx, shr.UserID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get user for import", logger.Error(err))
+		return ErrUserNotFound
+	}
+
+	if usr.ProjectID != projID {
+		a.logger.ErrorContext(ctx, "user does not belong to the authenticated project")
+		return ErrUserNotFound
+	}
+
+	err = a.shareRepo.Create(ctx, shr)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to import share", logger.Error(err))
 		return fromDomainError(err)
