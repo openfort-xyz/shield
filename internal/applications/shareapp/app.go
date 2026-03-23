@@ -510,6 +510,47 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 	return encryptionKey, nil
 }
 
+func (a *ShareApplication) ExportShare(ctx context.Context, reference string) (*share.Share, error) {
+	a.logger.InfoContext(ctx, "exporting share")
+	projID := contexter.GetProjectID(ctx)
+
+	shr, err := a.shareRepo.GetByReferenceAndProjectID(ctx, reference, projID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get share for export", logger.Error(err))
+		return nil, fromDomainError(err)
+	}
+
+	if shr.Entropy == share.EntropyProject {
+		return nil, ErrShareNotFound
+	}
+
+	return shr, nil
+}
+
+func (a *ShareApplication) ImportShare(ctx context.Context, shr *share.Share) error {
+	a.logger.InfoContext(ctx, "importing share")
+	projID := contexter.GetProjectID(ctx)
+
+	usr, err := a.userRepo.Get(ctx, shr.UserID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to get user for import", logger.Error(err))
+		return ErrUserNotFound
+	}
+
+	if usr.ProjectID != projID {
+		a.logger.ErrorContext(ctx, "user does not belong to the authenticated project")
+		return ErrUserNotFound
+	}
+
+	err = a.shareRepo.Create(ctx, shr)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to import share", logger.Error(err))
+		return fromDomainError(err)
+	}
+
+	return nil
+}
+
 func (a *ShareApplication) GetShareStorageMethods(ctx context.Context) ([]*share.StorageMethod, error) {
 	a.logger.InfoContext(ctx, "getting share storage methods")
 
