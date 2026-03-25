@@ -1,0 +1,56 @@
+name: Run go build
+on:
+    pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-build:
+    name: go build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GOPRIVATE: "github.com/openfort-xyz/*"
+
+    steps:
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.GO_MODULES_APP_ID }}
+          private-key: ${{ secrets.GO_MODULES_APP_PRIVATE_KEY }}
+          owner: openfort-xyz
+          repositories: |
+            metrics
+            shamir-secret-sharing-go
+
+      - name: Configure git for private modules
+        run: |
+          git config --global url."https://x-access-token:${{ steps.app-token.outputs.token }}@github.com".insteadOf \
+            "https://github.com"
+
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Golang
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.24.5'
+
+      - name: Go Format
+        run: gofmt -s -w . && git diff --exit-code
+
+      - name: Go Tidy
+        run: go mod tidy -diff
+
+      - name: Go Mod
+        run: go mod download
+
+      - name: Go Mod Verify
+        run: go mod verify
+
+      - name: Go Build
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags "-w -s" -o app cmd/main.go
