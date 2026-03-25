@@ -12,26 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      GOPRIVATE: "github.com/openfort-xyz/*"
-
     steps:
-      - name: Mint GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.GO_MODULES_APP_ID }}
-          private-key: ${{ secrets.GO_MODULES_APP_PRIVATE_KEY }}
-          owner: openfort-xyz
-          repositories: |
-            metrics
-            shamir-secret-sharing-go
-
-      - name: Configure git for private modules
-        run: |
-          git config --global url."https://x-access-token:${{ steps.app-token.outputs.token }}@github.com".insteadOf \
-            "https://github.com"
-
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
