@@ -5,11 +5,11 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/bunt"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/pkg/logger"
 	"github.com/tidwall/buntdb"
-	"go.openfort.xyz/shield/internal/adapters/repositories/bunt"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/pkg/logger"
 )
 
 type repository struct {

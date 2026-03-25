@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	"go.openfort.xyz/shield/internal/core/domain/project"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 )
 
 type ProjectService interface {

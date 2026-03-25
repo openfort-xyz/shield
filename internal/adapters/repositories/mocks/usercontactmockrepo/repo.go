@@ -3,9 +3,9 @@ package usercontactmockrepo
 import (
 	"context"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/usercontact"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/core/domain/usercontact"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
 )
 
 type MockUserContactRepository struct {

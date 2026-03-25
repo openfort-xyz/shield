@@ -3,8 +3,8 @@ package notificationsapp
 import (
 	"context"
 
-	"go.openfort.xyz/shield/pkg/resend"
-	"go.openfort.xyz/shield/pkg/smsapi"
+	"github.com/openfort-xyz/shield/pkg/resend"
+	"github.com/openfort-xyz/shield/pkg/smsapi"
 )
 
 type NotificationApplication struct {

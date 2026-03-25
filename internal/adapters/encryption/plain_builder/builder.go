@@ -3,11 +3,11 @@ package plnbldr
 import (
 	"context"
 
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 
-	"go.openfort.xyz/shield/internal/core/ports/builders"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/internal/core/ports/strategies"
+	"github.com/openfort-xyz/shield/internal/core/ports/builders"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
 )
 
 type plainBuilder struct {

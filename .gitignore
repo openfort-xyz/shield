@@ -19,6 +19,7 @@
 !CHANGELOG.md
 !.github/workflows/run-rests.yml
 !.github/workflows/docker-image.yml
+!.github/workflows/verify.yml
 !pkg/resend/otp_template.html
 !.env.example
 

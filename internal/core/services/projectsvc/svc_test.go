@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 )
 
 func TestService_Create(t *testing.T) {

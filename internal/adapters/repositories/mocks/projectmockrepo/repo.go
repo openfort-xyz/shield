@@ -3,9 +3,9 @@ package projectmockrepo
 import (
 	"context"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/core/domain/project"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
 )
 
 type MockProjectRepository struct {

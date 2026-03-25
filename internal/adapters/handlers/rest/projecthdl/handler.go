@@ -7,9 +7,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
-	"go.openfort.xyz/shield/internal/applications/projectapp"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/api"
+	"github.com/openfort-xyz/shield/internal/applications/projectapp"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 // Handler is the REST handler for project operations

@@ -1,6 +1,6 @@
 package usercontactrepo
 
-import "go.openfort.xyz/shield/internal/core/domain/usercontact"
+import "github.com/openfort-xyz/shield/internal/core/domain/usercontact"
 
 type parser struct {
 }

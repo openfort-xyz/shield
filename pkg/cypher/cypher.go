@@ -7,7 +7,7 @@ import (
 	"errors"
 
 	"github.com/codahale/sss"
-	"go.openfort.xyz/shield/pkg/random"
+	"github.com/openfort-xyz/shield/pkg/random"
 )
 
 func Encrypt(plaintext, key string) (string, error) {

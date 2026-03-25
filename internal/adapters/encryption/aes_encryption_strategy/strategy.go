@@ -1,6 +1,6 @@
 package aesenc
 
-import "go.openfort.xyz/shield/pkg/cypher"
+import "github.com/openfort-xyz/shield/pkg/cypher"
 
 type AESEncryptionStrategy struct {
 	key string

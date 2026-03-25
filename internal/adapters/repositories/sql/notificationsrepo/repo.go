@@ -3,13 +3,13 @@ package notificationsrepo
 import (
 	"context"
 
-	"go.openfort.xyz/shield/internal/core/domain/notifications"
+	"github.com/openfort-xyz/shield/internal/core/domain/notifications"
 
 	"log/slog"
 
-	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 type repository struct {

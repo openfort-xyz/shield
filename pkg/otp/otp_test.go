@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
+	"github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/otp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
-	"go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/domain/otp"
 )
 
 type TestClock struct {

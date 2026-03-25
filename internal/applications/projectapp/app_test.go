@@ -6,23 +6,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openfort-xyz/shield/internal/adapters/encryption"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/notificationsmockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/providermockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/usercontactmockrepo"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
+	"github.com/openfort-xyz/shield/internal/core/domain/provider"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/services/projectsvc"
+	"github.com/openfort-xyz/shield/internal/core/services/providersvc"
+	"github.com/openfort-xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/pkg/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/adapters/encryption"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/notificationsmockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/providermockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/usercontactmockrepo"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/domain/project"
-	"go.openfort.xyz/shield/internal/core/domain/provider"
-	"go.openfort.xyz/shield/internal/core/domain/share"
-	"go.openfort.xyz/shield/internal/core/services/projectsvc"
-	"go.openfort.xyz/shield/internal/core/services/providersvc"
-	"go.openfort.xyz/shield/pkg/contexter"
-	"go.openfort.xyz/shield/pkg/random"
 )
 
 type TestClock struct {
@@ -922,7 +922,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
-		t.Fatalf(key)
+		t.Fatalf("%s", key)
 	}
 
 	reconstructor := encryptionFactory.CreateReconstructionStrategy(true)

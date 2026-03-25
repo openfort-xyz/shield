@@ -2,7 +2,7 @@ package sharehdl
 
 import (
 	"github.com/google/uuid"
-	"go.openfort.xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
 )
 
 type parser struct {

@@ -3,9 +3,9 @@ package encryptionpartsmockrepo
 import (
 	"context"
 
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/stretchr/testify/mock"
 	"github.com/tidwall/buntdb"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
 )
 
 type MockEncryptionPartsRepository struct {

@@ -9,7 +9,7 @@
 </div>
 
 
-[![Go Report Card](https://goreportcard.com/badge/go.openfort.xyz/shield)](https://goreportcard.com/report/go.openfort.xyz/shield)
+[![Go Report Card](https://goreportcard.com/badge/github.com/openfort-xyz/shield)](https://goreportcard.com/report/github.com/openfort-xyz/shield)
 ## Overview
 Shield by Openfort is a secure service dedicated to the protection of sensitive data. It ensures the confidentiality and security of data management by offering a robust framework for storing secrets and encryption parameters.
 

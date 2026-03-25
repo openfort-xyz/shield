@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 
-	"go.openfort.xyz/shield/internal/core/domain/keychain"
+	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
 )
 
 type KeychainRepository interface {

@@ -1,7 +1,7 @@
 package userrepo
 
 import (
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 )
 
 type options struct {

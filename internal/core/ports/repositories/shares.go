@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 
-	"go.openfort.xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
 )
 
 type ShareRepository interface {

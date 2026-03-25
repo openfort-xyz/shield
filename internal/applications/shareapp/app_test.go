@@ -7,22 +7,22 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/openfort-xyz/shield/internal/adapters/encryption"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/keychainmockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/usermockedrepo"
+	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/services/sharesvc"
+	"github.com/openfort-xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/pkg/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/adapters/encryption"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/keychainmockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/usermockedrepo"
-	"go.openfort.xyz/shield/internal/applications/shamirjob"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/domain/keychain"
-	"go.openfort.xyz/shield/internal/core/domain/project"
-	"go.openfort.xyz/shield/internal/core/domain/share"
-	"go.openfort.xyz/shield/internal/core/services/sharesvc"
-	"go.openfort.xyz/shield/pkg/contexter"
-	"go.openfort.xyz/shield/pkg/random"
 )
 
 func TestShareApplication_GetShare(t *testing.T) {
@@ -38,7 +38,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
-		t.Fatalf(key)
+		t.Fatalf("%s", key)
 	}
 
 	reconstructor := encryptionFactory.CreateReconstructionStrategy(true)
@@ -363,7 +363,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
-		t.Fatalf(key)
+		t.Fatalf("%s", key)
 	}
 
 	reconstructor := encryptionFactory.CreateReconstructionStrategy(true)
@@ -724,7 +724,7 @@ func TestShareApplication_GetShareEncryption(t *testing.T) {
 
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
-		t.Fatalf(key)
+		t.Fatalf("%s", key)
 	}
 
 	// Create a project-based share (no encryption details)
@@ -816,7 +816,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
-		t.Fatalf(key)
+		t.Fatalf("%s", key)
 	}
 
 	storedPart, projectPart, err := encryptionFactory.CreateReconstructionStrategy(true).Split(key)

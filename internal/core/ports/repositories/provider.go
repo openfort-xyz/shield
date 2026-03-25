@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 
-	"go.openfort.xyz/shield/internal/core/domain/provider"
+	"github.com/openfort-xyz/shield/internal/core/domain/provider"
 )
 
 type ProviderRepository interface {

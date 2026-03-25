@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
-	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/pkg/contexter"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/api"
+	"github.com/openfort-xyz/shield/internal/core/ports/services"
+	"github.com/openfort-xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 type Handler struct {

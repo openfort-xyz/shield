@@ -5,11 +5,11 @@ import (
 	"encoding/hex"
 	"log/slog"
 
-	"go.openfort.xyz/shield/internal/core/domain/authentication"
-	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"github.com/openfort-xyz/shield/internal/core/domain/authentication"
+	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/pkg/logger"
 	"golang.org/x/crypto/bcrypt"
 )
 

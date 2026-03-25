@@ -20,7 +20,11 @@ func Validate(token string, jwkURLs []string) (string, error) {
 	}
 
 	claims := parsed.Claims.(jwt.MapClaims)
-	return claims["sub"].(string), nil
+	sub, ok := claims["sub"].(string)
+	if !ok || sub == "" {
+		return "", ErrInvalidToken
+	}
+	return sub, nil
 }
 
 // IsJWT checks if the provided string is a valid JWT token format.

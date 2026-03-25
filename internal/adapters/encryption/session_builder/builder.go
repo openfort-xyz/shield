@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/domain/share"
-	"go.openfort.xyz/shield/internal/core/ports/builders"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/internal/core/ports/strategies"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/ports/builders"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
 )
 
 type sessionBuilder struct {

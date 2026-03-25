@@ -3,9 +3,9 @@ package sharemockrepo
 import (
 	"context"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/core/domain/share"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
 )
 
 type MockShareRepository struct {

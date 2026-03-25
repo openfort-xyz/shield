@@ -2,11 +2,25 @@ package cstmidty
 
 import (
 	jwt "github.com/golang-jwt/jwt/v5"
-	"go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/domain/provider"
+	"github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/provider"
 )
 
-func getKeyFuncFromPEM(pem []byte, keyType provider.KeyType) (jwt.Keyfunc, error) {
+// validMethodsForKeyType returns the JWT signing methods allowed for a given key type.
+func validMethodsForKeyType(keyType provider.KeyType) []string {
+	switch keyType {
+	case provider.KeyTypeRSA:
+		return []string{"RS256", "RS384", "RS512", "PS256", "PS384", "PS512"}
+	case provider.KeyTypeECDSA:
+		return []string{"ES256", "ES384", "ES512"}
+	case provider.KeyTypeEd25519:
+		return []string{"EdDSA"}
+	default:
+		return nil
+	}
+}
+
+func getKeyFuncFromPEM(pem []byte, keyType provider.KeyType) (jwt.Keyfunc, []string, error) {
 	var pubKey interface{}
 	var err error
 	// PEM parsing happens outside the keyfunc so malformed PEMs will return an error
@@ -19,20 +33,36 @@ func getKeyFuncFromPEM(pem []byte, keyType provider.KeyType) (jwt.Keyfunc, error
 	case provider.KeyTypeEd25519:
 		pubKey, err = jwt.ParseEdPublicKeyFromPEM(pem)
 	default:
-		return nil, errors.ErrCertTypeNotSupported
+		return nil, nil, errors.ErrCertTypeNotSupported
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return func(*jwt.Token) (interface{}, error) {
+	allowed := validMethodsForKeyType(keyType)
+
+	keyfunc := func(token *jwt.Token) (interface{}, error) {
+		if token.Method == nil || !isAllowedMethod(token.Method.Alg(), allowed) {
+			return nil, errors.ErrInvalidToken
+		}
 		return pubKey, nil
-	}, nil
+	}
+
+	return keyfunc, allowed, nil
+}
+
+func isAllowedMethod(alg string, allowed []string) bool {
+	for _, a := range allowed {
+		if a == alg {
+			return true
+		}
+	}
+	return false
 }
 
 func CheckPEM(pem []byte, keyType provider.KeyType) error {
 	// Any error in trying to parse the PEM will mean the PEM is invalid
 	// PEMs can be invalid either because of the format or because they are not compatible with supported key types
-	_, err := getKeyFuncFromPEM(pem, keyType)
+	_, _, err := getKeyFuncFromPEM(pem, keyType)
 	return err
 }

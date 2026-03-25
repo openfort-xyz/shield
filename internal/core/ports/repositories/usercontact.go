@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 
-	"go.openfort.xyz/shield/internal/core/domain/usercontact"
+	"github.com/openfort-xyz/shield/internal/core/domain/usercontact"
 )
 
 type UserContactRepository interface {

@@ -1,9 +1,9 @@
 package projecthdl
 
 import (
-	"go.openfort.xyz/shield/internal/applications/projectapp"
-	"go.openfort.xyz/shield/internal/core/domain/project"
-	"go.openfort.xyz/shield/internal/core/domain/provider"
+	"github.com/openfort-xyz/shield/internal/applications/projectapp"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
+	"github.com/openfort-xyz/shield/internal/core/domain/provider"
 )
 
 type parser struct {
