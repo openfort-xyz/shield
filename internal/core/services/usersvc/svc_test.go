@@ -3,12 +3,12 @@ package usersvc
 import (
 	"context"
 	"errors"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"testing"
 
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/usermockedrepo"
+	"github.com/openfort-xyz/shield/internal/core/domain/user"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/usermockedrepo"
-	"go.openfort.xyz/shield/internal/core/domain/user"
 )
 
 func TestService_GetOrCreate(t *testing.T) {

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/openfort-xyz/shield/di"
 	"github.com/spf13/cobra"
-	"go.openfort.xyz/shield/di"
 )
 
 func NewCmdServer() *cobra.Command {

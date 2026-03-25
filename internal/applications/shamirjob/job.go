@@ -5,12 +5,12 @@ import (
 	"log/slog"
 	"sync"
 
-	aesenc "go.openfort.xyz/shield/internal/adapters/encryption/aes_encryption_strategy"
-	sssrec "go.openfort.xyz/shield/internal/adapters/encryption/sss_reconstruction_strategy"
-	"go.openfort.xyz/shield/internal/core/domain/share"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/internal/core/ports/strategies"
-	"go.openfort.xyz/shield/pkg/logger"
+	aesenc "github.com/openfort-xyz/shield/internal/adapters/encryption/aes_encryption_strategy"
+	sssrec "github.com/openfort-xyz/shield/internal/adapters/encryption/sss_reconstruction_strategy"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 type Job struct {

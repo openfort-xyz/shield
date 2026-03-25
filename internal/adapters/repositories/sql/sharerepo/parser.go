@@ -3,7 +3,7 @@ package sharerepo
 import (
 	"fmt"
 
-	"go.openfort.xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
 )
 
 type parser struct {

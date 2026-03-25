@@ -6,18 +6,18 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/domain/keychain"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
 
-	"go.openfort.xyz/shield/internal/applications/shamirjob"
+	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
 
-	"go.openfort.xyz/shield/internal/core/ports/factories"
+	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 
-	"go.openfort.xyz/shield/internal/core/domain/share"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/pkg/contexter"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/internal/core/ports/services"
+	"github.com/openfort-xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 type ShareApplication struct {

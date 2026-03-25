@@ -3,7 +3,7 @@ package projectapp
 import (
 	"errors"
 
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 )
 
 var (

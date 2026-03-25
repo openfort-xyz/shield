@@ -1,9 +1,9 @@
 package cli
 
 import (
+	"github.com/openfort-xyz/shield/di"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
 	"github.com/spf13/cobra"
-	"go.openfort.xyz/shield/di"
-	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
 )
 
 func NewCmdDB() *cobra.Command {

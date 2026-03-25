@@ -1,9 +1,9 @@
 package depsssrec
 
 import (
-	"go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/ports/strategies"
-	"go.openfort.xyz/shield/pkg/cypher"
+	"github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
+	"github.com/openfort-xyz/shield/pkg/cypher"
 )
 
 const (

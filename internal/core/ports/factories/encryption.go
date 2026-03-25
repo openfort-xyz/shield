@@ -1,8 +1,8 @@
 package factories
 
 import (
-	"go.openfort.xyz/shield/internal/core/ports/builders"
-	"go.openfort.xyz/shield/internal/core/ports/strategies"
+	"github.com/openfort-xyz/shield/internal/core/ports/builders"
+	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
 )
 
 type EncryptionFactory interface {

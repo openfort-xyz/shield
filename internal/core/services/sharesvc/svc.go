@@ -6,15 +6,15 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	"go.openfort.xyz/shield/internal/core/domain/keychain"
+	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
 
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/ports/factories"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 
-	"go.openfort.xyz/shield/internal/core/domain/share"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/internal/core/ports/services"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 type service struct {

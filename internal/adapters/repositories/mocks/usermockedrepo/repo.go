@@ -3,9 +3,9 @@ package usermockedrepo
 import (
 	"context"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/user"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/core/domain/user"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
 )
 
 type MockUserRepository struct {

@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/otp"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/tidwall/buntdb"
-	"go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/domain/otp"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
 )
 
 const OTPDigits = 9

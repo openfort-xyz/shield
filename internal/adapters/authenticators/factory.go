@@ -1,12 +1,12 @@
 package authenticators
 
 import (
-	projauth "go.openfort.xyz/shield/internal/adapters/authenticators/project_authenticator"
-	usrauth "go.openfort.xyz/shield/internal/adapters/authenticators/user_authenticator"
-	"go.openfort.xyz/shield/internal/core/domain/project"
-	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/internal/core/ports/services"
+	projauth "github.com/openfort-xyz/shield/internal/adapters/authenticators/project_authenticator"
+	usrauth "github.com/openfort-xyz/shield/internal/adapters/authenticators/user_authenticator"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
+	"github.com/openfort-xyz/shield/internal/core/ports/factories"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/internal/core/ports/services"
 )
 
 type authenticatorFactory struct {

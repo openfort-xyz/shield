@@ -1,16 +1,16 @@
 package encryption
 
 import (
-	aesencryptionstrategy "go.openfort.xyz/shield/internal/adapters/encryption/aes_encryption_strategy"
-	depsssrec "go.openfort.xyz/shield/internal/adapters/encryption/deprecated_sss_reconstruction_strategy"
-	plnbldr "go.openfort.xyz/shield/internal/adapters/encryption/plain_builder"
-	sessbldr "go.openfort.xyz/shield/internal/adapters/encryption/session_builder"
-	sssrec "go.openfort.xyz/shield/internal/adapters/encryption/sss_reconstruction_strategy"
-	"go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/ports/builders"
-	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/internal/core/ports/strategies"
+	aesencryptionstrategy "github.com/openfort-xyz/shield/internal/adapters/encryption/aes_encryption_strategy"
+	depsssrec "github.com/openfort-xyz/shield/internal/adapters/encryption/deprecated_sss_reconstruction_strategy"
+	plnbldr "github.com/openfort-xyz/shield/internal/adapters/encryption/plain_builder"
+	sessbldr "github.com/openfort-xyz/shield/internal/adapters/encryption/session_builder"
+	sssrec "github.com/openfort-xyz/shield/internal/adapters/encryption/sss_reconstruction_strategy"
+	"github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/ports/builders"
+	"github.com/openfort-xyz/shield/internal/core/ports/factories"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
 )
 
 type encryptionFactory struct {

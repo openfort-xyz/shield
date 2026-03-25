@@ -5,15 +5,15 @@ import (
 	"errors"
 	"log/slog"
 
-	cstmidty "go.openfort.xyz/shield/internal/adapters/authenticators/identity/custom_identity"
-	ofidty "go.openfort.xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
+	cstmidty "github.com/openfort-xyz/shield/internal/adapters/authenticators/identity/custom_identity"
+	ofidty "github.com/openfort-xyz/shield/internal/adapters/authenticators/identity/openfort_identity"
 
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/ports/factories"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 
-	"go.openfort.xyz/shield/internal/core/domain/provider"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/core/domain/provider"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 type identityFactory struct {

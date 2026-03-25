@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"go.openfort.xyz/shield/internal/applications/healthzapp"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/applications/healthzapp"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 )
 
 type Handler struct {

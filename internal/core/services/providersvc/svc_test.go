@@ -3,12 +3,12 @@ package providersvc
 import (
 	"context"
 	"errors"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"testing"
 
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/providermockrepo"
+	"github.com/openfort-xyz/shield/internal/core/domain/provider"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/providermockrepo"
-	"go.openfort.xyz/shield/internal/core/domain/provider"
 )
 
 func TestConfigureProvider(t *testing.T) {

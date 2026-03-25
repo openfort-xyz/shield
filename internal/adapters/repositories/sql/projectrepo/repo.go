@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 
 	"log/slog"
 
 	"github.com/google/uuid"
-	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
-	"go.openfort.xyz/shield/internal/core/domain/project"
-	"go.openfort.xyz/shield/internal/core/ports/repositories"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
+	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/pkg/logger"
 	"gorm.io/gorm"
 )
 

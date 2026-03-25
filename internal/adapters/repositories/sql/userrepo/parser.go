@@ -1,7 +1,7 @@
 package userrepo
 
 import (
-	"go.openfort.xyz/shield/internal/core/domain/user"
+	"github.com/openfort-xyz/shield/internal/core/domain/user"
 )
 
 type parser struct {

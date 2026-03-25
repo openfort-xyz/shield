@@ -1,6 +1,6 @@
 package projectapp
 
-import "go.openfort.xyz/shield/internal/core/domain/provider"
+import "github.com/openfort-xyz/shield/internal/core/domain/provider"
 
 type ProviderOption func(*providerConfig)
 

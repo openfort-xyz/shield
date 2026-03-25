@@ -4,9 +4,9 @@ import (
 	"context"
 	"log/slog"
 
-	"go.openfort.xyz/shield/internal/adapters/repositories/sql"
-	"go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
+	"github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 type Application struct {

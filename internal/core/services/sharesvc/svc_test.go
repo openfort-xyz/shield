@@ -6,17 +6,17 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/openfort-xyz/shield/internal/adapters/encryption"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/keychainmockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/ports/services"
+	"github.com/openfort-xyz/shield/pkg/random"
 	"github.com/stretchr/testify/mock"
-	"go.openfort.xyz/shield/internal/adapters/encryption"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/encryptionpartsmockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/keychainmockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
-	"go.openfort.xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/domain/keychain"
-	"go.openfort.xyz/shield/internal/core/domain/share"
-	"go.openfort.xyz/shield/internal/core/ports/services"
-	"go.openfort.xyz/shield/pkg/random"
 )
 
 func TestCreateShare(t *testing.T) {

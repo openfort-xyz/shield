@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	"go.openfort.xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
 )
 
 type ShareService interface {

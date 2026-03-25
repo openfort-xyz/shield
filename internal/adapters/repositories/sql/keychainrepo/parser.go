@@ -1,7 +1,7 @@
 package keychainrepo
 
 import (
-	"go.openfort.xyz/shield/internal/core/domain/keychain"
+	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
 )
 
 type parser struct {

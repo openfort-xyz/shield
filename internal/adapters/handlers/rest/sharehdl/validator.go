@@ -1,6 +1,6 @@
 package sharehdl
 
-import "go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
+import "github.com/openfort-xyz/shield/internal/adapters/handlers/rest/api"
 
 type validator struct {
 }

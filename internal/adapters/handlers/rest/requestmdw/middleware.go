@@ -3,9 +3,9 @@ package requestmdw
 import (
 	"net/http"
 
-	"go.openfort.xyz/shield/pkg/random"
+	"github.com/openfort-xyz/shield/pkg/random"
 
-	"go.openfort.xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/pkg/contexter"
 )
 
 const RequestIDHeader = "X-Request-ID"

@@ -10,14 +10,14 @@ import (
 	"net/http"
 	"time"
 
-	"go.openfort.xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/pkg/contexter"
 
-	domainErrors "go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/pkg/jwk"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/ports/factories"
+	"github.com/openfort-xyz/shield/pkg/jwk"
 
-	"go.openfort.xyz/shield/internal/core/domain/provider"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/core/domain/provider"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 type OpenfortIdentityFactory struct {

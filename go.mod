@@ -1,6 +1,6 @@
-module go.openfort.xyz/shield
+module github.com/openfort-xyz/shield
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.24.5
 
@@ -15,6 +15,8 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/joho/godotenv v1.5.1
 	github.com/mileusna/useragent v1.3.5
+	github.com/openfort-xyz/metrics v0.0.8
+	github.com/openfort-xyz/shamir-secret-sharing-go v0.0.2
 	github.com/pressly/goose v2.7.0+incompatible
 	github.com/resend/resend-go/v3 v3.0.0
 	github.com/rs/cors v1.11.0
@@ -22,10 +24,8 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/buntdb v1.3.1
-	go.openfort.xyz/metrics v0.0.7
-	go.openfort.xyz/shamir-secret-sharing-go v0.0.1
 	go.uber.org/ratelimit v0.3.1
-	golang.org/x/crypto v0.40.0
+	golang.org/x/crypto v0.46.0
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.10
 )
@@ -37,7 +37,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
@@ -45,6 +44,8 @@ require (
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/openfort-xyz/jsonrpc v0.0.7 // indirect
+	github.com/openfort-xyz/pubsub v0.1.25 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.20.5 // indirect
@@ -61,14 +62,12 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/rtred v0.1.2 // indirect
 	github.com/tidwall/tinyqueue v0.1.1 // indirect
-	go.openfort.xyz/jsonrpc v0.0.5 // indirect
-	go.openfort.xyz/pubsub v0.0.18 // indirect
-	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241209162323-e6fa225c2576 // indirect
-	google.golang.org/grpc v1.69.0 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
+	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

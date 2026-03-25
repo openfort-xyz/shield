@@ -3,7 +3,7 @@ package repositories
 import (
 	"context"
 
-	"go.openfort.xyz/shield/internal/core/domain/notifications"
+	"github.com/openfort-xyz/shield/internal/core/domain/notifications"
 )
 
 type NotificationsRepository interface {

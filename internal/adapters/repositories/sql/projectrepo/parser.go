@@ -1,6 +1,6 @@
 package projectrepo
 
-import "go.openfort.xyz/shield/internal/core/domain/project"
+import "github.com/openfort-xyz/shield/internal/core/domain/project"
 
 type parser struct {
 }

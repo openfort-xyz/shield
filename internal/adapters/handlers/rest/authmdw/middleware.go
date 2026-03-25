@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"strings"
 
-	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/internal/core/ports/services"
+	"github.com/openfort-xyz/shield/internal/core/ports/factories"
+	"github.com/openfort-xyz/shield/internal/core/ports/services"
 
-	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
-	"go.openfort.xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/api"
+	"github.com/openfort-xyz/shield/pkg/contexter"
 )
 
 const TokenHeader = "Authorization"                                  //nolint:gosec

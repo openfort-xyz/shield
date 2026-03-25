@@ -9,9 +9,9 @@ import (
 
 	"github.com/gorilla/mux"
 	ua "github.com/mileusna/useragent"
-	"go.openfort.xyz/shield/internal/adapters/handlers/rest/api"
-	"go.openfort.xyz/shield/internal/applications/shareapp"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/api"
+	"github.com/openfort-xyz/shield/internal/applications/shareapp"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 type Handler struct {

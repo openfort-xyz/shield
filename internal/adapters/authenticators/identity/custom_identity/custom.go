@@ -4,14 +4,14 @@ import (
 	"context"
 	"log/slog"
 
-	"go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/ports/factories"
-	"go.openfort.xyz/shield/pkg/jwk"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/ports/factories"
+	"github.com/openfort-xyz/shield/pkg/jwk"
 
 	jwt "github.com/golang-jwt/jwt/v5"
 
-	"go.openfort.xyz/shield/internal/core/domain/provider"
-	"go.openfort.xyz/shield/pkg/logger"
+	"github.com/openfort-xyz/shield/internal/core/domain/provider"
+	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
 type CustomIdentityFactory struct {
@@ -43,7 +43,7 @@ func (c *CustomIdentityFactory) Identify(ctx context.Context, token string) (str
 	case c.config.JWK != "":
 		externalUserID, err = jwk.Validate(token, []string{c.config.JWK})
 	default:
-		return "", errors.ErrProviderMisconfigured
+		return "", domainErrors.ErrProviderMisconfigured
 	}
 	if err != nil {
 		c.logger.ErrorContext(ctx, "failed to validate jwt", logger.Error(err))
@@ -62,17 +62,21 @@ func (c *CustomIdentityFactory) GetCookieFieldName() string {
 
 func (c *CustomIdentityFactory) validatePEM(token string) (string, error) {
 
-	keyFunc, err := getKeyFuncFromPEM([]byte(c.config.PEM), c.config.KeyType)
+	keyFunc, validMethods, err := getKeyFuncFromPEM([]byte(c.config.PEM), c.config.KeyType)
 
 	if err != nil {
 		c.logger.ErrorContext(context.Background(), "failed to parse PEM file", logger.Error(err))
 		return "", err
 	}
 
-	parsed, err := jwt.Parse(token, keyFunc)
+	parsed, err := jwt.Parse(token, keyFunc, jwt.WithValidMethods(validMethods))
 	if err != nil {
 		return "", err
 	}
 	claims := parsed.Claims.(jwt.MapClaims)
-	return claims["sub"].(string), nil
+	sub, ok := claims["sub"].(string)
+	if !ok || sub == "" {
+		return "", domainErrors.ErrInvalidToken
+	}
+	return sub, nil
 }

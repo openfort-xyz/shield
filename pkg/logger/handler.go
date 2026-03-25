@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"go.openfort.xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/pkg/contexter"
 )
 
 var handlerOpts = &slog.HandlerOptions{

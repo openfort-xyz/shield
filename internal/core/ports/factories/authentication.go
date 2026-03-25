@@ -3,8 +3,8 @@ package factories
 import (
 	"context"
 
-	"go.openfort.xyz/shield/internal/core/domain/authentication"
-	"go.openfort.xyz/shield/internal/core/domain/project"
+	"github.com/openfort-xyz/shield/internal/core/domain/authentication"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 )
 
 type AuthenticationFactory interface {

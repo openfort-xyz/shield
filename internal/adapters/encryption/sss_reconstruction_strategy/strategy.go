@@ -3,9 +3,9 @@ package sssrec
 import (
 	"encoding/base64"
 
-	sss "go.openfort.xyz/shamir-secret-sharing-go"
-	"go.openfort.xyz/shield/internal/core/domain/errors"
-	"go.openfort.xyz/shield/internal/core/ports/strategies"
+	sss "github.com/openfort-xyz/shamir-secret-sharing-go"
+	"github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
 )
 
 const (
