@@ -92,8 +92,8 @@ github.com/rogpeppe/go-internal v1.12.0/go.mod h1:E+RYuTGaKKdloAfM02xzb0FW3Paa99
 github.com/rs/cors v1.11.1 h1:eU3gRzXLRK57F5rKMGMZURNdIG4EoAmX8k94r9wXWHA=
 github.com/rs/cors v1.11.1/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
-github.com/smsapi/smsapi-go v0.0.0-20250114133301-1aa5a5466a36 h1:aUcnhjRSNLEXBYvq/gsePNyWjY3QA4hfEUrCHciHK+I=
-github.com/smsapi/smsapi-go v0.0.0-20250114133301-1aa5a5466a36/go.mod h1:ks8W4o1+fvCKMsmF66HCRQRv6n/w0wots3oph/I9mV0=
+github.com/smsapi/smsapi-go v1.3.0 h1:F7AWi9g7edsEc/T+2k6DijOKEgML4CJu/k3b7rVNPrg=
+github.com/smsapi/smsapi-go v1.3.0/go.mod h1:ks8W4o1+fvCKMsmF66HCRQRv6n/w0wots3oph/I9mV0=
 github.com/spf13/cobra v1.8.1 h1:e5/vxKd/rZsfSJMUX1agtjeTDf+qv1/JdBF8gg5k9ZM=
 github.com/spf13/cobra v1.8.1/go.mod h1:wHxEcudfqmLYa8iTfL+OuZPbBZkmvliBWKIezN3kD9Y=
 github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=
