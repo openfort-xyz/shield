@@ -5,10 +5,10 @@ go 1.24.0
 toolchain go1.24.5
 
 require (
-	github.com/MicahParks/keyfunc/v3 v3.3.3
+	github.com/MicahParks/keyfunc/v3 v3.7.0
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/codahale/sss v0.0.0-20160501174526-0cb9f6d3f7f1
-	github.com/go-sql-driver/mysql v1.8.1
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.6.0
@@ -19,20 +19,20 @@ require (
 	github.com/openfort-xyz/shamir-secret-sharing-go v0.0.2
 	github.com/pressly/goose v2.7.0+incompatible
 	github.com/resend/resend-go/v3 v3.0.0
-	github.com/rs/cors v1.11.0
+	github.com/rs/cors v1.11.1
 	github.com/smsapi/smsapi-go v0.0.0-20250114133301-1aa5a5466a36
 	github.com/spf13/cobra v1.8.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/buntdb v1.3.1
 	go.uber.org/ratelimit v0.3.1
 	golang.org/x/crypto v0.46.0
 	gorm.io/driver/mysql v1.5.7
-	gorm.io/gorm v1.25.10
+	gorm.io/gorm v1.31.0
 )
 
 require (
 	filippo.io/edwards25519 v1.1.1 // indirect
-	github.com/MicahParks/jwkset v0.6.0 // indirect
+	github.com/MicahParks/jwkset v0.11.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
