@@ -3,6 +3,7 @@ package projectrepo
 import (
 	"context"
 	"errors"
+	"sync"
 
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 
@@ -17,18 +18,21 @@ import (
 )
 
 type repository struct {
-	db     *sql.Client
-	logger *slog.Logger
-	parser *parser
+	db             *sql.Client
+	logger         *slog.Logger
+	parser         *parser
+	migrationCache map[string]bool
+	migrationMu    sync.RWMutex
 }
 
 var _ repositories.ProjectRepository = &repository{}
 
 func New(db *sql.Client) repositories.ProjectRepository {
 	return &repository{
-		db:     db,
-		logger: logger.New("project_repository"),
-		parser: newParser(),
+		db:             db,
+		logger:         logger.New("project_repository"),
+		parser:         newParser(),
+		migrationCache: make(map[string]bool),
 	}
 }
 
@@ -200,10 +204,23 @@ func (r *repository) CreateMigration(ctx context.Context, projectID string, succ
 		return err
 	}
 
+	if success {
+		r.migrationMu.Lock()
+		r.migrationCache[projectID] = true
+		r.migrationMu.Unlock()
+	}
+
 	return nil
 }
 
 func (r *repository) HasSuccessfulMigration(ctx context.Context, projectID string) (bool, error) {
+	r.migrationMu.RLock()
+	if r.migrationCache[projectID] {
+		r.migrationMu.RUnlock()
+		return true, nil
+	}
+	r.migrationMu.RUnlock()
+
 	r.logger.InfoContext(ctx, "checking for successful migration", slog.String("project_id", projectID))
 
 	var count int64
@@ -211,6 +228,12 @@ func (r *repository) HasSuccessfulMigration(ctx context.Context, projectID strin
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error checking for successful migration", logger.Error(err))
 		return false, err
+	}
+
+	if count > 0 {
+		r.migrationMu.Lock()
+		r.migrationCache[projectID] = true
+		r.migrationMu.Unlock()
 	}
 
 	return count > 0, nil
