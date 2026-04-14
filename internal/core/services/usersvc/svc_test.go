@@ -25,13 +25,6 @@ func TestService_GetOrCreate(t *testing.T) {
 		ProjectID: "project-id",
 	}
 
-	randomExternalUser := &user.ExternalUser{
-		ID:             "external-user-id",
-		UserID:         "user-id",
-		ExternalUserID: "external-id",
-		ProviderID:     "provider-id",
-	}
-
 	tc := []struct {
 		name    string
 		wantErr bool
@@ -43,8 +36,7 @@ func TestService_GetOrCreate(t *testing.T) {
 			wantErr: false,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
-				mockRepo.On("Get", mock.Anything, mock.Anything).Return(randomUser, nil)
-				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return([]*user.ExternalUser{randomExternalUser}, nil)
+				mockRepo.On("FindUserByExternalID", mock.Anything, externalUserID, providerID).Return(randomUser, nil)
 			},
 		},
 		{
@@ -52,17 +44,7 @@ func TestService_GetOrCreate(t *testing.T) {
 			wantErr: true,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
-				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return([]*user.ExternalUser{}, errors.New("random error"))
-			},
-		},
-		{
-			name:    "get failed to get user",
-			wantErr: true,
-			err:     domainErrors.ErrUserNotFound,
-			mock: func() {
-				mockRepo.ExpectedCalls = []*mock.Call{}
-				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return([]*user.ExternalUser{randomExternalUser}, nil)
-				mockRepo.On("Get", mock.Anything, mock.Anything).Return(nil, domainErrors.ErrUserNotFound)
+				mockRepo.On("FindUserByExternalID", mock.Anything, externalUserID, providerID).Return(nil, errors.New("random error"))
 			},
 		},
 		{
@@ -70,7 +52,7 @@ func TestService_GetOrCreate(t *testing.T) {
 			wantErr: false,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
-				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return([]*user.ExternalUser{}, nil)
+				mockRepo.On("FindUserByExternalID", mock.Anything, externalUserID, providerID).Return(nil, domainErrors.ErrExternalUserNotFound)
 				mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 				mockRepo.On("CreateExternal", mock.Anything, mock.Anything).Return(nil)
 			},
@@ -80,7 +62,7 @@ func TestService_GetOrCreate(t *testing.T) {
 			wantErr: true,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
-				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return([]*user.ExternalUser{}, nil)
+				mockRepo.On("FindUserByExternalID", mock.Anything, externalUserID, providerID).Return(nil, domainErrors.ErrExternalUserNotFound)
 				mockRepo.On("Create", mock.Anything, mock.Anything).Return(errors.New("random error"))
 			},
 		},
@@ -89,7 +71,7 @@ func TestService_GetOrCreate(t *testing.T) {
 			wantErr: true,
 			mock: func() {
 				mockRepo.ExpectedCalls = []*mock.Call{}
-				mockRepo.On("FindExternalBy", mock.Anything, mock.Anything).Return([]*user.ExternalUser{}, nil)
+				mockRepo.On("FindUserByExternalID", mock.Anything, externalUserID, providerID).Return(nil, domainErrors.ErrExternalUserNotFound)
 				mockRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
 				mockRepo.On("CreateExternal", mock.Anything, mock.Anything).Return(errors.New("random error"))
 			},

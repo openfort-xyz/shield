@@ -50,10 +50,14 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 	projID := contexter.GetProjectID(ctx)
 	shr.UserID = usrID
 
-	_, err := a.migrateToKeychainIfRequired(ctx, usrID)
+	keychainID, err := a.migrateToKeychainIfRequired(ctx, usrID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to migrate keychain shares", logger.Error(err))
 		return fromDomainError(err)
+	}
+
+	if shr.KeychainID == nil {
+		shr.KeychainID = &keychainID
 	}
 
 	var opt options

@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"log/slog"
+	"sync"
+	"time"
 
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 
@@ -17,19 +19,29 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type cacheEntry struct {
+	project   *project.Project
+	expiresAt time.Time
+}
+
 type service struct {
-	repo   repositories.ProjectRepository
-	logger *slog.Logger
-	cost   int
+	repo     repositories.ProjectRepository
+	logger   *slog.Logger
+	cost     int
+	cache    map[string]*cacheEntry
+	cacheMu  sync.RWMutex
+	cacheTTL time.Duration
 }
 
 var _ services.ProjectService = (*service)(nil)
 
-func New(repo repositories.ProjectRepository) services.ProjectService {
+func New(repo repositories.ProjectRepository, cacheTTL time.Duration) services.ProjectService {
 	return &service{
-		repo:   repo,
-		logger: logger.New("project_service"),
-		cost:   bcrypt.DefaultCost,
+		repo:     repo,
+		logger:   logger.New("project_service"),
+		cost:     bcrypt.DefaultCost,
+		cache:    make(map[string]*cacheEntry),
+		cacheTTL: cacheTTL,
 	}
 }
 
@@ -66,11 +78,26 @@ func (s *service) Create(ctx context.Context, name string, enable2fa bool) (*pro
 
 func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {
 	s.logger.InfoContext(ctx, "getting project by api key")
+
+	s.cacheMu.RLock()
+	if entry, ok := s.cache[apiKey]; ok && time.Now().Before(entry.expiresAt) {
+		s.cacheMu.RUnlock()
+		return entry.project, nil
+	}
+	s.cacheMu.RUnlock()
+
 	proj, err := s.repo.GetByAPIKey(ctx, apiKey)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to get project by api key", logger.Error(err))
 		return nil, err
 	}
+
+	s.cacheMu.Lock()
+	s.cache[apiKey] = &cacheEntry{
+		project:   proj,
+		expiresAt: time.Now().Add(s.cacheTTL),
+	}
+	s.cacheMu.Unlock()
 
 	return proj, nil
 }
