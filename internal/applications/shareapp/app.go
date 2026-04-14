@@ -13,6 +13,7 @@ import (
 
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
@@ -194,6 +195,13 @@ func (a *ShareApplication) GetSharesEncryptionForUsers(ctx context.Context, user
 	return returnValue, nil
 }
 
+func (a *ShareApplication) getProject(ctx context.Context, projID string) (*project.Project, error) {
+	if proj := contexter.GetProject(ctx); proj != nil {
+		return proj, nil
+	}
+	return a.projectRepo.Get(ctx, projID)
+}
+
 func (a *ShareApplication) migrateToKeychainIfRequired(ctx context.Context, usrID string) (string, error) {
 	userKeychain, err := a.keychainRepository.GetByUserID(ctx, usrID)
 	if err != nil && !errors.Is(err, domainErrors.ErrKeychainNotFound) {
@@ -263,7 +271,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 
 		if shr.RequiresEncryption() {
 			projID := contexter.GetProjectID(ctx)
-			project, err := a.projectRepo.Get(ctx, projID)
+			project, err := a.getProject(ctx, projID)
 			if err != nil {
 				return nil, fromDomainError(err)
 			}
@@ -301,7 +309,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 	var encryptionKey *string
 
 	projID := contexter.GetProjectID(ctx)
-	project, err := a.projectRepo.Get(ctx, projID)
+	project, err := a.getProject(ctx, projID)
 	if err != nil {
 		return nil, fromDomainError(err)
 	}
@@ -367,7 +375,7 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 
 	if shr.RequiresEncryption() {
 		projID := contexter.GetProjectID(ctx)
-		project, err := a.projectRepo.Get(ctx, projID)
+		project, err := a.getProject(ctx, projID)
 		if err != nil {
 			return nil, fromDomainError(err)
 		}
@@ -409,7 +417,7 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 	}
 
 	if shr.RequiresEncryption() {
-		project, err := a.projectRepo.Get(ctx, projID)
+		project, err := a.getProject(ctx, projID)
 		if err != nil {
 			return nil, fromDomainError(err)
 		}

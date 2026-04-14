@@ -1,6 +1,10 @@
 package contexter
 
-import "context"
+import (
+	"context"
+
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
+)
 
 func WithRequestID(ctx context.Context, requestID string) context.Context {
 	return context.WithValue(ctx, ContextKeyRequestID, requestID)
@@ -52,4 +56,17 @@ func GetExternalUserID(ctx context.Context) string {
 	}
 
 	return userID
+}
+
+func WithProject(ctx context.Context, proj *project.Project) context.Context {
+	return context.WithValue(ctx, ContextKeyProject, proj)
+}
+
+func GetProject(ctx context.Context) *project.Project {
+	proj, ok := ctx.Value(ContextKeyProject).(*project.Project)
+	if !ok {
+		return nil
+	}
+
+	return proj
 }
