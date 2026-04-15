@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 
@@ -13,7 +14,7 @@ import (
 
 func TestService_Create(t *testing.T) {
 	mockRepo := new(projectmockrepo.MockProjectRepository)
-	svc := New(mockRepo)
+	svc := New(mockRepo, 60*time.Second)
 	ctx := context.Background()
 	testName := "test-project"
 
@@ -64,7 +65,7 @@ func TestService_Create(t *testing.T) {
 
 func TestService_SetEncryptionPart(t *testing.T) {
 	mockRepo := new(projectmockrepo.MockProjectRepository)
-	svc := New(mockRepo)
+	svc := New(mockRepo, 60*time.Second)
 	ctx := context.Background()
 	testProjectID := "test-project-id"
 	testPart := "test-part"

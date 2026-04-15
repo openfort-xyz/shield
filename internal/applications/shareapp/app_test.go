@@ -114,6 +114,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 		opts    []Option
 		wantErr error
 		want    *share.Share
+		project *project.Project
 		mock    func()
 	}{
 		{
@@ -130,11 +131,11 @@ func TestShareApplication_GetShare(t *testing.T) {
 			name:    "encrypted success",
 			wantErr: nil,
 			want:    decryptedShare,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
@@ -148,11 +149,11 @@ func TestShareApplication_GetShare(t *testing.T) {
 			name:    "encrypted in OTP required project success",
 			wantErr: nil,
 			want:    decryptedShare,
+			project: projectWithRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithRequiredOTP, nil)
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
@@ -165,13 +166,13 @@ func TestShareApplication_GetShare(t *testing.T) {
 			name:    "encrypted success with session",
 			wantErr: nil,
 			want:    decryptedShare,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				encryptionPartsRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithoutOTP), nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
@@ -186,13 +187,13 @@ func TestShareApplication_GetShare(t *testing.T) {
 			name:    "project requires OTP success",
 			wantErr: nil,
 			want:    decryptedShare,
+			project: projectWithRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				encryptionPartsRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithRequiredOTP, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithOTP), nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
@@ -207,13 +208,13 @@ func TestShareApplication_GetShare(t *testing.T) {
 			name:    "project requires OTP failed",
 			wantErr: ErrOTPVerificationRequired,
 			want:    nil,
+			project: projectWithRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				encryptionPartsRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithRequiredOTP, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithoutOTP), nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
@@ -227,17 +228,18 @@ func TestShareApplication_GetShare(t *testing.T) {
 		{
 			name:    "encryption part required",
 			wantErr: ErrEncryptionPartRequired,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 		},
 		{
 			name:    "encryption not configured",
 			wantErr: ErrEncryptionNotConfigured,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -245,7 +247,6 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 
 			},
 			opts: []Option{
@@ -255,6 +256,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 		{
 			name:    "invalid encryption part",
 			wantErr: ErrInvalidEncryptionPart,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -262,7 +264,6 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart("invalid-key"),
@@ -271,13 +272,13 @@ func TestShareApplication_GetShare(t *testing.T) {
 		{
 			name:    "decryption error",
 			wantErr: ErrInternal,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(decryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -292,7 +293,6 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 		},
 		{
@@ -302,12 +302,12 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, errors.New("repository error"))
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 		},
 		{
 			name:    "get encryption part repository error",
 			wantErr: ErrInternal,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -315,7 +315,6 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", errors.New("repository error"))
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -324,6 +323,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 		{
 			name:    "encryption part not found",
 			wantErr: ErrEncryptionNotConfigured,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -331,7 +331,6 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -342,8 +341,12 @@ func TestShareApplication_GetShare(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
+			testCtx := ctx
+			if tt.project != nil {
+				testCtx = contexter.WithProject(testCtx, tt.project)
+			}
 			ass := assert.New(t)
-			s, err := app.GetShare(ctx, tt.opts...)
+			s, err := app.GetShare(testCtx, tt.opts...)
 			ass.ErrorIs(err, tt.wantErr)
 			ass.Equal(tt.want, s)
 		})
@@ -439,6 +442,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 		opts    []Option
 		wantErr error
 		want    *share.Share
+		project *project.Project
 		mock    func()
 	}{
 		{
@@ -451,13 +455,13 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				userRepo.ExpectedCalls = nil
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(plainShare, nil)
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 		},
 		{
 			name:    "encrypted success",
 			wantErr: nil,
 			want:    decryptedShare,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -466,7 +470,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(&tmpEncryptedShare, nil)
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
 			opts: []Option{
@@ -477,6 +480,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 			name:    "encrypted success with OTP required",
 			wantErr: nil,
 			want:    decryptedShare,
+			project: projectWithRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -485,7 +489,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(&tmpEncryptedShare, nil)
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithRequiredOTP, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
 			opts: []Option{
@@ -496,6 +499,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 			name:    "encrypted success with session",
 			wantErr: nil,
 			want:    decryptedShare,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -505,7 +509,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(&tmpEncryptedShare, nil)
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithoutOTP), nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
@@ -519,6 +522,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 			name:    "encrypted success with session OTP required",
 			wantErr: nil,
 			want:    decryptedShare,
+			project: projectWithRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -528,7 +532,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(&tmpEncryptedShare, nil)
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithRequiredOTP, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithOTP), nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
@@ -542,6 +545,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 			name:    "encrypted failed with session OTP required",
 			wantErr: ErrOTPVerificationRequired,
 			want:    nil,
+			project: projectWithRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -551,7 +555,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(&tmpEncryptedShare, nil)
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithRequiredOTP, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithoutOTP), nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
@@ -564,17 +567,18 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 		{
 			name:    "encryption part required",
 			wantErr: ErrEncryptionPartRequired,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(&tmpEncryptedShare, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 		},
 		{
 			name:    "encryption not configured",
 			wantErr: ErrEncryptionNotConfigured,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -584,7 +588,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 
 			},
 			opts: []Option{
@@ -594,6 +597,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 		{
 			name:    "invalid encryption part",
 			wantErr: ErrInvalidEncryptionPart,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -603,7 +607,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart("invalid-key"),
@@ -612,6 +615,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 		{
 			name:    "decryption error",
 			wantErr: ErrInternal,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
@@ -620,7 +624,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -634,7 +637,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 		},
 		{
@@ -644,10 +646,8 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				userRepo.ExpectedCalls = nil
-				userRepo.ExpectedCalls = nil
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(plainShare, nil)
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{"random_user_id"}, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 		},
 		{
@@ -657,12 +657,12 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(nil, errors.New("repository error"))
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 		},
 		{
 			name:    "get encryption part repository error",
 			wantErr: ErrInternal,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -672,7 +672,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", errors.New("repository error"))
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -681,6 +680,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 		{
 			name:    "encryption part not found",
 			wantErr: ErrEncryptionNotConfigured,
+			project: projectWithoutRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
@@ -690,7 +690,6 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return("", domainErrors.ErrEncryptionPartNotFound)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
-				projectRepo.On("Get", mock.Anything, "project_id").Return(projectWithoutRequiredOTP, nil)
 			},
 			opts: []Option{
 				WithEncryptionPart(projectPart),
@@ -701,8 +700,12 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
+			testCtx := ctx
+			if tt.project != nil {
+				testCtx = contexter.WithProject(testCtx, tt.project)
+			}
 			ass := assert.New(t)
-			s, err := app.GetShareByReference(ctx, reference, tt.opts...)
+			s, err := app.GetShareByReference(testCtx, reference, tt.opts...)
 			ass.ErrorIs(err, tt.wantErr)
 			ass.Equal(tt.want, s)
 		})
@@ -864,6 +867,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
+				keychainRepo.On("Get", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, plainShare).Return(nil)
 			},
@@ -879,6 +883,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
+				keychainRepo.On("Get", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("Create", mock.Anything, encryptedShare).Return(nil)
 				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
@@ -938,6 +943,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 				shareRepo.On("GetByReference", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
 				shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
+				keychainRepo.On("Get", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
 			},
 		},

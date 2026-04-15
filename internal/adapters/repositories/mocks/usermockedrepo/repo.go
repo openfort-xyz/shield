@@ -54,6 +54,14 @@ func (m *MockUserRepository) CreateExternal(ctx context.Context, extUsr *user.Ex
 	return args.Error(0)
 }
 
+func (m *MockUserRepository) FindUserByExternalID(ctx context.Context, externalUserID, providerID string) (*user.User, error) {
+	args := m.Mock.Called(ctx, externalUserID, providerID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*user.User), args.Error(1)
+}
+
 func (m *MockUserRepository) GetUserIDsByExternalID(ctx context.Context, externalUserID string) ([]string, error) {
 	args := m.Mock.Called(ctx, externalUserID)
 	if args.Get(0) == nil {

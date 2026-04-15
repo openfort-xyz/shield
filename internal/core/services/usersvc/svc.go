@@ -71,21 +71,9 @@ func (s *service) create(ctx context.Context, projectID string) (*user.User, err
 func (s *service) getByExternal(ctx context.Context, externalUserID, providerID string) (*user.User, error) {
 	s.logger.InfoContext(ctx, "getting user by external user", slog.String("external_user_id", externalUserID), slog.String("provider_id", providerID))
 
-	extUsrs, err := s.repo.FindExternalBy(ctx, s.repo.WithExternalUserID(externalUserID), s.repo.WithProviderID(providerID))
+	usr, err := s.repo.FindUserByExternalID(ctx, externalUserID, providerID)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get external user", logger.Error(err))
-		return nil, err
-	}
-
-	if len(extUsrs) == 0 {
-		s.logger.ErrorContext(ctx, "external user not found", slog.String("external_user_id", externalUserID), slog.String("provider_id", providerID))
-		return nil, domainErrors.ErrExternalUserNotFound
-	}
-
-	extUsr := extUsrs[0]
-	usr, err := s.repo.Get(ctx, extUsr.UserID)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get user", logger.Error(err))
+		s.logger.ErrorContext(ctx, "failed to get user by external ID", logger.Error(err))
 		return nil, err
 	}
 

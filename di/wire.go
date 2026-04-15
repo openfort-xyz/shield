@@ -126,10 +126,15 @@ func ProvideInMemoryEncryptionPartsRepository() (r repositories.EncryptionPartsR
 	return
 }
 
+func ProvideProjectCacheTTL() time.Duration {
+	return 60 * time.Second
+}
+
 func ProvideProjectService() (s services.ProjectService, err error) {
 	wire.Build(
 		projectsvc.New,
 		ProvideSQLProjectRepository,
+		ProvideProjectCacheTTL,
 	)
 
 	return

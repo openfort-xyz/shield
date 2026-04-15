@@ -132,12 +132,17 @@ func ProvideInMemoryEncryptionPartsRepository() (repositories.EncryptionPartsRep
 	return encryptionPartsRepository, nil
 }
 
+func ProvideProjectCacheTTL() time.Duration {
+	return 60 * time.Second
+}
+
 func ProvideProjectService() (services.ProjectService, error) {
 	projectRepository, err := ProvideSQLProjectRepository()
 	if err != nil {
 		return nil, err
 	}
-	projectService := projectsvc.New(projectRepository)
+	cacheTTL := ProvideProjectCacheTTL()
+	projectService := projectsvc.New(projectRepository, cacheTTL)
 	return projectService, nil
 }
 

@@ -18,6 +18,7 @@ type UserRepository interface {
 	WithProviderID(providerID string) Option
 
 	GetUserIDsByExternalID(ctx context.Context, externalUserID string) ([]string, error)
+	FindUserByExternalID(ctx context.Context, externalUserID, providerID string) (*user.User, error)
 }
 
 type Option func(Options)

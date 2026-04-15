@@ -109,6 +109,25 @@ func (r *repository) FindExternalBy(ctx context.Context, opts ...repositories.Op
 	return extUsrs, nil
 }
 
+func (r *repository) FindUserByExternalID(ctx context.Context, externalUserID, providerID string) (*user.User, error) {
+	r.logger.InfoContext(ctx, "finding user by external user ID and provider ID")
+
+	dbUsr := &User{}
+	err := r.db.
+		Joins("JOIN shld_external_users ON shld_users.id = shld_external_users.user_id").
+		Where("shld_external_users.external_user_id = ? AND shld_external_users.provider_id = ?", externalUserID, providerID).
+		First(dbUsr).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainErrors.ErrExternalUserNotFound
+		}
+		r.logger.ErrorContext(ctx, "error finding user by external ID", logger.Error(err))
+		return nil, err
+	}
+
+	return r.parser.toDomain(dbUsr), nil
+}
+
 func (r *repository) GetUserIDsByExternalID(ctx context.Context, externalUserID string) ([]string, error) {
 	r.logger.InfoContext(ctx, "finding shield users by external user ID")
 
