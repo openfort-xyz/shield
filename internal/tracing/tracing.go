@@ -51,13 +51,9 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 		return nil, err
 	}
 
-	res, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(semconv.SchemaURL, semconv.ServiceName(serviceName)),
-	)
-	if err != nil {
-		return nil, err
-	}
+	// Only service.name — skip resource.Default() to avoid emitting
+	// telemetry.sdk.*, process.*, host.* etc. on every span's Resource.
+	res := resource.NewWithAttributes(semconv.SchemaURL, semconv.ServiceName(serviceName))
 
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
