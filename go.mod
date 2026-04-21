@@ -16,7 +16,7 @@ require (
 	github.com/openfort-xyz/metrics v0.0.8
 	github.com/openfort-xyz/shamir-secret-sharing-go v0.0.2
 	github.com/pressly/goose v2.7.0+incompatible
-	github.com/resend/resend-go/v3 v3.0.0
+	github.com/resend/resend-go/v3 v3.6.0
 	github.com/rs/cors v1.11.1
 	github.com/smsapi/smsapi-go v0.0.0-20250114133301-1aa5a5466a36
 	github.com/spf13/cobra v1.8.1
