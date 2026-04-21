@@ -3,7 +3,7 @@ module github.com/openfort-xyz/shield
 go 1.26.0
 
 require (
-	github.com/MicahParks/keyfunc/v3 v3.7.0
+	github.com/MicahParks/keyfunc/v3 v3.8.0
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/codahale/sss v0.0.0-20160501174526-0cb9f6d3f7f1
 	github.com/go-sql-driver/mysql v1.9.3
