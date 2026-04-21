@@ -1,14 +1,18 @@
 package cli
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/openfort-xyz/shield/di"
+	"github.com/openfort-xyz/shield/internal/tracing"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +24,16 @@ func NewCmdServer() *cobra.Command {
 		Example: "shield server",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			shutdownTracing, err := tracing.Init(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("init tracing: %w", err)
+			}
+			defer func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				_ = shutdownTracing(ctx)
+			}()
+
 			database, err := di.ProvideSQL()
 			if err != nil {
 				return err

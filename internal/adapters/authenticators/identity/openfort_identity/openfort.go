@@ -18,7 +18,13 @@ import (
 
 	"github.com/openfort-xyz/shield/internal/core/domain/provider"
 	"github.com/openfort-xyz/shield/pkg/logger"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
+
+// httpTransport wraps the default transport with OTel instrumentation so
+// outbound calls to the Openfort IAM API become client spans and propagate
+// the trace context via W3C headers.
+var httpTransport = otelhttp.NewTransport(http.DefaultTransport)
 
 type OpenfortIdentityFactory struct {
 	publishableKey string
@@ -78,7 +84,7 @@ func (o *OpenfortIdentityFactory) accessToken(ctx context.Context, token string)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	req.Header.Set("x-project-key", o.publishableKey)
-	client := http.Client{Timeout: time.Minute}
+	client := http.Client{Timeout: time.Minute, Transport: httpTransport}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -140,7 +146,7 @@ func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authent
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", o.publishableKey))
 	req.Header.Set("X-Request-ID", contexter.GetRequestID(ctx))
-	client := http.Client{Timeout: time.Minute}
+	client := http.Client{Timeout: time.Minute, Transport: httpTransport}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err

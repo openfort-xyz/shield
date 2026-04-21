@@ -18,6 +18,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/requestmdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/responsemdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/sharehdl"
+	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/tracingmdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/usrhdl"
 	"github.com/openfort-xyz/shield/internal/applications/projectapp"
 	"github.com/openfort-xyz/shield/internal/applications/shareapp"
@@ -25,6 +26,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
 	"github.com/openfort-xyz/shield/pkg/logger"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
 // Server is the REST server for the shield API
@@ -76,6 +78,12 @@ func (s *Server) Start(ctx context.Context) error {
 	rateLimiterMdw := ratelimitermdw.New(s.config.RPS)
 
 	r := mux.NewRouter()
+	// Tracing first so the span wraps rate-limit/metrics/request-id/response work,
+	// and so trace context is extracted from incoming W3C headers before anything
+	// downstream reads the request. FlowNameMiddleware runs immediately after
+	// so the rename lands on the otelmux-created span.
+	r.Use(otelmux.Middleware("shield"))
+	r.Use(tracingmdw.FlowNameMiddleware)
 	r.Use(rateLimiterMdw.RateLimitMiddleware)
 
 	r.Use(metrics.HTTPMiddleware)
@@ -150,6 +158,16 @@ func (s *Server) Start(ctx context.Context) error {
 			authmdw.EncryptionPartHeader,
 			authmdw.EncryptionSessionHeader,
 			authmdw.RequestIDHeader,
+			// W3C Trace Context — sent by the iFrame so shield-side spans
+			// join the same trace as the api/castle path of the flow.
+			"traceparent",
+			// Human-readable flow name (e.g. "embedded.create") used to
+			// rename the server root span — see tracingmdw.FlowNameMiddleware.
+			tracingmdw.FlowNameHeader,
+			// Flow attributes attached to the iframe-root span by the api.
+			// Shield doesn't consume them but must allow-list them for CORS.
+			tracingmdw.UserIDHeader,
+			tracingmdw.ChainIDHeader,
 		}, extraHeaders...),
 		MaxAge: s.config.CORSMaxAge,
 	}).Handler(r)
