@@ -15,6 +15,12 @@ import (
 
 const FlowNameHeader = "X-Openfort-Flow-Name"
 
+// Iframe-sourced flow attributes. Shield itself doesn't read them today, but
+// they're named here (and allow-listed in CORS) so the browser doesn't block
+// the request before the api/castle side can attach them as span attributes.
+const UserIDHeader = "X-Openfort-User-Id"
+const ChainIDHeader = "X-Openfort-Chain-Id"
+
 // Bound guard so a malicious client can't balloon span names in storage.
 const maxFlowNameLen = 64
 

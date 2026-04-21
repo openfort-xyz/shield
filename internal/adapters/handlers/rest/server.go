@@ -11,7 +11,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/applications/healthzapp"
 
 	"github.com/gorilla/mux"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	metrics "github.com/openfort-xyz/metrics"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/authmdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/projecthdl"
@@ -27,6 +26,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
 	"github.com/openfort-xyz/shield/pkg/logger"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
 // Server is the REST server for the shield API
@@ -164,6 +164,10 @@ func (s *Server) Start(ctx context.Context) error {
 			// Human-readable flow name (e.g. "embedded.create") used to
 			// rename the server root span — see tracingmdw.FlowNameMiddleware.
 			tracingmdw.FlowNameHeader,
+			// Flow attributes attached to the iframe-root span by the api.
+			// Shield doesn't consume them but must allow-list them for CORS.
+			tracingmdw.UserIDHeader,
+			tracingmdw.ChainIDHeader,
 		}, extraHeaders...),
 		MaxAge: s.config.CORSMaxAge,
 	}).Handler(r)

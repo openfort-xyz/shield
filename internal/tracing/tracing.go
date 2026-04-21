@@ -5,7 +5,7 @@
 //	OTEL_EXPORTER_OTLP_ENDPOINT       default http://localhost:4318
 //	OTEL_EXPORTER_OTLP_HEADERS        default Authorization=...
 //	OTEL_SERVICE_NAME                 default "shield"
-//	OTEL_SDK_DISABLED=true            opt-out switch
+//	OTEL_SDK_ENABLED=true             opt-in switch — tracing is off by default
 //
 // The otlptracehttp exporter reads these env vars natively; we only set
 // defaults when the caller hasn't overridden them.
@@ -28,10 +28,11 @@ import (
 // that flushes pending spans. Callers should defer the returned shutdown to
 // ensure spans reach the collector before process exit.
 //
-// When OTEL_SDK_DISABLED=true, Init is a no-op and returns a shutdown that
-// does nothing — so callers can always defer it without checking.
+// Tracing is off by default. When OTEL_SDK_ENABLED is not "true", Init is a
+// no-op and returns a shutdown that does nothing — so callers can always
+// defer it without checking.
 func Init(ctx context.Context) (shutdown func(context.Context) error, err error) {
-	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
+	if os.Getenv("OTEL_SDK_ENABLED") != "true" {
 		return func(context.Context) error { return nil }, nil
 	}
 
@@ -39,7 +40,7 @@ func Init(ctx context.Context) (shutdown func(context.Context) error, err error)
 		_ = os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
 	}
 	if os.Getenv("OTEL_EXPORTER_OTLP_HEADERS") == "" {
-		_ = os.Setenv("OTEL_EXPORTER_OTLP_HEADERS", "Authorization=...")
+		_ = os.Setenv("OTEL_EXPORTER_OTLP_HEADERS", "")
 	}
 	serviceName := os.Getenv("OTEL_SERVICE_NAME")
 	if serviceName == "" {
