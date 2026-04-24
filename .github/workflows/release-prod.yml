@@ -60,6 +60,8 @@ jobs:
           file: ./Dockerfile
           env: |
             SOURCE_DATE_EPOCH: "${{ env.epoch }}"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Generate artifact attestation
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
