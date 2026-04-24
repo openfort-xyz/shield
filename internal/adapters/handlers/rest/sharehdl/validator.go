@@ -63,7 +63,7 @@ func (v *validator) validateShare(share *Share) *api.Error {
 			return api.ErrBadRequestWithMessage("passkey_reference must be set if entropy is passkey")
 		}
 
-		if share.PasskeyReference.PasskeyId == nil {
+		if share.PasskeyReference.PasskeyID == nil {
 			return api.ErrBadRequestWithMessage("passkey_reference must contain passkey_id if entropy is passkey")
 		}
 

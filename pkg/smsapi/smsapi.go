@@ -38,7 +38,7 @@ func NewClient(config Config) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) SendSMS(ctx context.Context, to string, message string) (float32, error) {
+func (c *Client) SendSMS(_ context.Context, to string, message string) (float32, error) {
 	response, err := c.apiClient.Sms.Send(context.Background(), to, message, "")
 	if err != nil {
 		return 0, err

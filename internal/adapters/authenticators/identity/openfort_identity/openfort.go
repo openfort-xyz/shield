@@ -64,12 +64,11 @@ func (o *OpenfortIdentityFactory) Identify(ctx context.Context, token string) (s
 
 	if !isJwt {
 		return o.accessToken(ctx, token)
-	} else {
-		return o.jwtToken(ctx, token)
 	}
+	return o.jwtToken(ctx, token)
 }
 
-func (a *OpenfortIdentityFactory) GetCookieFieldName() string {
+func (o *OpenfortIdentityFactory) GetCookieFieldName() string {
 	return ""
 }
 
@@ -116,7 +115,7 @@ func (o *OpenfortIdentityFactory) accessToken(ctx context.Context, token string)
 		return "", domainErrors.ErrSessionExpired
 	}
 
-	return response.User.Id, nil
+	return response.User.ID, nil
 }
 
 func (o *OpenfortIdentityFactory) jwtToken(_ context.Context, token string) (string, error) {
@@ -200,9 +199,9 @@ type AuthSession struct {
 	Token     string `json:"token"`
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt"`
-	IpAddress string `json:"ipAddress"`
+	IPAddress string `json:"ipAddress"`
 	UserAgent string `json:"userAgent"`
-	Id        string `json:"id"`
+	ID        string `json:"id"`
 }
 
 type AuthUser struct {
@@ -215,7 +214,7 @@ type AuthUser struct {
 	IsAnonymous         bool   `json:"isAnonymous"`
 	PhoneNumber         string `json:"phoneNumber"`
 	PhoneNumberVerified bool   `json:"phoneNumberVerified"`
-	Id                  string `json:"id"`
+	ID                  string `json:"id"`
 }
 
 type SessionResponse struct {

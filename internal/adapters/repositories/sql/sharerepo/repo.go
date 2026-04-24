@@ -209,7 +209,6 @@ func updatePasskeyReference(r *repository, passkeyReference *PasskeyReference) e
 // Intentionally left out of ShareRepository interface
 // since usage is only internal
 func updateShare(r *repository, dbShr *Share) error {
-
 	err := updatePasskeyReference(r, dbShr.PasskeyReference)
 
 	if err != nil {
@@ -244,7 +243,7 @@ func (r *repository) BulkUpdate(ctx context.Context, shrs []*share.Share) error 
 		dbShares = append(dbShares, r.parser.toDatabase(shr))
 	}
 
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	return r.db.Transaction(func(_ *gorm.DB) error {
 		for _, dbShr := range dbShares {
 			err := updateShare(r, dbShr)
 			if err != nil {

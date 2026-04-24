@@ -41,7 +41,7 @@ func (c *Client) Migrate() error {
 		return err
 	}
 
-	if err := goose.SetDialect(c.DB.Dialector.Name()); err != nil {
+	if err := goose.SetDialect(c.Name()); err != nil {
 		return err
 	}
 
@@ -59,7 +59,7 @@ func (c *Client) Rollback() error {
 		return err
 	}
 
-	if err := goose.SetDialect(c.DB.Dialector.Name()); err != nil {
+	if err := goose.SetDialect(c.Name()); err != nil {
 		return err
 	}
 

@@ -18,8 +18,8 @@ func NewNotificationApp() (*NotificationApplication, error) {
 		return nil, err
 	}
 
-	smsApiConfig, err := smsapi.GetConfigFromEnv()
-	if err != nil || smsApiConfig.SMSAPIKey == "" {
+	smsAPIConfig, err := smsapi.GetConfigFromEnv()
+	if err != nil || smsAPIConfig.SMSAPIKey == "" {
 		return nil, err
 	}
 
@@ -28,20 +28,20 @@ func NewNotificationApp() (*NotificationApplication, error) {
 		return nil, err
 	}
 
-	smsApiClient, err := smsapi.NewClient(*smsApiConfig)
+	smsAPIClient, err := smsapi.NewClient(*smsAPIConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	return &NotificationApplication{
 		emailProvider: *resendClient,
-		smsProvider:   *smsApiClient,
+		smsProvider:   *smsAPIClient,
 	}, nil
 }
 
-func (c *NotificationApplication) SendEmail(ctx context.Context, toEmail string, subject string, body string, userId string) (price float32, err error) {
+func (c *NotificationApplication) SendEmail(ctx context.Context, toEmail string, subject string, body string, userID string) (price float32, err error) {
 	// do not track prices per email yet because there is subscription based payments
-	err = c.emailProvider.SendEmail(ctx, toEmail, subject, body, userId)
+	err = c.emailProvider.SendEmail(ctx, toEmail, subject, body, userID)
 
 	return price, err
 }

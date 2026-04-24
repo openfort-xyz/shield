@@ -53,12 +53,12 @@ func NewClient(config Config) (*Client, error) {
 	// Parse template once at initialization
 	tmplContent, err := otpTemplateFS.ReadFile("otp_template.html")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read OTP template: %v", err)
+		return nil, fmt.Errorf("failed to read OTP template: %w", err)
 	}
 
 	htmlTemplate, err := template.New("otp").Parse(string(tmplContent))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse OTP template: %v", err)
+		return nil, fmt.Errorf("failed to parse OTP template: %w", err)
 	}
 
 	return &Client{
@@ -74,11 +74,11 @@ type OTPData struct {
 
 // SendEmail sends an OTP email to the specified recipient.
 // Note: ctx is accepted for interface compatibility but not used by the Resend SDK.
-func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, otp string, userId string) error {
+func (c *Client) SendEmail(_ context.Context, toEmail string, subject string, otp string, userID string) error {
 	// Execute the pre-parsed template with OTP data
 	var htmlBuffer bytes.Buffer
 	if err := c.htmlTemplate.Execute(&htmlBuffer, OTPData{OTP: otp}); err != nil {
-		return fmt.Errorf("failed to execute template: %v", err)
+		return fmt.Errorf("failed to execute template: %w", err)
 	}
 
 	htmlContent := htmlBuffer.String()
@@ -92,10 +92,10 @@ func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, 
 	// Combine sender name and email in Resend's expected format: "Name <email>"
 	from := fmt.Sprintf("%s <%s>", c.config.SenderName, c.config.FromEmail)
 
-	// Format recipient with userId as display name if provided
+	// Format recipient with userID as display name if provided
 	var to string
-	if userId != "" {
-		to = fmt.Sprintf("%s <%s>", userId, toEmail)
+	if userID != "" {
+		to = fmt.Sprintf("%s <%s>", userID, toEmail)
 	} else {
 		to = toEmail
 	}
@@ -110,7 +110,7 @@ func (c *Client) SendEmail(ctx context.Context, toEmail string, subject string, 
 
 	_, err := c.apiClient.Emails.Send(params)
 	if err != nil {
-		return fmt.Errorf("failed to send email: %v", err)
+		return fmt.Errorf("failed to send email: %w", err)
 	}
 
 	return nil
