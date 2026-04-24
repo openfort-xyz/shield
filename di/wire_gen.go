@@ -132,17 +132,13 @@ func ProvideInMemoryEncryptionPartsRepository() (repositories.EncryptionPartsRep
 	return encryptionPartsRepository, nil
 }
 
-func ProvideProjectCacheTTL() time.Duration {
-	return 60 * time.Second
-}
-
 func ProvideProjectService() (services.ProjectService, error) {
 	projectRepository, err := ProvideSQLProjectRepository()
 	if err != nil {
 		return nil, err
 	}
-	cacheTTL := ProvideProjectCacheTTL()
-	projectService := projectsvc.New(projectRepository, cacheTTL)
+	duration := ProvideProjectCacheTTL()
+	projectService := projectsvc.New(projectRepository, duration)
 	return projectService, nil
 }
 
@@ -409,6 +405,10 @@ func ProvideRESTServer() (*rest.Server, error) {
 }
 
 // wire.go:
+
+func ProvideProjectCacheTTL() time.Duration {
+	return 60 * time.Second
+}
 
 type clockImpl struct{}
 
