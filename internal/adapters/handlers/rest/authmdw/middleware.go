@@ -1,6 +1,7 @@
 package authmdw
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -117,7 +118,7 @@ func getTokenFromHeader(header string) (string, error) {
 
 	splittedToken := strings.Split(header, " ")
 
-	// TODO: Are we supporting other token types than Bearer? e.g. Basic, Digest, etc.
+	// Only Bearer token type is supported; other schemes (Basic, Digest, etc.) are rejected here by the 2-part split.
 	if len(splittedToken) != 2 {
 		return "", api.ErrInvalidToken
 	}
@@ -130,7 +131,7 @@ func getTokenFromHeader(header string) (string, error) {
 func getTokenFromCookie(r *http.Request, cookieFieldName string) (string, error) {
 	cookie, err := r.Cookie(cookieFieldName)
 	if err != nil {
-		if err == http.ErrNoCookie {
+		if errors.Is(err, http.ErrNoCookie) {
 			return "", api.ErrMissingToken
 		}
 		return "", api.ErrInvalidToken

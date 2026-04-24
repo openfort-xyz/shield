@@ -30,7 +30,7 @@ func NewProjectAuthenticator(repository repositories.ProjectRepository, apiKey, 
 	}
 }
 
-func getApiSecretBytes(apiSecret string) []byte {
+func getAPISecretBytes(apiSecret string) []byte {
 	hex32bytes, err := hex.DecodeString(apiSecret)
 	if err != nil {
 		// Old legacy api secrets are UUIDs and new secrets are hex-encoded 32 bytes
@@ -48,7 +48,7 @@ func (a *ProjectAuthenticator) Authenticate(ctx context.Context) (*authenticatio
 		return nil, err
 	}
 
-	apiSecretBytes := getApiSecretBytes(a.apiSecret)
+	apiSecretBytes := getAPISecretBytes(a.apiSecret)
 
 	err = bcrypt.CompareHashAndPassword([]byte(proj.APISecret), apiSecretBytes)
 	if err != nil {

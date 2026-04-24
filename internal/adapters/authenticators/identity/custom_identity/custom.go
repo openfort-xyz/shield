@@ -61,7 +61,6 @@ func (c *CustomIdentityFactory) GetCookieFieldName() string {
 }
 
 func (c *CustomIdentityFactory) validatePEM(token string) (string, error) {
-
 	keyFunc, validMethods, err := getKeyFuncFromPEM([]byte(c.config.PEM), c.config.KeyType)
 
 	if err != nil {

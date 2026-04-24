@@ -120,7 +120,7 @@ Once we selected a share by reference we check if external user really owns it a
 
 ## [v0.1.12] - 2024-07-15
 ### Added
-- Using Openfort SSS library to split/reconstruct encryption keys. 
+- Using Openfort SSS library to split/reconstruct encryption keys.
 - Add `shld_shamir_migrations` to manage the migrations of the Shamir secret sharing library.
 - Add Migration Jobs to manage the migrations of the Shamir secret sharing library.
 

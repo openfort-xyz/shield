@@ -143,11 +143,11 @@ func (ot *OnboardingTracker) CleanupOldRecords() {
 	}
 }
 
-// OTPService defines the interface for OTP operations
-type OTPService interface {
+// Service defines the interface for OTP operations
+type Service interface {
 	// GenerateOTP generates a new OTP and stores it
 	// Returns 9-digit numeric OTP string
-	GenerateOTP(ctx context.Context, userId string) (string, error)
+	GenerateOTP(ctx context.Context, userID string) (string, error)
 
 	// VerifyOTP verifies an OTP for a given device
 	// Returns the OTP request if valid
@@ -161,7 +161,7 @@ type OTPService interface {
 	Close() error
 }
 
-// InMemoryOTPService implements OTPService with comprehensive security controls using buntdb
+// InMemoryOTPService implements Service with comprehensive security controls using buntdb
 //
 // Security Features:
 // - Rate Limiting: User onboarding attempts are limited per userID
@@ -319,7 +319,7 @@ func (s *InMemoryOTPService) startCleanupInterval() {
 
 	go func() {
 		for range s.cleanupTicker.C {
-			s.Cleanup()
+			_ = s.Cleanup()
 		}
 	}()
 }

@@ -163,7 +163,8 @@ func (h *Handler) GetShareByReference(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := json.Marshal(GetShareResponse(*h.parser.fromDomain(share)))
+	// gosec G117: encrypted share secret is the resource this endpoint returns to the authenticated owner.
+	resp, err := json.Marshal(GetShareResponse(*h.parser.fromDomain(share))) //nolint:gosec
 	if err != nil {
 		api.RespondWithError(w, api.ErrInternal)
 		return
@@ -300,7 +301,8 @@ func (h *Handler) UpdateShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := json.Marshal(UpdateShareResponse(*h.parser.fromDomain(shr)))
+	// gosec G117: encrypted share secret is the resource this endpoint returns to the authenticated owner.
+	resp, err := json.Marshal(UpdateShareResponse(*h.parser.fromDomain(shr))) //nolint:gosec
 	if err != nil {
 		api.RespondWithError(w, api.ErrInternal)
 		return
@@ -382,7 +384,8 @@ func (h *Handler) GetShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := json.Marshal(GetShareResponse(*h.parser.fromDomain(shr)))
+	// gosec G117: encrypted share secret is the resource this endpoint returns to the authenticated owner.
+	resp, err := json.Marshal(GetShareResponse(*h.parser.fromDomain(shr))) //nolint:gosec
 	if err != nil {
 		api.RespondWithError(w, api.ErrInternal)
 		return
@@ -620,7 +623,8 @@ func (h *Handler) ExportShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := json.Marshal(h.parser.fromDomainExport(shr))
+	// gosec G117: encrypted share secret is exported by design on this migration endpoint.
+	resp, err := json.Marshal(h.parser.fromDomainExport(shr)) //nolint:gosec
 	if err != nil {
 		api.RespondWithError(w, api.ErrInternal)
 		return

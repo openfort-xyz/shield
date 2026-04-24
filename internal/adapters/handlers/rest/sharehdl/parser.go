@@ -108,7 +108,7 @@ func (p *parser) toDomain(s *Share) *share.Share {
 
 	if s.Entropy == EntropyPasskey && s.PasskeyReference != nil {
 		shr.PasskeyReference = &share.PasskeyReference{
-			PasskeyID: *s.PasskeyReference.PasskeyId,
+			PasskeyID: *s.PasskeyReference.PasskeyID,
 		}
 		if s.PasskeyReference.PasskeyEnv != nil {
 			shr.PasskeyReference.PasskeyEnv = &share.PasskeyEnv{
@@ -155,7 +155,7 @@ func (p *parser) fromDomain(s *share.Share) *Share {
 
 	if s.PasskeyReference != nil {
 		shr.PasskeyReference = &PasskeyReference{
-			PasskeyId: &s.PasskeyReference.PasskeyID,
+			PasskeyID: &s.PasskeyReference.PasskeyID,
 		}
 		if s.PasskeyReference.PasskeyEnv != nil {
 			shr.PasskeyReference.PasskeyEnv = &PasskeyEnv{
@@ -190,7 +190,7 @@ func (p *parser) fromDomainExport(s *share.Share) *ExportShareResponse {
 
 	if s.PasskeyReference != nil {
 		resp.PasskeyReference = &PasskeyReference{
-			PasskeyId: &s.PasskeyReference.PasskeyID,
+			PasskeyID: &s.PasskeyReference.PasskeyID,
 		}
 		if s.PasskeyReference.PasskeyEnv != nil {
 			resp.PasskeyReference.PasskeyEnv = &PasskeyEnv{
@@ -207,7 +207,7 @@ func (p *parser) fromDomainExport(s *share.Share) *ExportShareResponse {
 
 func (p *parser) toImportDomain(s *ImportShareRequest) *share.Share {
 	shr := &share.Share{
-		UserID:               s.UserId,
+		UserID:               s.UserID,
 		Secret:               s.Secret,
 		Entropy:              p.mapEntropyDomain[s.Entropy],
 		ShareStorageMethodID: p.mapStorageMethodDomain[s.ShareStorageMethodID],

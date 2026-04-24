@@ -52,7 +52,7 @@ type PasskeyEnv struct {
 }
 
 type PasskeyReference struct {
-	PasskeyId  *string `json:"passkey_id"`
+	PasskeyID  *string `json:"passkey_id"`
 	PasskeyEnv *PasskeyEnv
 }
 
@@ -69,7 +69,7 @@ type ExportShareResponse struct {
 }
 
 type ImportShareRequest struct {
-	UserId               string               `json:"user_id"`
+	UserID               string               `json:"user_id"`
 	Secret               string               `json:"secret"`
 	Entropy              Entropy              `json:"entropy"`
 	Salt                 string               `json:"salt,omitempty"`

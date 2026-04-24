@@ -72,7 +72,8 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := json.Marshal(h.parser.toCreateProjectResponse(proj))
+	// gosec G117: api_key/api_secret are intentionally returned to the caller on project creation.
+	resp, err := json.Marshal(h.parser.toCreateProjectResponse(proj)) //nolint:gosec
 	if err != nil {
 		api.RespondWithError(w, api.ErrInternal)
 		return
@@ -113,7 +114,8 @@ func (h *Handler) ResetAPISecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := json.Marshal(ResetAPISecretResponse{
+	// gosec G117: api_secret is the exact payload this endpoint exists to return.
+	resp, err := json.Marshal(ResetAPISecretResponse{ //nolint:gosec
 		APISecret: newAPISecret,
 	})
 	if err != nil {
@@ -223,7 +225,7 @@ func (h *Handler) RequestOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.app.GenerateOTP(ctx, req.UserId, req.DangerouslySkipVerification, req.Email, req.Phone)
+	err = h.app.GenerateOTP(ctx, req.UserID, req.DangerouslySkipVerification, req.Email, req.Phone)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return

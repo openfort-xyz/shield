@@ -1,23 +1,19 @@
-version: 1
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
     - bodyclose
     - dogsled
     - errcheck
     - errorlint
-    - exportloopref
     - gocheckcompilerdirectives
     - gochecknoinits
     - goconst
     - gocritic
     - gocyclo
     - godox
-    - gofmt
-    - goimports
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - misspell
@@ -25,17 +21,34 @@ linters:
     - noctx
     - revive
     - staticcheck
-    - stylecheck
     - unconvert
     - unparam
     - unused
     - whitespace
-issues:
-  exclude-files:
-    - ".*_test\\.go"
-    - "wire_gen.go"
-  exclude-dirs:
-    - "internal/adapters/repositories/mocks"
-
-run:
-  timeout: 3m
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - .*_test\.go
+      - wire_gen.go
+      - internal/adapters/repositories/mocks
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - .*_test\.go
+      - wire_gen.go
+      - internal/adapters/repositories/mocks
+      - third_party$
+      - builtin$
+      - examples$

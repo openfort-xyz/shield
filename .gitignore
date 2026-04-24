@@ -20,6 +20,10 @@
 !.github/workflows/run-rests.yml
 !.github/workflows/docker-image.yml
 !.github/workflows/verify.yml
+!.github/workflows/push-to-prod.yml
+!.github/workflows/release-prod.yml
+!.github/workflows/release-stage.yml
+
 !pkg/resend/otp_template.html
 !.env.example
 

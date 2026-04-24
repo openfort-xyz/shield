@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -187,7 +188,7 @@ func (s *Server) Start(ctx context.Context) error {
 	// (look how Config is defined in config.go and used when instantiating the server)
 	go func() {
 		s.logger.InfoContext(ctx, "starting metrics server", slog.Int("port", s.config.MetricsPort))
-		if err := s.metricsServer.Start(ctx); err != nil && err != http.ErrServerClosed {
+		if err := s.metricsServer.Start(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.logger.ErrorContext(ctx, "failed to start metrics server", slog.Any("error", err))
 		}
 	}()

@@ -92,7 +92,6 @@ func (s *service) Create(ctx context.Context, shr *share.Share, opts ...services
 	}
 
 	return nil
-
 }
 
 func (s *service) FindByReference(ctx context.Context, reference string) (*share.Share, error) {
