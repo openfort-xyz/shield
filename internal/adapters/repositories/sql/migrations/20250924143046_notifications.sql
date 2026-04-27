@@ -1,9 +1,9 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS shld_notifications (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     project_id VARCHAR(36) NOT NULL,
     external_user_id VARCHAR(255) NOT NULL,
-    notif_type ENUM('SMS', 'Email') NOT NULL,
+    notif_type VARCHAR(16) NOT NULL CHECK (notif_type IN ('SMS', 'Email')),
     price FLOAT NOT NULL,
     sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );

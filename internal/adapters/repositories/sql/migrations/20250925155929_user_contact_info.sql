@@ -1,7 +1,7 @@
 -- +goose Up
 
 CREATE TABLE IF NOT EXISTS shld_user_contacts (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     external_user_id VARCHAR(255) NOT NULL,
     email CHAR(128),
     phone CHAR(128)
