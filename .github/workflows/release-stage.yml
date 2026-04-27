@@ -3,6 +3,7 @@ name: Build and push Docker image for stage
 on:
   push:
     branches:
+      - main
       - feat/postgre
 
 jobs:
