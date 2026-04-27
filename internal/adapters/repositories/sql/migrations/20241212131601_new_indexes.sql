@@ -4,6 +4,6 @@ CREATE INDEX idx_external_user_provider_deleted ON shld_external_users (external
 -- +goose StatementEnd
 
 -- +goose Down
-DROP INDEX idx_external_user_provider_deleted ON shld_external_users;
+DROP INDEX IF EXISTS idx_external_user_provider_deleted;
 -- +goose StatementBegin
 -- +goose StatementEnd

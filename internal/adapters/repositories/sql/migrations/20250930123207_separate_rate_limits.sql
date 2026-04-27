@@ -1,6 +1,6 @@
 -- +goose Up
 ALTER TABLE shld_rate_limit
-ADD COLUMN sms_requests_per_hour INT NOT NULL;
+ADD COLUMN sms_requests_per_hour INT NOT NULL DEFAULT 0;
 ALTER TABLE shld_rate_limit RENAME COLUMN requests_per_minute TO email_requests_per_hour;
 
 UPDATE shld_rate_limit SET sms_requests_per_hour = 2;
