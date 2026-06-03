@@ -1,45 +1,144 @@
 # Changelog
-
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.3.0]
+### Changed
+- MySQL to PostgreSQL DB client change by @n00m4d in https://github.com/openfort-xyz/shield/pull/94
+- chore(deps): bump the actions-minor group with 4 updates by @dependabot[bot] in https://github.com/openfort-xyz/shield/pull/95
+- update golang to 1.26.4
+- digest pinning in Dockerfile
+- update pgx to 5.10.0
+- update github actions
+
+### Removed
+- **MySQL Support**: Support for MySQL has been completely removed. This is a **breaking change**; shield will fail on startup if users use new images on old DB. Fresh deployment is still an option.
+
+## [v0.2.45]
+### Changed
+- CI and quality of life changes
+- bump the actions-minor group with 3 updates
+- change attest-build-provenance to attest
+- add docker cache to github
+
+## [v0.2.44]
+### Added
+- Add tracing
+
+## [v0.2.43]
+### Changed
+- Get and put shares improvements
+
+## [v0.2.42]
+### Changed
+- fix: update filippo.io/edwards25519 to v1.1.1 (CVE-2026-26958)
+- chore: bump dependencies
+
+## [v0.2.41]
+### Changed
+- chore: update modules
+
+## [v0.2.40]
+### Added
+- Add shares migration endpoints
+
+## [v0.2.39]
+### Added
+- Add index to shld_shares table on reference column
+
+## [v0.2.38]
+### Changed
+- Throw an error if entropy for the new share was not set
+
+## [v0.2.37]
+### Changed
+- Use wallet id from access token
+- perf: add DB indexes and eliminate duplicate project lookup per request
+
+## [v0.2.36]
+### Changed
+- Fix contacts check during otp flow
+
+## [v0.2.35]
+### Changed
+- Improve errors returned on otp flow
+
+## [v0.2.34]
+### Added
+- Add 2fa enabled in response
+
+## [v0.2.33]
+### Added
+- Add enable 2FA endpoint
+
+## [v0.2.32]
+### Added
+- feat: resend provider
+
+## [v0.2.31]
+### Changed
+- remove dockerhub registry, enable sbom
+- Add reference param to /shares/encryption/user/bulk call
+- Fix docker image build at CI
+
+## [v0.2.30]
+### Changed
+- Update OpenfortBaseURL default value
+- Add access token check for V2 authentication
+
+## [v0.2.29]
+### Changed
+- add more tags, also push to ghcr, bump versions
+- Better auth JWT support
+- add docker login to ghcr step
+
+## [v0.2.28]
+### Changed
+- fix: disable reset-api-secret to prevent inconsistencies
+- Disable `reset-api-secret` endpoint
+
+## [v0.2.27]
+### Changed
+- Fix/improve project secret
+- New API Secret Generation: API Secrets are now 256 randomly generated bits using golang's `crypto.rand.Read` function.
+- Reset API Secret Endpoint: Added `@POST project/reset-api-secret` for key rotation.
+
 ## [v0.2.26]
-### What
+
+### Changed
 Fix error mapping.
 
 ## [v0.2.25]
-### What
+### Changed
 Change share select during inserting a new one. Now if reference was passed it selects share by that reference.
 
 ## [v0.2.24]
-### What
+### Changed
 This release changes project OTP generation rate limiting from minute window to hour window.
 Also rate limiting of OTP generation per user was dropped because it was excessive.
 
 ## [v0.2.22]
-### What
-This release adds OTP as an optional secutify feature for the projects. If 2FA is enabled for the project Shield will require an OTP during encrypted session creation.
+### Added
+This release adds OTP as an optional security feature for the projects. If 2FA is enabled for the project Shield will require an OTP during encrypted session creation.
 
 OTP may be sent either with email or SMS.
 
 ## [v0.2.21]
-### What
+### Changed
 This release fixes a bug which happens only in case one external user has two shield accounts and each of that accounts has own keychain. Usually it's not happening though.
 
-### Why
 So if user has two accounts and two keychains and he wants to select cold share by reference for key reconstruction API now may select a wrong shield user on the middleware level, and then as a result select wrong keychain which doesn't related to the share with reference which was sent in API method arguments.
 
 It means that API throws share not found error.
 
-## How
 With these changes we start to save external user ID to the context, on the middleware level. And it adds a new endpoint to select a share by reference.
 
 Once we selected a share by reference we check if external user really owns it and if yes return it.
 
 ## [v0.2.3]
-### Updated
+### Changed
 - JWT token library
 
 ## [v0.2.0]
@@ -49,13 +148,13 @@ Once we selected a share by reference we check if external user really owns it a
 ## [v0.1.27]
 ### Added
 - MySQL Certificate for SSL connection compatibility
-### Updated
+### Changed
 - Logger to be compatible with Google Cloud Logging
 
 ## [v0.1.26]
 ### Added
 - Metrics for HTTP requests and Prometheus to expose them
-### Updated
+### Changed
 - Deployment pipeline
 
 ## [v0.1.25]
@@ -93,11 +192,11 @@ Once we selected a share by reference we check if external user really owns it a
 - PEM/Key type parsing for custom authentication
 - PEM/Key type null values on database
 - X-Request-Code value
-### Updated
+### Changed
 - README documentation
 
 ## [v0.1.17]
-### Updated
+### Changed
 - Added X-Request-ID header to third party openfort authentication
 
 ## [v0.1.16]
