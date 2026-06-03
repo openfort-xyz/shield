@@ -1,9 +1,9 @@
 -- +goose Up
-ALTER TABLE shld_shares MODIFY COLUMN data VARCHAR(500) NOT NULL;
+ALTER TABLE shld_shares ALTER COLUMN data TYPE VARCHAR(500);
 -- +goose StatementBegin
 -- +goose StatementEnd
 
 -- +goose Down
-ALTER TABLE shld_shares MODIFY COLUMN data VARCHAR(255) NOT NULL;
+ALTER TABLE shld_shares ALTER COLUMN data TYPE VARCHAR(255);
 -- +goose StatementBegin
 -- +goose StatementEnd

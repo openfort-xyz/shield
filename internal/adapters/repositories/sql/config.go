@@ -1,31 +1,29 @@
 package sql
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"os"
+	"net/url"
+	"strconv"
 
 	env "github.com/caarlos0/env/v10"
-	"github.com/go-sql-driver/mysql"
 )
 
 type Config struct {
 	Host   string `env:"DB_HOST" envDefault:"localhost"`
-	Port   int    `env:"DB_PORT" envDefault:"3306"`
-	User   string `env:"DB_USER" envDefault:"root"`
+	Port   int    `env:"DB_PORT" envDefault:"5432"`
+	User   string `env:"DB_USER" envDefault:"postgres"`
 	Pass   string `env:"DB_PASS" envDefault:"password"`
 	DBName string `env:"DB_NAME" envDefault:"shield"`
 
-	Charset   string `env:"DB_MYSQL_CHARSET" envDefault:"utf8mb4"`
-	ParseTime bool   `env:"DB_MYSQL_PARSE_TIME" envDefault:"True"`
-	Location  string `env:"DB_MYSQL_LOCATION" envDefault:"Local"`
+	// SSLMode controls the libpq sslmode parameter.
+	// Valid values: disable, allow, prefer, require, verify-ca, verify-full.
+	SSLMode string `env:"DB_SSL_MODE" envDefault:"disable"`
 
 	SSLRootCert string `env:"DB_SSL_ROOT_CERT"` // Path to server-ca.pem
 	SSLCert     string `env:"DB_SSL_CERT"`      // Path to client-cert.pem
 	SSLKey      string `env:"DB_SSL_KEY"`       // Path to client-key.pem
 
-	SSLSkipVerify bool `env:"DB_SSL_SKIP_VERIFY" envDefault:"False"`
+	TimeZone string `env:"DB_TIMEZONE" envDefault:"UTC"`
 }
 
 const migrationDirectory = "internal/adapters/repositories/sql/migrations"
@@ -38,39 +36,37 @@ func GetConfigFromEnv() (*Config, error) {
 	return cfg, nil
 }
 
-func (c *Config) mysqlDSN() (string, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		c.User, c.Pass, c.Host, c.Port, c.DBName)
-
-	if c.SSLRootCert != "" && c.SSLCert != "" && c.SSLKey != "" {
-		dsn = fmt.Sprintf("%s&tls=custom", dsn)
-		if err := c.registerTLSConfig(); err != nil {
-			return "", err
-		}
+func (c *Config) postgresDSN() (string, error) {
+	if c.SSLMode == "" {
+		c.SSLMode = "disable"
 	}
 
-	return dsn, nil
-}
-
-func (c *Config) registerTLSConfig() error {
-	rootCertPool := x509.NewCertPool()
-	pem, err := os.ReadFile(c.SSLRootCert)
-	if err != nil {
-		return err
+	q := url.Values{}
+	q.Set("sslmode", c.SSLMode)
+	if c.TimeZone != "" {
+		q.Set("TimeZone", c.TimeZone)
 	}
-	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
-		return fmt.Errorf("failed to append PEM")
+	if c.SSLRootCert != "" {
+		q.Set("sslrootcert", c.SSLRootCert)
 	}
-
-	certs, err := tls.LoadX509KeyPair(c.SSLCert, c.SSLKey)
-	if err != nil {
-		return err
+	if c.SSLCert != "" {
+		q.Set("sslcert", c.SSLCert)
+	}
+	if c.SSLKey != "" {
+		q.Set("sslkey", c.SSLKey)
 	}
 
-	return mysql.RegisterTLSConfig("custom", &tls.Config{
-		InsecureSkipVerify: c.SSLSkipVerify, // nolint:gosec
-		RootCAs:            rootCertPool,
-		Certificates:       []tls.Certificate{certs},
-		MinVersion:         tls.VersionTLS12,
-	})
+	u := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(c.User, c.Pass),
+		Host:     c.Host + ":" + strconv.Itoa(c.Port),
+		Path:     "/" + c.DBName,
+		RawQuery: q.Encode(),
+	}
+
+	if c.Host == "" || c.DBName == "" {
+		return "", fmt.Errorf("invalid postgres config: host and dbname are required")
+	}
+
+	return u.String(), nil
 }

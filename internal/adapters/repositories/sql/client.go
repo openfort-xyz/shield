@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 
 	"github.com/pressly/goose"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -17,14 +17,14 @@ func New(cfg *Config) (*Client, error) {
 		return nil, ErrMissingConfig
 	}
 
-	dsn, err := cfg.mysqlDSN()
+	dsn, err := cfg.postgresDSN()
 	if err != nil {
 		return nil, err
 	}
 
-	dialector := mysql.New(mysql.Config{
-		DriverName: "mysql",
-		DSN:        dsn,
+	dialector := postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true,
 	})
 
 	db, err := gorm.Open(dialector, &gorm.Config{})

@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS shld_rate_limit (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     project_id VARCHAR(36) NOT NULL,
     requests_per_minute INT NOT NULL
 );
