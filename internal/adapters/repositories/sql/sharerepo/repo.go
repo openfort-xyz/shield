@@ -278,7 +278,7 @@ func (r *repository) GetShareStorageMethods(ctx context.Context) ([]*share.Stora
 func (r *repository) GetSharesEncryptionForProjectAndReferences(ctx context.Context, projectID string, references []string) (map[string]share.RecoveryInfo, error) {
 	var queryResult []InfoByReference
 	err := r.db.Table("shld_shares").
-		Select("shld_shares.reference AS Reference, shld_shares.entropy AS Entropy, shld_passkey_references.passkey_id as PasskeyID, shld_passkey_references.passkey_env as PasskeyEnv").
+		Select("shld_shares.reference AS reference, shld_shares.entropy AS entropy, shld_passkey_references.passkey_id AS passkey_id, shld_passkey_references.passkey_env AS passkey_env").
 		Joins("LEFT JOIN shld_passkey_references ON shld_shares.id = shld_passkey_references.share_reference").
 		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
 		Where("shld_shares.reference IN ?", references).
@@ -307,7 +307,7 @@ func (r *repository) GetSharesEncryptionForProjectAndReferences(ctx context.Cont
 func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context.Context, projectID string, userIDs []string, reference *string) (map[string]share.RecoveryInfo, error) {
 	var queryResult []InfoByUserID
 	req := r.db.Table("shld_shares").
-		Select("shld_external_users.external_user_id AS UserID, shld_shares.entropy AS Entropy, shld_passkey_references.passkey_id as PasskeyID, shld_passkey_references.passkey_env as PasskeyEnv").
+		Select("shld_external_users.external_user_id AS user_id, shld_shares.entropy AS entropy, shld_passkey_references.passkey_id AS passkey_id, shld_passkey_references.passkey_env AS passkey_env").
 		Joins("LEFT JOIN shld_passkey_references ON shld_shares.id = shld_passkey_references.share_reference").
 		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
 		Joins("JOIN shld_external_users ON shld_external_users.user_id = shld_users.id").
