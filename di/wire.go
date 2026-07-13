@@ -14,7 +14,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/bunt"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/bunt/encryptionpartsrepo"
-	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/keychainrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/notificationsrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/projectrepo"
@@ -36,15 +35,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/services/usersvc"
 	"github.com/openfort-xyz/shield/pkg/otp"
 )
-
-func ProvideSQL() (c *sql.Client, err error) {
-	wire.Build(
-		sql.New,
-		sql.GetConfigFromEnv,
-	)
-
-	return
-}
 
 func ProvideBuntDB() (c *bunt.Client, err error) {
 	wire.Build(

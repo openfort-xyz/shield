@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"time"
 
 	env "github.com/caarlos0/env/v10"
 )
@@ -24,6 +25,15 @@ type Config struct {
 	SSLKey      string `env:"DB_SSL_KEY"`       // Path to client-key.pem
 
 	TimeZone string `env:"DB_TIMEZONE" envDefault:"UTC"`
+
+	// Connection pool tuning. A zero MaxOpenConns means unlimited (the
+	// database/sql default), which lets a burst of concurrent queries exhaust
+	// Postgres. ConnMaxLifetime/ConnMaxIdleTime ensure connections are recycled
+	// rather than lingering forever.
+	MaxOpenConns    int           `env:"DB_MAX_OPEN_CONNS" envDefault:"20"`
+	MaxIdleConns    int           `env:"DB_MAX_IDLE_CONNS" envDefault:"5"`
+	ConnMaxLifetime time.Duration `env:"DB_CONN_MAX_LIFETIME" envDefault:"30m"`
+	ConnMaxIdleTime time.Duration `env:"DB_CONN_MAX_IDLE_TIME" envDefault:"5m"`
 }
 
 const migrationDirectory = "internal/adapters/repositories/sql/migrations"

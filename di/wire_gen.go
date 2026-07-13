@@ -14,7 +14,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/bunt"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/bunt/encryptionpartsrepo"
-	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/keychainrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/notificationsrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/projectrepo"
@@ -39,18 +38,6 @@ import (
 )
 
 // Injectors from wire.go:
-
-func ProvideSQL() (*sql.Client, error) {
-	config, err := sql.GetConfigFromEnv()
-	if err != nil {
-		return nil, err
-	}
-	client, err := sql.New(config)
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
-}
 
 func ProvideBuntDB() (*bunt.Client, error) {
 	client, err := bunt.New()
