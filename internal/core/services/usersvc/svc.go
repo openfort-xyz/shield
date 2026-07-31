@@ -74,8 +74,11 @@ func (s *service) getByExternal(ctx context.Context, externalUserID, providerID 
 	usr, err := s.repo.FindUserByExternalID(ctx, externalUserID, providerID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrExternalUserNotFound) {
-			// Expected outcome, not a failure: GetOrCreate branches on this to create the user.
-			s.logger.WarnContext(ctx, "external user not found", slog.String("external_user_id", externalUserID), slog.String("provider_id", providerID))
+			// Not a failure: GetOrCreate relies on this to create the user, so a miss is the
+			// success path of a first-time signup. The InfoContext above already records the
+			// lookup and its identifiers. Logged at debug, which the default handler level
+			// (nil Level in pkg/logger => LevelInfo) discards.
+			s.logger.DebugContext(ctx, "external user not found", slog.String("external_user_id", externalUserID), slog.String("provider_id", providerID))
 			return nil, err
 		}
 
