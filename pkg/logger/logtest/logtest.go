@@ -2,6 +2,10 @@
 // assert on log level and content. Loggers resolve their destination when they
 // are built, so a recorder has to be started before the code under test is
 // constructed.
+//
+// A recorder redirects the package-global logging configuration, so tests that
+// use one must not call t.Parallel: two recorders alive at once would capture
+// each other's records and restore each other's configuration.
 package logtest
 
 import (
@@ -41,10 +45,20 @@ type Recorder struct {
 // restore the previous destination and level.
 func Start(level slog.Level) *Recorder {
 	rec := &Recorder{}
-	rec.restoreOut = logger.SetOutput(&rec.buf)
+	rec.restoreOut = logger.SetOutput(rec)
 	rec.restoreLvl = logger.SetLevel(level)
 
 	return rec
+}
+
+// Write appends a record to the buffer. The handlers write here, so it takes the
+// same lock as Records and Reset and code under test may log from its own
+// goroutines.
+func (r *Recorder) Write(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.buf.Write(p)
 }
 
 // Stop restores the logging configuration Start replaced. It is safe to call
