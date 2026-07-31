@@ -73,6 +73,12 @@ func (s *service) getByExternal(ctx context.Context, externalUserID, providerID 
 
 	usr, err := s.repo.FindUserByExternalID(ctx, externalUserID, providerID)
 	if err != nil {
+		if errors.Is(err, domainErrors.ErrExternalUserNotFound) {
+			// Expected outcome, not a failure: GetOrCreate branches on this to create the user.
+			s.logger.WarnContext(ctx, "external user not found", slog.String("external_user_id", externalUserID), slog.String("provider_id", providerID))
+			return nil, err
+		}
+
 		s.logger.ErrorContext(ctx, "failed to get user by external ID", logger.Error(err))
 		return nil, err
 	}

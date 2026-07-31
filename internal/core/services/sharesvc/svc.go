@@ -99,6 +99,12 @@ func (s *service) FindByReference(ctx context.Context, reference string) (*share
 
 	shr, err := s.repo.GetByReference(ctx, reference)
 	if err != nil {
+		if errors.Is(err, domainErrors.ErrShareNotFound) {
+			// Expected outcome, not a failure: callers branch on ErrShareNotFound (see Create).
+			s.logger.WarnContext(ctx, "share not found by reference", slog.String("reference", reference))
+			return nil, err
+		}
+
 		s.logger.ErrorContext(ctx, "failed to get share by reference", logger.Error(err))
 		return nil, err
 	}
