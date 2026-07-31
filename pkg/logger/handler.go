@@ -2,14 +2,34 @@ package logger
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/openfort-xyz/shield/pkg/contexter"
 )
 
+// LevelEnvVar is the environment variable read by ConfigureFromEnv.
+const LevelEnvVar = "LOG_LEVEL"
+
+var (
+	// levelVar is shared by every handler New builds. Handlers hold a pointer to
+	// it, so changing it also affects loggers that already exist and the level can
+	// be set after the process has loaded its environment. Its zero value is
+	// LevelInfo, which is what slog assumes when HandlerOptions.Level is nil, so
+	// the default behaviour is unchanged.
+	levelVar = new(slog.LevelVar)
+
+	outputMu sync.Mutex
+	output   io.Writer = os.Stdout
+)
+
 var handlerOpts = &slog.HandlerOptions{
+	Level: levelVar,
 	ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 		switch a.Key {
 		case slog.LevelKey:
@@ -45,9 +65,85 @@ func levelToGCP(level string) string {
 	}
 }
 
+// ParseLevel maps a level name to a slog.Level. It accepts the names slog uses
+// ("debug", "info", "warn", "error") case-insensitively, with an optional numeric
+// offset such as "debug+2", plus "warning" for symmetry with the severity values
+// this package emits.
+func ParseLevel(name string) (slog.Level, error) {
+	trimmed := strings.TrimSpace(name)
+	if strings.EqualFold(trimmed, "warning") {
+		trimmed = "warn"
+	}
+
+	var lvl slog.Level
+	if err := lvl.UnmarshalText([]byte(trimmed)); err != nil {
+		return 0, fmt.Errorf("parsing %s: %w", LevelEnvVar, err)
+	}
+
+	return lvl, nil
+}
+
+// ConfigureFromEnv applies LevelEnvVar to every logger New builds, including the
+// ones it has already built. Call it once the process has loaded its environment,
+// since package initialisation runs before any .env file is read. An unset or
+// empty variable leaves the level at info; an unparseable one is returned as an
+// error and leaves the level untouched.
+func ConfigureFromEnv() error {
+	raw, ok := os.LookupEnv(LevelEnvVar)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return nil
+	}
+
+	lvl, err := ParseLevel(raw)
+	if err != nil {
+		return err
+	}
+
+	levelVar.Set(lvl)
+
+	return nil
+}
+
+// Level reports the minimum level loggers built by New currently emit.
+func Level() slog.Level {
+	return levelVar.Level()
+}
+
+// SetLevel overrides the minimum level for every logger built by New and returns
+// a function restoring the previous level. Intended for tests; production code
+// should go through ConfigureFromEnv.
+func SetLevel(lvl slog.Level) (restore func()) {
+	previous := levelVar.Level()
+	levelVar.Set(lvl)
+
+	return func() { levelVar.Set(previous) }
+}
+
+// SetOutput changes where subsequent calls to New write and returns a function
+// restoring the previous destination. Loggers that already exist keep the
+// destination they were built with, so callers must set the output before
+// constructing whatever they intend to capture. Intended for tests.
+func SetOutput(w io.Writer) (restore func()) {
+	outputMu.Lock()
+	defer outputMu.Unlock()
+
+	previous := output
+	output = w
+
+	return func() {
+		outputMu.Lock()
+		defer outputMu.Unlock()
+		output = previous
+	}
+}
+
 // New creates a new standard logger with a context handler.
 func New(name string) *slog.Logger {
-	return slog.New(NewContextHandler(name, slog.NewJSONHandler(os.Stdout, handlerOpts)))
+	outputMu.Lock()
+	w := output
+	outputMu.Unlock()
+
+	return slog.New(NewContextHandler(name, slog.NewJSONHandler(w, handlerOpts)))
 }
 
 // Error returns an attribute for an error string value.

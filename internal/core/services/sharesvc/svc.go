@@ -99,6 +99,15 @@ func (s *service) FindByReference(ctx context.Context, reference string) (*share
 
 	shr, err := s.repo.GetByReference(ctx, reference)
 	if err != nil {
+		if errors.Is(err, domainErrors.ErrShareNotFound) {
+			// Not a failure: Create relies on this to detect a free reference, so a miss is
+			// the success path of a share registration. The InfoContext above already records
+			// the lookup and its reference, so this is dropped at the default level and only
+			// surfaces under LOG_LEVEL=debug.
+			s.logger.DebugContext(ctx, "share not found by reference", slog.String("reference", reference))
+			return nil, err
+		}
+
 		s.logger.ErrorContext(ctx, "failed to get share by reference", logger.Error(err))
 		return nil, err
 	}

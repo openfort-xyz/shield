@@ -16,6 +16,12 @@ func main() {
 		slog.Debug("No .env file found or error loading it", logger.Error(err))
 	}
 
+	// After godotenv, so LOG_LEVEL can come from .env as well as the environment.
+	// Loggers built before this point pick the new level up too.
+	if err := logger.ConfigureFromEnv(); err != nil {
+		slog.Warn("Ignoring invalid log level, defaulting to info", logger.Error(err))
+	}
+
 	slog.Info("Starting OpenFort Shield")
 	rootCmd := cli.NewCmdRoot()
 	if err := rootCmd.Execute(); err != nil {

@@ -261,6 +261,12 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 	if reference != nil {
 		shr, err := a.shareRepo.GetByReferenceAndKeychain(ctx, *reference, keychainID)
 		if err != nil {
+			if errors.Is(err, domainErrors.ErrShareNotFound) {
+				// Not a failure: surfaced to the caller as a 404.
+				a.logger.WarnContext(ctx, "keychain share not found by reference", slog.String("reference", *reference), slog.String("keychain_id", keychainID))
+				return nil, fromDomainError(err)
+			}
+
 			a.logger.ErrorContext(ctx, "failed to get share by reference", logger.Error(err))
 			return nil, fromDomainError(err)
 		}
@@ -351,6 +357,12 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 
 	shr, err := a.shareRepo.GetByReference(ctx, reference)
 	if err != nil {
+		if errors.Is(err, domainErrors.ErrShareNotFound) {
+			// Not a failure: surfaced to the caller as a 404.
+			a.logger.WarnContext(ctx, "share not found by reference", slog.String("reference", reference))
+			return nil, fromDomainError(err)
+		}
+
 		a.logger.ErrorContext(ctx, "failed to get share by reference", logger.Error(err))
 		return nil, fromDomainError(err)
 	}
