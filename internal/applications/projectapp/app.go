@@ -162,6 +162,25 @@ func (a *ProjectApplication) GetProject(ctx context.Context) (*project.Project, 
 	return proj, nil
 }
 
+// DeleteProject irreversibly hard-deletes the authenticated project and all
+// its data: providers, users, external users, shares (recovery share halves),
+// keychains, encryption parts, notifications, rate limits, passkey references
+// and shamir migration records. After this call the project's API key and
+// secret no longer authenticate.
+func (a *ProjectApplication) DeleteProject(ctx context.Context) error {
+	projectID := contexter.GetProjectID(ctx)
+	a.logger.InfoContext(ctx, "deleting project and all its data", slog.String("project_id", projectID))
+
+	err := a.projectRepo.HardDelete(ctx, projectID)
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to delete project", logger.Error(err))
+		return fromDomainError(err)
+	}
+
+	a.logger.InfoContext(ctx, "project deleted", slog.String("project_id", projectID))
+	return nil
+}
+
 func (a *ProjectApplication) Enable2FA(ctx context.Context) error {
 	a.logger.InfoContext(ctx, "enabling 2FA for project")
 	projectID := contexter.GetProjectID(ctx)

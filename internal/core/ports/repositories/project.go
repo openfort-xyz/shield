@@ -13,6 +13,13 @@ type ProjectRepository interface {
 	GetWithRateLimit(ctx context.Context, projectID string) (*project.WithRateLimit, error)
 	GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error)
 	Delete(ctx context.Context, projectID string) error
+	// HardDelete permanently removes the project row and, through the DB's
+	// ON DELETE CASCADE constraints, all its providers, users, external
+	// users, shares, keychains, encryption parts, notifications and rate
+	// limits. It first removes the two rows the cascade cannot reach:
+	// shld_passkey_references (plain FK to shld_shares) and
+	// shld_shamir_migrations (no FK). Idempotent.
+	HardDelete(ctx context.Context, projectID string) error
 
 	GetEncryptionPart(ctx context.Context, projectID string) (string, error)
 	SetEncryptionPart(ctx context.Context, projectID, part string) error

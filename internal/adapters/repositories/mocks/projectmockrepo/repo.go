@@ -63,6 +63,11 @@ func (m *MockProjectRepository) Delete(ctx context.Context, projectID string) er
 	return args.Error(0)
 }
 
+func (m *MockProjectRepository) HardDelete(ctx context.Context, projectID string) error {
+	args := m.Mock.Called(ctx, projectID)
+	return args.Error(0)
+}
+
 func (m *MockProjectRepository) GetEncryptionPart(ctx context.Context, projectID string) (string, error) {
 	args := m.Mock.Called(ctx, projectID)
 	if args.Get(0) == nil {
