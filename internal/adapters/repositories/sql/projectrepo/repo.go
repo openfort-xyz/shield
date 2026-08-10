@@ -155,6 +155,62 @@ func (r *repository) Delete(ctx context.Context, projectID string) error {
 	return nil
 }
 
+// HardDelete permanently wipes the project and every row that belongs to it.
+// The shld_projects delete fires the DB ON DELETE CASCADEs (providers,
+// openfort/custom providers, users, external users, shares, keychains,
+// encryption parts, notifications, rate limits). Two tables are unreachable
+// by the cascade and are deleted explicitly first:
+//   - shld_passkey_references: its FK to shld_shares lost ON DELETE CASCADE
+//     in migration 20250908164256 and would block the cascade;
+//   - shld_shamir_migrations: has no FK at all.
+//
+// All statements run in one transaction. Idempotent: deleting an already
+// absent project succeeds.
+func (r *repository) HardDelete(ctx context.Context, projectID string) error {
+	r.logger.InfoContext(ctx, "hard deleting project")
+
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.WithContext(ctx).Exec(
+			`DELETE FROM shld_passkey_references WHERE share_reference IN (
+				SELECT s.id FROM shld_shares s
+				JOIN shld_users u ON s.user_id = u.id
+				WHERE u.project_id = ?
+			)`, projectID)
+		if result.Error != nil {
+			return result.Error
+		}
+		passkeyRefs := result.RowsAffected
+
+		result = tx.WithContext(ctx).Exec(`DELETE FROM shld_shamir_migrations WHERE project_id = ?`, projectID)
+		if result.Error != nil {
+			return result.Error
+		}
+		shamirMigrations := result.RowsAffected
+
+		result = tx.WithContext(ctx).Unscoped().Delete(&Project{}, "id = ?", projectID)
+		if result.Error != nil {
+			return result.Error
+		}
+
+		r.logger.InfoContext(ctx, "hard deleted project",
+			slog.Int64("passkey_references_deleted", passkeyRefs),
+			slog.Int64("shamir_migrations_deleted", shamirMigrations),
+			slog.Int64("project_rows_deleted", result.RowsAffected),
+		)
+		return nil
+	})
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error hard deleting project", logger.Error(err))
+		return err
+	}
+
+	r.migrationMu.Lock()
+	delete(r.migrationCache, projectID)
+	r.migrationMu.Unlock()
+
+	return nil
+}
+
 func (r *repository) GetEncryptionPart(ctx context.Context, projectID string) (string, error) {
 	r.logger.InfoContext(ctx, "getting encryption part")
 

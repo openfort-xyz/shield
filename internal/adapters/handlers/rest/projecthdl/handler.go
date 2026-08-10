@@ -157,6 +157,28 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
+// DeleteProject permanently deletes the authenticated project and all its data
+// @Summary Delete project
+// @Description Irreversibly delete the project and ALL its data: providers, users, shares, keychains, encryption parts, notifications and rate limits. The project's API key and secret stop working immediately.
+// @Tags Project
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 204 "Project deleted successfully"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project [delete]
+func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "deleting project")
+
+	err := h.app.DeleteProject(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // AddProviders adds providers to a project
 // @Summary Add providers
 // @Description Add one or more providers to a project
