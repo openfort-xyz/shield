@@ -34,11 +34,14 @@ type OpenfortIdentityFactory struct {
 
 	authenticationProvider *string
 	tokenType              *string
+	// sessionCookie is the raw Cookie header of a cookie-session request. It is
+	// forwarded as-is so the cookie name (and its __Secure- prefix) stays the API's concern.
+	sessionCookie string
 }
 
 var _ factories.Identity = (*OpenfortIdentityFactory)(nil)
 
-func NewOpenfortIdentityFactory(config *Config, providerConfig *provider.OpenfortConfig, authenticationProvider, tokenType *string) factories.Identity {
+func NewOpenfortIdentityFactory(config *Config, providerConfig *provider.OpenfortConfig, authenticationProvider, tokenType *string, sessionCookie string) factories.Identity {
 	return &OpenfortIdentityFactory{
 		publishableKey:         providerConfig.PublishableKey,
 		providerID:             providerConfig.ProviderID,
@@ -46,6 +49,7 @@ func NewOpenfortIdentityFactory(config *Config, providerConfig *provider.Openfor
 		logger:                 logger.New("openfort_provider"),
 		authenticationProvider: authenticationProvider,
 		tokenType:              tokenType,
+		sessionCookie:          sessionCookie,
 	}
 }
 
@@ -56,6 +60,10 @@ func (o *OpenfortIdentityFactory) GetProviderID() string {
 func (o *OpenfortIdentityFactory) Identify(ctx context.Context, token string) (string, error) {
 	o.logger.InfoContext(ctx, "identifying user")
 
+	if o.sessionCookie != "" {
+		return o.session(ctx, "Cookie", o.sessionCookie)
+	}
+
 	if o.authenticationProvider != nil && o.tokenType != nil {
 		return o.thirdParty(ctx, token, *o.authenticationProvider, *o.tokenType)
 	}
@@ -63,7 +71,7 @@ func (o *OpenfortIdentityFactory) Identify(ctx context.Context, token string) (s
 	isJwt := jwk.IsJWT(token)
 
 	if !isJwt {
-		return o.accessToken(ctx, token)
+		return o.session(ctx, "Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 	return o.jwtToken(ctx, token)
 }
@@ -72,7 +80,9 @@ func (o *OpenfortIdentityFactory) GetCookieFieldName() string {
 	return ""
 }
 
-func (o *OpenfortIdentityFactory) accessToken(ctx context.Context, token string) (string, error) {
+// session resolves the user from the API's get-session, authenticated by either an
+// Authorization bearer header or the end user's forwarded Cookie header.
+func (o *OpenfortIdentityFactory) session(ctx context.Context, credentialHeader, credential string) (string, error) {
 	url := fmt.Sprintf("%s/iam/v2/auth/get-session", o.baseURL)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -81,7 +91,7 @@ func (o *OpenfortIdentityFactory) accessToken(ctx context.Context, token string)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set(credentialHeader, credential)
 	req.Header.Set("x-project-key", o.publishableKey)
 	client := http.Client{Timeout: time.Minute, Transport: httpTransport}
 	resp, err := client.Do(req)

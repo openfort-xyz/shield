@@ -13,6 +13,7 @@ import (
 )
 
 const TokenHeader = "Authorization"                                  //nolint:gosec
+const CookieHeader = "Cookie"                                        //nolint:gosec
 const AuthProviderHeader = "X-Auth-Provider"                         //nolint:gosec
 const APIKeyHeader = "X-API-Key"                                     //nolint:gosec
 const APISecretHeader = "X-API-Secret"                               //nolint:gosec
@@ -90,7 +91,7 @@ func (m *Middleware) PreRegisterUser(next http.Handler) http.Handler {
 		case AuthenticationTypeCustom:
 			identity, err = m.identityFactory.CreateCustomIdentity(r.Context(), projectID)
 		case AuthenticationTypeOpenfort:
-			identity, err = m.identityFactory.CreateOpenfortIdentity(r.Context(), projectID, nil, nil)
+			identity, err = m.identityFactory.CreateOpenfortIdentity(r.Context(), projectID, nil, nil, "")
 		default:
 			api.RespondWithError(w, api.ErrInvalidAuthProvider)
 			return
@@ -166,6 +167,7 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 		}
 
 		var identity factories.Identity
+		var sessionCookie string
 
 		switch providerStr {
 		case AuthenticationTypeCustom:
@@ -181,7 +183,12 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 				openfortTokenType = new(string)
 				*openfortTokenType = r.Header.Get(OpenfortTokenTypeHeader)
 			}
-			identity, err = m.identityFactory.CreateOpenfortIdentity(r.Context(), proj.ID, openfortProvider, openfortTokenType)
+			// Cookie-session projects reach us same-origin under the customer's delegated
+			// host: the browser attaches the session cookie and there is no bearer token.
+			if r.Header.Get(TokenHeader) == "" {
+				sessionCookie = r.Header.Get(CookieHeader)
+			}
+			identity, err = m.identityFactory.CreateOpenfortIdentity(r.Context(), proj.ID, openfortProvider, openfortTokenType, sessionCookie)
 		default:
 			api.RespondWithError(w, api.ErrInvalidAuthProvider)
 			return
@@ -191,12 +198,15 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 			return
 		}
 
-		// Determine the token source based on the identity type
+		// Determine the token source based on the identity type. A cookie-session
+		// identity validates the forwarded Cookie header itself, so it has no token.
 		var token string
-		if identity.GetCookieFieldName() == "" {
+		switch {
+		case sessionCookie != "":
+		case identity.GetCookieFieldName() == "":
 			// Also default path for Openfort identity (which does not use cookies)
 			token, err = getTokenFromHeader(r.Header.Get(TokenHeader))
-		} else {
+		default:
 			// Cookie vs header ARE mutually exclusive, otherwise it's not clear which one we should obey
 			if r.Header.Get(TokenHeader) != "" {
 				api.RespondWithError(w, api.ErrInvalidToken)

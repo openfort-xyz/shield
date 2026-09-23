@@ -48,7 +48,7 @@ func (p *identityFactory) CreateCustomIdentity(ctx context.Context, projectID st
 	return cstmidty.NewCustomIdentityFactory(config), nil
 }
 
-func (p *identityFactory) CreateOpenfortIdentity(ctx context.Context, projectID string, authenticationProvider, tokenType *string) (factories.Identity, error) {
+func (p *identityFactory) CreateOpenfortIdentity(ctx context.Context, projectID string, authenticationProvider, tokenType *string, sessionCookie string) (factories.Identity, error) {
 	prov, err := p.repo.GetByProjectAndType(ctx, projectID, provider.TypeOpenfort)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrProviderNotFound) {
@@ -63,5 +63,5 @@ func (p *identityFactory) CreateOpenfortIdentity(ctx context.Context, projectID 
 		return nil, domainErrors.ErrProviderConfigMismatch
 	}
 
-	return ofidty.NewOpenfortIdentityFactory(p.config, config, authenticationProvider, tokenType), nil
+	return ofidty.NewOpenfortIdentityFactory(p.config, config, authenticationProvider, tokenType, sessionCookie), nil
 }
