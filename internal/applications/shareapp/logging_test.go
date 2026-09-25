@@ -16,9 +16,12 @@ import (
 	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
+	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/internal/core/services/sharesvc"
 	"github.com/openfort-xyz/shield/pkg/contexter"
 	"github.com/openfort-xyz/shield/pkg/logger/logtest"
+	"github.com/openfort-xyz/shield/pkg/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -155,4 +158,72 @@ func TestGetShareByReferenceLogsNotFoundAsWarning(t *testing.T) {
 	assert.Equal(t, reference, got.Attr("reference"))
 	assert.NotContains(t, rec.Severities(), "ERROR",
 		"a missing share must not produce an error record")
+}
+
+// A share that fails to authenticate under the key rebuilt from the caller's
+// part is the caller's error: a wrong X-Encryption-Part or a session registered
+// with the wrong part. It is reported as such, and the record names the share
+// and the input that carried the part, so the cause is readable from logs.
+func TestGetShareByReferenceLogsWrongPartAsWarning(t *testing.T) {
+	const (
+		externalUserID = "external_user_id"
+		userID         = "user_id"
+		projectID      = "project_id"
+		reference      = "test-reference"
+	)
+
+	rec := logtest.Start(slog.LevelInfo)
+	defer rec.Stop()
+
+	shareRepo := new(sharemockrepo.MockShareRepository)
+	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
+	projectRepo := new(projectmockrepo.MockProjectRepository)
+	userRepo := new(usermockedrepo.MockUserRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(
+		new(encryptionpartsmockrepo.MockEncryptionPartsRepository), projectRepo)
+
+	reconstructor := encryptionFactory.CreateReconstructionStrategy(true)
+	key, err := random.GenerateRandomString(32)
+	require.NoError(t, err)
+	storedPart, _, err := reconstructor.Split(key)
+	require.NoError(t, err)
+	otherKey, err := random.GenerateRandomString(32)
+	require.NoError(t, err)
+	_, otherProjectPart, err := reconstructor.Split(otherKey)
+	require.NoError(t, err)
+	encryptedSecret, err := encryptionFactory.CreateEncryptionStrategy(key).Encrypt("secret")
+	require.NoError(t, err)
+
+	ref := reference
+	shareRepo.On("GetByReference", mock.Anything, reference).Return(&share.Share{
+		UserID:    userID,
+		Reference: &ref,
+		Secret:    encryptedSecret,
+		Entropy:   share.EntropyProject,
+	}, nil)
+	userRepo.On("GetUserIDsByExternalID", mock.Anything, externalUserID).Return([]string{userID}, nil)
+	projectRepo.On("GetEncryptionPart", mock.Anything, projectID).Return(storedPart, nil)
+	projectRepo.On("HasSuccessfulMigration", mock.Anything, projectID).Return(true, nil)
+
+	app := New(
+		sharesvc.New(shareRepo, keychainRepo, encryptionFactory),
+		shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{},
+	)
+
+	ctx := contexter.WithProjectID(context.Background(), projectID)
+	ctx = contexter.WithExternalUserID(ctx, externalUserID)
+	ctx = contexter.WithProject(ctx, &project.Project{ID: projectID})
+
+	shr, err := app.GetShareByReference(ctx, reference, WithEncryptionPart(otherProjectPart))
+	require.ErrorIs(t, err, ErrInvalidEncryptionPart)
+	assert.Nil(t, shr)
+
+	got, found := rec.Find("encryption part does not match share")
+	require.True(t, found, "expected a warning record, got %v", rec.Records())
+	assert.Equal(t, "WARNING", got.Severity)
+	assert.Equal(t, "share_application", got.Logger)
+	assert.Equal(t, reference, got.Attr("reference"))
+	assert.Equal(t, "part", got.Attr("encryption_part_source"))
+	assert.NotContains(t, rec.Severities(), "ERROR",
+		"a wrong encryption part must not produce an error record")
 }
