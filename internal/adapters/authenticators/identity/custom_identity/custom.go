@@ -68,7 +68,7 @@ func (c *CustomIdentityFactory) validatePEM(token string) (string, error) {
 		return "", err
 	}
 
-	parsed, err := jwt.Parse(token, keyFunc, jwt.WithValidMethods(validMethods))
+	parsed, err := jwt.Parse(token, keyFunc, jwt.WithValidMethods(validMethods), jwt.WithExpirationRequired())
 	if err != nil {
 		return "", err
 	}

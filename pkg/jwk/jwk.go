@@ -14,7 +14,7 @@ func Validate(token string, jwkURLs []string) (string, error) {
 		return "", err
 	}
 
-	parsed, err := jwt.Parse(token, k.Keyfunc)
+	parsed, err := jwt.Parse(token, k.Keyfunc, jwt.WithExpirationRequired())
 	if err != nil {
 		return "", ErrInvalidToken
 	}

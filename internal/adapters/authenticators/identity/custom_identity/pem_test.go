@@ -287,6 +287,25 @@ func TestValidatePEM_ExpiredToken_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestValidatePEM_MissingExp_ReturnsError(t *testing.T) {
+	pubPEM, priv := generateRSAKeyPEM(t)
+	factory := &CustomIdentityFactory{
+		config: &provider.CustomConfig{
+			PEM:     string(pubPEM),
+			KeyType: provider.KeyTypeRSA,
+		},
+	}
+
+	claims := jwt.MapClaims{
+		"sub": "user-123",
+	}
+	token := signToken(t, jwt.SigningMethodRS256, priv, claims)
+	_, err := factory.validatePEM(token)
+	if err == nil {
+		t.Fatal("expected error for token with no exp claim")
+	}
+}
+
 func TestValidMethodsForKeyType(t *testing.T) {
 	tests := []struct {
 		name    string
