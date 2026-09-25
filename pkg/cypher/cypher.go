@@ -5,10 +5,15 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"errors"
+	"fmt"
 
 	"github.com/codahale/sss"
 	"github.com/openfort-xyz/shield/pkg/random"
 )
+
+// ErrAuthenticationFailed is returned by Decrypt when the ciphertext does not
+// authenticate under the given key: the key is wrong or the data was altered.
+var ErrAuthenticationFailed = errors.New("authentication failed")
 
 func Encrypt(plaintext, key string) (string, error) {
 	keyBytes, err := base64.StdEncoding.DecodeString(key)
@@ -64,7 +69,7 @@ func Decrypt(encrypted, key string) (string, error) {
 	nonce, ciphertext := encryptedBytes[:nonceSize], encryptedBytes[nonceSize:]
 	plaintext, err := aesGCM.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %w", ErrAuthenticationFailed, err)
 	}
 
 	return string(plaintext), nil

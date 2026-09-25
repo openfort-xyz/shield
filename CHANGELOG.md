@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Fixed
+- Reject a caller-supplied encryption part that does not match the share with `400 INVALID_ENCRYPTION_PART` instead of `500 INTERNAL`. The mismatch is logged at WARN with the share reference and whether the part came from `X-Encryption-Part` or an encryption session by @jamalavedra in https://github.com/openfort-xyz/shield/pull/128
+- Require the `exp` claim on custom PEM, custom JWK and Openfort JWT validation; a signed token without an expiry is no longer accepted by @SashaMIT in https://github.com/openfort-xyz/shield/pull/118
+
+## [v0.3.5]
+### Added
+- Authenticate Openfort users from a forwarded first-party session cookie as an alternative to the `Authorization` bearer header by @n00m4d in https://github.com/openfort-xyz/shield/pull/126
+
+## [v0.3.4]
+### Added
+- `DELETE /project` endpoint that hard-deletes the authenticated project and all of its data by @n00m4d in https://github.com/openfort-xyz/shield/pull/116
+
+## [v0.3.3]
+### Changed
+- Stop logging expected not-found lookups (`ErrShareNotFound`, `ErrExternalUserNotFound`) at ERROR; the log level is now configurable and the logger output is assertable in tests by @jamalavedra in https://github.com/openfort-xyz/shield/pull/114
+- Bump `google.golang.org/grpc`, `go.opentelemetry.io/otel` and the Go patch version for security advisories by @jamalavedra in https://github.com/openfort-xyz/shield/pull/115
+- chore(deps): bump the actions-minor group with 4 updates by @dependabot[bot] in https://github.com/openfort-xyz/shield/pull/113
+
+## [v0.3.2]
+### Fixed
+- Share a single database connection pool across the dependency graph instead of opening one per repository, and expose pool limits via environment variables by @jamalavedra in https://github.com/openfort-xyz/shield/pull/109
+
+### Changed
+- chore(deps): bump `golang.org/x/crypto` by @dependabot[bot] in https://github.com/openfort-xyz/shield/pull/110
+- chore(deps): bump `golang.org/x/net` by @dependabot[bot] in https://github.com/openfort-xyz/shield/pull/106
+- chore(deps): bump golang from 1.26.4-alpine to 1.26.5-alpine by @dependabot[bot] in https://github.com/openfort-xyz/shield/pull/107
+- chore(deps): bump the actions-minor group with 8 updates by @dependabot[bot] in https://github.com/openfort-xyz/shield/pull/108
+
+## [v0.3.1]
+### Fixed
+- Skip the database query in the bulk share-encryption lookups when the input ID list is empty by @n00m4d in https://github.com/openfort-xyz/shield/pull/103
+
+### Changed
+- chore(deps): bump actions/checkout in the actions-minor group by @dependabot[bot] in https://github.com/openfort-xyz/shield/pull/100
+
 ## [v0.3.0]
 ### Changed
 - MySQL to PostgreSQL DB client change by @n00m4d in https://github.com/openfort-xyz/shield/pull/94

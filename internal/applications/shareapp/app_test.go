@@ -47,6 +47,15 @@ func TestShareApplication_GetShare(t *testing.T) {
 		t.Fatalf("failed to generate encryption key: %v", err)
 	}
 
+	otherKey, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf("%s", otherKey)
+	}
+	_, otherProjectPart, err := reconstructor.Split(otherKey)
+	if err != nil {
+		t.Fatalf("failed to generate other encryption key: %v", err)
+	}
+
 	storedProjectPart := share.EncryptionPart{
 		EncPart:     projectPart,
 		UserID:      "userID",
@@ -270,6 +279,22 @@ func TestShareApplication_GetShare(t *testing.T) {
 			},
 		},
 		{
+			name:    "well-formed encryption part from another key",
+			wantErr: ErrInvalidEncryptionPart,
+			project: projectWithoutRequiredOTP,
+			mock: func() {
+				tmpEncryptedShare := *encryptedShare
+				shareRepo.ExpectedCalls = nil
+				projectRepo.ExpectedCalls = nil
+				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
+				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
+			},
+			opts: []Option{
+				WithEncryptionPart(otherProjectPart),
+			},
+		},
+		{
 			name:    "decryption error",
 			wantErr: ErrInternal,
 			project: projectWithoutRequiredOTP,
@@ -373,6 +398,15 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 	storedPart, projectPart, err := reconstructor.Split(key)
 	if err != nil {
 		t.Fatalf("failed to generate encryption key: %v", err)
+	}
+
+	otherKey, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf("%s", otherKey)
+	}
+	_, otherProjectPart, err := reconstructor.Split(otherKey)
+	if err != nil {
+		t.Fatalf("failed to generate other encryption key: %v", err)
 	}
 
 	storedProjectPart := share.EncryptionPart{
@@ -610,6 +644,24 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 			},
 			opts: []Option{
 				WithEncryptionPart("invalid-key"),
+			},
+		},
+		{
+			name:    "well-formed encryption part from another key",
+			wantErr: ErrInvalidEncryptionPart,
+			project: projectWithoutRequiredOTP,
+			mock: func() {
+				tmpEncryptedShare := *encryptedShare
+				shareRepo.ExpectedCalls = nil
+				projectRepo.ExpectedCalls = nil
+				userRepo.ExpectedCalls = nil
+				shareRepo.On("GetByReference", mock.Anything, reference).Return(&tmpEncryptedShare, nil)
+				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
+				projectRepo.On("GetEncryptionPart", mock.Anything, "project_id").Return(storedPart, nil)
+				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
+			},
+			opts: []Option{
+				WithEncryptionPart(otherProjectPart),
 			},
 		},
 		{

@@ -18,6 +18,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
 	"github.com/openfort-xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/pkg/cypher"
 	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
@@ -291,11 +292,8 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 				return nil, err
 			}
 
-			cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
-			shr.Secret, err = cypher.Decrypt(shr.Secret)
-			if err != nil {
-				a.logger.ErrorContext(ctx, "failed to decrypt secret", logger.Error(err))
-				return nil, ErrInternal
+			if err := a.decryptSecret(ctx, shr, encryptionKey, opt); err != nil {
+				return nil, err
 			}
 		}
 
@@ -334,11 +332,8 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 					return nil, err
 				}
 			}
-			cypher := a.encryptionFactory.CreateEncryptionStrategy(*encryptionKey)
-			shr.Secret, err = cypher.Decrypt(shr.Secret)
-			if err != nil {
-				a.logger.ErrorContext(ctx, "failed to decrypt secret", logger.Error(err))
-				return nil, ErrInternal
+			if err := a.decryptSecret(ctx, shr, *encryptionKey, opt); err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -401,11 +396,8 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 			return nil, err
 		}
 
-		cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
-		shr.Secret, err = cypher.Decrypt(shr.Secret)
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to decrypt secret", logger.Error(err))
-			return nil, ErrInternal
+		if err := a.decryptSecret(ctx, shr, encryptionKey, opt); err != nil {
+			return nil, err
 		}
 	}
 
@@ -443,11 +435,8 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 			return nil, err
 		}
 
-		cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
-		shr.Secret, err = cypher.Decrypt(shr.Secret)
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to decrypt secret", logger.Error(err))
-			return nil, ErrInternal
+		if err := a.decryptSecret(ctx, shr, encryptionKey, opt); err != nil {
+			return nil, err
 		}
 	}
 
@@ -471,6 +460,34 @@ func (a *ShareApplication) DeleteShare(ctx context.Context, reference *string) e
 	}
 
 	return nil
+}
+
+// decryptSecret replaces shr.Secret with its plaintext. An authentication
+// failure means the key rebuilt from the caller's part is not the key the
+// share was encrypted with. Shamir reconstruction cannot detect a wrong part,
+// so this is the first point where the mismatch is visible, and it is the
+// caller's error rather than Shield's.
+func (a *ShareApplication) decryptSecret(ctx context.Context, shr *share.Share, encryptionKey string, opt options) error {
+	secret, err := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey).Decrypt(shr.Secret)
+	if err == nil {
+		shr.Secret = secret
+		return nil
+	}
+
+	if errors.Is(err, cypher.ErrAuthenticationFailed) {
+		reference := share.DefaultReference
+		if shr.Reference != nil {
+			reference = *shr.Reference
+		}
+		a.logger.WarnContext(ctx, "encryption part does not match share",
+			slog.String("reference", reference),
+			slog.String("encryption_part_source", opt.partSource()),
+			logger.Error(err))
+		return ErrInvalidEncryptionPart
+	}
+
+	a.logger.ErrorContext(ctx, "failed to decrypt secret", logger.Error(err))
+	return ErrInternal
 }
 
 func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, error) {
