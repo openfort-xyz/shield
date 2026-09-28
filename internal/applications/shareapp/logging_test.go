@@ -134,7 +134,7 @@ func TestGetShareByReferenceLogsNotFoundAsWarning(t *testing.T) {
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	userRepo := new(usermockedrepo.MockUserRepository)
-	shareRepo.On("GetByReference", mock.Anything, reference).Return(nil, domainErrors.ErrShareNotFound)
+	shareRepo.On("GetByReferenceAndProjectID", mock.Anything, reference, "project_id").Return(nil, domainErrors.ErrShareNotFound)
 
 	encryptionFactory := encryption.NewEncryptionFactory(
 		new(encryptionpartsmockrepo.MockEncryptionPartsRepository), projectRepo)
@@ -195,7 +195,7 @@ func TestGetShareByReferenceLogsWrongPartAsWarning(t *testing.T) {
 	require.NoError(t, err)
 
 	ref := reference
-	shareRepo.On("GetByReference", mock.Anything, reference).Return(&share.Share{
+	shareRepo.On("GetByReferenceAndProjectID", mock.Anything, reference, "project_id").Return(&share.Share{
 		UserID:    userID,
 		Reference: &ref,
 		Secret:    encryptedSecret,

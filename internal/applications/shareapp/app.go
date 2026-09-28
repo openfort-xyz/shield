@@ -350,7 +350,10 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 		o(&opt)
 	}
 
-	shr, err := a.shareRepo.GetByReference(ctx, reference)
+	// Scope the lookup to the authenticated project. References are not unique across projects,
+	// and the external user ID check below is not project-scoped either, so an unscoped lookup
+	// lets one project read another project's share by claiming the same external user ID.
+	shr, err := a.shareRepo.GetByReferenceAndProjectID(ctx, reference, contexter.GetProjectID(ctx))
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrShareNotFound) {
 			// Not a failure: surfaced to the caller as a 404.
