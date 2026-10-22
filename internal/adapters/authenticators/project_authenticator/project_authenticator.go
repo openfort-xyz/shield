@@ -21,10 +21,11 @@ type ProjectAuthenticator struct {
 	// secretHash selects the stored hash the secret is checked against.
 	secretHash func(*project.Project) (string, bool)
 	logger     *slog.Logger
-	// lookupMissLevel is the log level for an unknown key or secret: the
-	// commit routes try the pending credential first, so a miss there is
-	// routine.
+	// lookupMissLevel and secretMissLevel are the log levels for an unknown
+	// key and a wrong secret: the commit routes try the pending credential
+	// first, so a miss there is routine.
 	lookupMissLevel slog.Level
+	secretMissLevel slog.Level
 }
 
 var errNoPendingAPISecret = errors.New("no unexpired pending API secret")
@@ -51,6 +52,7 @@ func NewProjectAuthenticator(repository repositories.ProjectRepository, apiKey, 
 		secretHash:      currentSecretHash,
 		logger:          logger.New("api_key_authenticator"),
 		lookupMissLevel: slog.LevelError,
+		secretMissLevel: slog.LevelError,
 	}
 }
 
@@ -64,6 +66,7 @@ func NewPendingProjectAuthenticator(repository repositories.ProjectRepository, a
 		secretHash:      currentSecretHash,
 		logger:          logger.New("pending_api_key_authenticator"),
 		lookupMissLevel: slog.LevelDebug,
+		secretMissLevel: slog.LevelError,
 	}
 }
 
@@ -78,6 +81,7 @@ func NewPendingSecretProjectAuthenticator(repository repositories.ProjectReposit
 		secretHash:      pendingSecretHash,
 		logger:          logger.New("pending_api_secret_authenticator"),
 		lookupMissLevel: slog.LevelDebug,
+		secretMissLevel: slog.LevelDebug,
 	}
 }
 
@@ -92,13 +96,13 @@ func (a *ProjectAuthenticator) Authenticate(ctx context.Context) (*authenticatio
 
 	hash, ok := a.secretHash(proj)
 	if !ok {
-		a.logger.Log(ctx, a.lookupMissLevel, "failed to authenticate api secret", logger.Error(errNoPendingAPISecret))
+		a.logger.Log(ctx, a.secretMissLevel, "failed to authenticate api secret", logger.Error(errNoPendingAPISecret))
 		return nil, errNoPendingAPISecret
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(hash), project.APISecretBytes(a.apiSecret))
 	if err != nil {
-		a.logger.Log(ctx, a.lookupMissLevel, "failed to authenticate api secret", logger.Error(err))
+		a.logger.Log(ctx, a.secretMissLevel, "failed to authenticate api secret", logger.Error(err))
 		return nil, err
 	}
 

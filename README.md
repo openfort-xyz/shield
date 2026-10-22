@@ -582,7 +582,9 @@ it received it by sending it back. Both calls are safe to retry.
     this commit route.
   - `409 A_PENDING_NOT_PROVEN`: commit sent with the current secret while a rotation is pending.
   - `409 A_ROTATION_EXPIRED`: commit sent with the current secret after the pending secret expired.
-  - `409 A_NO_PENDING`: the pending secret was replaced by another prepare.
+  - `409 A_NO_PENDING`: another prepare replaced the pending secret while this
+    commit was in flight. A secret replaced before the commit fails with
+    `401 A_INVALID`.
 - **Replicas:** the old secret is rejected immediately on every route and every
   replica: the secret check does not use the API-key cache.
 - **With an API key rotation:** both commits lock the project row and each
