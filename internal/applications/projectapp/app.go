@@ -29,6 +29,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
 	"github.com/openfort-xyz/shield/pkg/contexter"
 	"github.com/openfort-xyz/shield/pkg/cypher"
+	"github.com/openfort-xyz/shield/pkg/jwk"
 	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
@@ -210,6 +211,10 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	}
 
 	if cfg.jwkURL != nil {
+		if err := jwk.CheckTenantURL(*cfg.jwkURL); err != nil {
+			a.logger.WarnContext(ctx, "rejected custom JWK URL", logger.Error(err))
+			return nil, ErrJWKURLNotAllowed
+		}
 		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
 		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
 			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
@@ -438,6 +443,10 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 	if cfg.jwkURL != nil {
 		if prov.Type != provider.TypeCustom {
 			return ErrProviderMismatch
+		}
+		if err := jwk.CheckTenantURL(*cfg.jwkURL); err != nil {
+			a.logger.WarnContext(ctx, "rejected custom JWK URL", logger.Error(err))
+			return ErrJWKURLNotAllowed
 		}
 
 		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, JWK: *cfg.jwkURL, CookieFieldName: cfg.cookieFieldName})

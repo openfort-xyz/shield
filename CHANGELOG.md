@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Security
+- Restrict custom-provider JWK URLs: `https` on a public address only, checked when the provider is saved and again at fetch time after DNS resolution and on every redirect. Operators allow internal or plain-HTTP hosts with `JWK_ALLOWED_HOSTS`. **Breaking:** existing custom providers with an internal or `http` JWK URL stop authenticating until their host is allowlisted.
+
 ### Added
 - Two-phase rotation of a project's encryption key: `POST /project/rotate-encryption-key/prepare` and `/commit`
 - Two-phase rotation of a project's API key: `POST /project/rotate-api-key/prepare` and `/commit`, committed with the pending key
@@ -16,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `BulkUpdate` now runs its updates inside its transaction
+- Fetch each JWK set once and reuse it, instead of fetching it and starting a refresh goroutine on every authenticated request
 - The auth middleware and the project application share one project service instance
 
 ### Removed

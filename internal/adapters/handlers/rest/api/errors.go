@@ -28,6 +28,7 @@ var (
 	ErrMissingProvider       = &Error{"Missing provider", "PV_MISSING", http.StatusBadRequest}
 	ErrProviderNotFound      = &Error{"Provider not found", "PV_NOT_FOUND", http.StatusNotFound}
 	ErrInvalidProviderConfig = &Error{"Invalid provider config", "PV_CFG_INVALID", http.StatusBadRequest}
+	ErrJWKURLNotAllowed      = &Error{"JWK URL not allowed: use https on a public host, or ask the operator to allowlist the host in JWK_ALLOWED_HOSTS", "PV_CFG_INVALID", http.StatusBadRequest}
 	ErrMissingKeyType        = &Error{"Missing key type", "PV_CFG_INVALID", http.StatusBadRequest}
 	ErrProviderAlreadyExists = &Error{"Custom authentication already registered for this project", "PV_EXISTS", http.StatusConflict}
 	ErrMissingUserID         = &Error{"Missing user ID", "US_ID_MISSING", http.StatusBadRequest}

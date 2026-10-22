@@ -4,12 +4,26 @@ import (
 	"encoding/base64"
 	"strings"
 
-	keyfunc "github.com/MicahParks/keyfunc/v3"
 	jwt "github.com/golang-jwt/jwt/v5"
 )
 
+// Validate checks token against operator-configured JWK URLs (such as
+// Openfort's), fetched without the tenant URL policy.
 func Validate(token string, jwkURLs []string) (string, error) {
-	k, err := keyfunc.NewDefault(jwkURLs)
+	return validate(trustedSets, token, jwkURLs)
+}
+
+// ValidateTenant checks token against a tenant-supplied JWK URL, fetched only
+// under the tenant policy (see CheckTenantURL and AllowedHostsEnv).
+func ValidateTenant(token string, jwkURL string) (string, error) {
+	if err := CheckTenantURL(jwkURL); err != nil {
+		return "", err
+	}
+	return validate(tenantSets, token, []string{jwkURL})
+}
+
+func validate(sets *keySets, token string, jwkURLs []string) (string, error) {
+	k, err := sets.get(jwkURLs)
 	if err != nil {
 		return "", err
 	}
