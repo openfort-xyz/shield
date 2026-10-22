@@ -14,7 +14,7 @@ if [[ ! -f tla2tools.jar ]]; then
 fi
 echo "${TLA_SHA256}  tla2tools.jar" | shasum -a 256 -c - >/dev/null
 
-MUTANTS=(MutNoRecheck MutDeleteInsert MutNoKeyCheck MutMultiPending MutOneShot MutCommitNoAuth MutNoBackfill)
+MUTANTS=(MutNoRecheck MutDeleteInsert MutNoKeyCheck MutMultiPending MutOneShot MutCommitNoAuth MutNoBackfill MutSecCommitNoAuth)
 
 write_cfg() {
   local enabled=$1 out=$2
@@ -23,6 +23,7 @@ write_cfg() {
     echo "CONSTANTS"
     echo "  Writers = {1, 2}"
     echo "  MaxKey = 4"
+    echo "  MaxSec = 3"
     for m in "${MUTANTS[@]}"; do
       if [[ $m == "$enabled" ]]; then echo "  $m = TRUE"; else echo "  $m = FALSE"; fi
     done
@@ -69,4 +70,5 @@ check MutMultiPending AtMostOnePending || status=1
 check MutOneShot ClientCanRecover || status=1
 check MutCommitNoAuth ApiClientCanAuth || status=1
 check MutNoBackfill NoUndecryptableShare || status=1
+check MutSecCommitNoAuth ApiClientCanAuth || status=1
 exit $status

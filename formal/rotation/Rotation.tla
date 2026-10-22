@@ -1,6 +1,7 @@
 ---------------------------- MODULE Rotation ----------------------------
 (***************************************************************************)
-(* Two-phase rotation of a Shield project's encryption key and API key,   *)
+(* Two-phase rotation of a Shield project's encryption key, API key and  *)
+(* API secret,                                                             *)
 (* racing share writers, the shamir migration job, stale project parts     *)
 (* (configs and encryption sessions) and lost HTTP responses.              *)
 (*                                                                         *)
@@ -22,13 +23,15 @@ EXTENDS Naturals, FiniteSets
 CONSTANTS
     Writers,          \* share writers; writer w owns share w
     MaxKey,           \* bound on generated encryption keys and API keys
+    MaxSec,           \* bound on generated API secrets
     MutNoRecheck,     \* persist without re-reading the part under FOR SHARE
     MutDeleteInsert,  \* commit replaces the part row; guard treats "no row" as no conflict
     MutNoKeyCheck,    \* builders skip the stored key-check verification
     MutMultiPending,  \* prepare adds a pending key instead of replacing it
     MutOneShot,       \* single-call rotation: new part only in the commit response
     MutCommitNoAuth,  \* API-key commit accepted with the current key
-    MutNoBackfill     \* prepare leaves a legacy project without a key check
+    MutNoBackfill,    \* prepare leaves a legacy project without a key check
+    MutSecCommitNoAuth \* API-secret commit accepted with the current secret
 
 None == 0
 Garbage == MaxKey + 1
@@ -48,14 +51,16 @@ VARIABLES
     cnew,       \* part received from prepare, not yet confirmed committed
     wpc, wkey, wread, wgen,
     spc, skey, sread, sgen, shamirDone,
-    apiKey, pendKey, ck, cpend, nextApi
+    apiKey, pendKey, ck, cpend, nextApi,
+    apiSec, pendSec, cs, cpendSec, nextSec
 
 encVars == <<cur, curCheck, gen, pend, nextKey>>
 clientVars == <<everHeld, cpart, cnew>>
 writerVars == <<wpc, wkey, wread, wgen>>
 shamirVars == <<spc, skey, sread, sgen, shamirDone>>
 apiVars == <<apiKey, pendKey, ck, cpend, nextApi>>
-vars == <<encVars, shares, clientVars, writerVars, shamirVars, apiVars>>
+secVars == <<apiSec, pendSec, cs, cpendSec, nextSec>>
+vars == <<encVars, shares, clientVars, writerVars, shamirVars, apiVars, secVars>>
 
 Init ==
     /\ cur = 1 /\ curCheck = Legacy /\ gen = 0 /\ pend = {} /\ nextKey = 2
@@ -65,6 +70,7 @@ Init ==
     /\ wread = [w \in Writers |-> None] /\ wgen = [w \in Writers |-> 0]
     /\ spc = "idle" /\ skey = None /\ sread = None /\ sgen = 0 /\ shamirDone = FALSE
     /\ apiKey = 1 /\ pendKey = None /\ ck = 1 /\ cpend = None /\ nextApi = 2
+    /\ apiSec = 1 /\ pendSec = None /\ cs = 1 /\ cpendSec = None /\ nextSec = 2
 
 \* The builders' Build(): reconstruct, then verify against the key check.
 KeyAccepted(k) == curCheck = Legacy \/ MutNoKeyCheck \/ k = curCheck
@@ -94,7 +100,7 @@ WriterRead(w) ==
     /\ wpc' = [wpc EXCEPT ![w] = "ready"]
     /\ wread' = [wread EXCEPT ![w] = cur]
     /\ wgen' = [wgen EXCEPT ![w] = gen]
-    /\ UNCHANGED <<encVars, shares, clientVars, shamirVars, apiVars>>
+    /\ UNCHANGED <<encVars, shares, clientVars, shamirVars, apiVars, secVars>>
 
 WriterPersist(w) ==
     /\ wpc[w] = "ready"
@@ -102,7 +108,7 @@ WriterPersist(w) ==
                  THEN [shares EXCEPT ![w] = wkey[w]]
                  ELSE shares                       \* 409 EC_ROTATED
     /\ wpc' = [wpc EXCEPT ![w] = "idle"]
-    /\ UNCHANGED <<encVars, clientVars, wkey, wread, wgen, shamirVars, apiVars>>
+    /\ UNCHANGED <<encVars, clientVars, wkey, wread, wgen, shamirVars, apiVars, secVars>>
 
 (* shamirjob.Execute: re-encrypts every share of a legacy project, BulkUpdate *)
 
@@ -110,7 +116,7 @@ ShamirRead ==
     /\ ~shamirDone /\ spc = "idle"
     /\ Recon(cur, cpart) = cur
     /\ spc' = "ready" /\ skey' = cur /\ sread' = cur /\ sgen' = gen
-    /\ UNCHANGED <<encVars, shares, clientVars, writerVars, shamirDone, apiVars>>
+    /\ UNCHANGED <<encVars, shares, clientVars, writerVars, shamirDone, apiVars, secVars>>
 
 ShamirPersist ==
     /\ spc = "ready"
@@ -118,7 +124,7 @@ ShamirPersist ==
                  THEN [s \in Writers |-> IF shares[s] = None THEN None ELSE skey]
                  ELSE shares
     /\ spc' = "idle" /\ shamirDone' = TRUE
-    /\ UNCHANGED <<encVars, clientVars, writerVars, skey, sread, sgen, apiVars>>
+    /\ UNCHANGED <<encVars, clientVars, writerVars, skey, sread, sgen, apiVars, secVars>>
 
 -----------------------------------------------------------------------------
 (* Encryption-key rotation: prepare / commit *)
@@ -137,7 +143,7 @@ RotPrepare ==
          IF delivered
          THEN /\ cnew' = nextKey /\ everHeld' = everHeld \cup {nextKey}
          ELSE UNCHANGED <<cnew, everHeld>>
-    /\ UNCHANGED <<cur, gen, shares, cpart, writerVars, shamirVars, apiVars>>
+    /\ UNCHANGED <<cur, gen, shares, cpart, writerVars, shamirVars, apiVars, secVars>>
 
 ConfirmNew(delivered) ==
     IF delivered THEN cpart' = cnew /\ cnew' = None ELSE UNCHANGED <<cpart, cnew>>
@@ -164,7 +170,7 @@ RotCommit ==
                 /\ UNCHANGED nextKey
                 /\ ConfirmNew(delivered)
                 /\ UNCHANGED everHeld
-    /\ UNCHANGED <<writerVars, shamirVars, apiVars>>
+    /\ UNCHANGED <<writerVars, shamirVars, apiVars, secVars>>
 
 RotOneShot ==
     /\ MutOneShot
@@ -176,28 +182,31 @@ RotOneShot ==
          IF delivered
          THEN cpart' = nextKey /\ everHeld' = everHeld \cup {nextKey}
          ELSE UNCHANGED <<cpart, everHeld>>
-    /\ UNCHANGED <<gen, pend, cnew, writerVars, shamirVars, apiVars>>
+    /\ UNCHANGED <<gen, pend, cnew, writerVars, shamirVars, apiVars, secVars>>
 
 PendingExpires ==
     /\ pend # {}
     /\ pend' = {}
-    /\ UNCHANGED <<cur, curCheck, gen, nextKey, shares, clientVars, writerVars, shamirVars, apiVars>>
+    /\ UNCHANGED <<cur, curCheck, gen, nextKey, shares, clientVars, writerVars, shamirVars, apiVars, secVars>>
 
 -----------------------------------------------------------------------------
 (* API-key rotation: prepare (current key) / commit (pending key proves receipt) *)
 
 ApiPrepare ==
     /\ nextApi <= MaxKey
-    /\ ck = apiKey
+    /\ ck = apiKey /\ cs = apiSec
     /\ pendKey' = nextApi /\ nextApi' = nextApi + 1
     /\ \E delivered \in BOOLEAN :
          IF delivered THEN cpend' = nextApi ELSE UNCHANGED cpend
-    /\ UNCHANGED <<apiKey, ck, encVars, shares, clientVars, writerVars, shamirVars>>
+    /\ UNCHANGED <<apiKey, ck, encVars, shares, clientVars, writerVars, shamirVars, secVars>>
 
 ApiCommit ==
     LET key == IF cpend # None THEN cpend ELSE ck IN
     /\ \E delivered \in BOOLEAN :
-         CASE pendKey # None /\ key = pendKey ->                        \* 200 committed
+         CASE cs # apiSec ->                                            \* 401: secret rotated meanwhile
+                /\ IF delivered THEN cpend' = None ELSE UNCHANGED cpend
+                /\ UNCHANGED <<apiKey, pendKey, ck>>
+           [] pendKey # None /\ key = pendKey ->                        \* 200 committed
                 /\ apiKey' = pendKey /\ pendKey' = None
                 /\ IF delivered THEN ck' = key /\ cpend' = None ELSE UNCHANGED <<ck, cpend>>
            [] key = apiKey /\ (pendKey = None) ->                       \* 200 current
@@ -211,12 +220,53 @@ ApiCommit ==
            [] OTHER ->                                                  \* 401: pending key dead
                 /\ IF delivered THEN cpend' = None ELSE UNCHANGED cpend
                 /\ UNCHANGED <<apiKey, pendKey, ck>>
-    /\ UNCHANGED <<nextApi, encVars, shares, clientVars, writerVars, shamirVars>>
+    /\ UNCHANGED <<nextApi, encVars, shares, clientVars, writerVars, shamirVars, secVars>>
 
 ApiPendingExpires ==
     /\ pendKey # None
     /\ pendKey' = None
-    /\ UNCHANGED <<apiKey, ck, cpend, nextApi, encVars, shares, clientVars, writerVars, shamirVars>>
+    /\ UNCHANGED <<apiKey, ck, cpend, nextApi, encVars, shares, clientVars, writerVars, shamirVars, secVars>>
+
+-----------------------------------------------------------------------------
+(* API-secret rotation: prepare (current key and secret) / commit (current *)
+(* key with the pending secret proves receipt). The commit decides under   *)
+(* the project row lock that API-key commits also take, so each action is  *)
+(* atomic against them.                                                    *)
+
+SecPrepare ==
+    /\ nextSec <= MaxSec
+    /\ ck = apiKey /\ cs = apiSec
+    /\ pendSec' = nextSec /\ nextSec' = nextSec + 1
+    /\ \E delivered \in BOOLEAN :
+         IF delivered THEN cpendSec' = nextSec ELSE UNCHANGED cpendSec
+    /\ UNCHANGED <<apiSec, cs, encVars, shares, clientVars, writerVars, shamirVars, apiVars>>
+
+SecCommit ==
+    LET sec == IF cpendSec # None THEN cpendSec ELSE cs IN
+    /\ \E delivered \in BOOLEAN :
+         CASE ck # apiKey ->                                            \* 401: key rotated meanwhile
+                /\ IF delivered THEN cpendSec' = None ELSE UNCHANGED cpendSec
+                /\ UNCHANGED <<apiSec, pendSec, cs>>
+           [] pendSec # None /\ sec = pendSec ->                        \* 200 committed
+                /\ apiSec' = pendSec /\ pendSec' = None
+                /\ IF delivered THEN cs' = sec /\ cpendSec' = None ELSE UNCHANGED <<cs, cpendSec>>
+           [] sec = apiSec /\ pendSec = None ->                         \* 200 current
+                /\ IF delivered THEN cs' = sec /\ cpendSec' = None ELSE UNCHANGED <<cs, cpendSec>>
+                /\ UNCHANGED <<apiSec, pendSec>>
+           [] sec = apiSec /\ MutSecCommitNoAuth ->                     \* mutant: swap on current secret
+                /\ apiSec' = pendSec /\ pendSec' = None
+                /\ UNCHANGED <<cs, cpendSec>>
+           [] sec = apiSec ->                                           \* 409 pending not proven
+                UNCHANGED <<apiSec, pendSec, cs, cpendSec>>
+           [] OTHER ->                                                  \* 401/409: pending secret dead
+                /\ IF delivered THEN cpendSec' = None ELSE UNCHANGED cpendSec
+                /\ UNCHANGED <<apiSec, pendSec, cs>>
+    /\ UNCHANGED <<nextSec, encVars, shares, clientVars, writerVars, shamirVars, apiVars>>
+
+SecPendingExpires ==
+    /\ pendSec # None
+    /\ pendSec' = None
+    /\ UNCHANGED <<apiSec, cs, cpendSec, nextSec, encVars, shares, clientVars, writerVars, shamirVars, apiVars>>
 
 -----------------------------------------------------------------------------
 
@@ -225,6 +275,7 @@ Next ==
     \/ ShamirRead \/ ShamirPersist
     \/ RotPrepare \/ RotCommit \/ RotOneShot \/ PendingExpires
     \/ ApiPrepare \/ ApiCommit \/ ApiPendingExpires
+    \/ SecPrepare \/ SecCommit \/ SecPendingExpires
 
 Spec == Init /\ [][Next]_vars
 
@@ -239,7 +290,8 @@ AtMostOnePending == Cardinality(pend) <= 1
 \* A client that keeps what it was sent can always reach the current key.
 ClientCanRecover == cur \in {cpart, cnew}
 
-\* A client that keeps what it was sent can always authenticate.
-ApiClientCanAuth == apiKey \in {ck, cpend}
+\* A client that keeps what it was sent can always authenticate: with a key
+\* and a secret it holds.
+ApiClientCanAuth == apiKey \in {ck, cpend} /\ apiSec \in {cs, cpendSec}
 
 =============================================================================

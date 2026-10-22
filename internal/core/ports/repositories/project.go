@@ -48,6 +48,12 @@ type ProjectRepository interface {
 	// CommitAPIKeyRotation runs commit under FOR UPDATE on the project row and,
 	// when it returns true, makes the pending key current.
 	CommitAPIKeyRotation(ctx context.Context, projectID string, commit project.CommitAPIKeyRotationFunc) error
+	// SetPendingAPISecret runs check under FOR UPDATE on the project row and,
+	// when it passes, stores the hash of a pending secret.
+	SetPendingAPISecret(ctx context.Context, projectID, secretHash string, expiresAt time.Time, check project.CheckAPISecretFunc) error
+	// CommitAPISecretRotation runs commit under FOR UPDATE on the project row
+	// and, when it returns true, makes the pending secret current.
+	CommitAPISecretRotation(ctx context.Context, projectID string, commit project.CommitAPISecretRotationFunc) error
 
 	Update2FA(ctx context.Context, projectID string, enable2FA bool) error
 

@@ -20,4 +20,14 @@ type ProjectService interface {
 	// that pending key, and reports false when presentedKey is already the
 	// current key with nothing pending (a retry after a lost response).
 	CommitAPIKeyRotation(ctx context.Context, projectID, presentedKey string) (currentKey string, committed bool, err error)
+	// PrepareAPISecretRotation stores the hash of a new pending API secret
+	// and returns the secret. It fails with ErrAPIKeyRevoked or
+	// ErrAPISecretRevoked when the presented key or secret is no longer
+	// current (a commit landed after authentication).
+	PrepareAPISecretRotation(ctx context.Context, projectID, presentedKey, presentedSecret string, expiresAt time.Time) (string, error)
+	// CommitAPISecretRotation makes the pending secret current when
+	// presentedSecret is that pending secret, and reports false when it is
+	// already the current secret with nothing pending (a retry after a lost
+	// response).
+	CommitAPISecretRotation(ctx context.Context, projectID, presentedKey, presentedSecret string) (committed bool, err error)
 }

@@ -651,3 +651,56 @@ func (h *Handler) CommitAPIKeyRotation(w http.ResponseWriter, r *http.Request) {
 	}
 	h.respondJSON(w, RotateAPIKeyCommitResponse{APIKey: apiKey, Status: status})
 }
+
+// PrepareAPISecretRotation generates a pending API secret
+// @Summary Prepare API secret rotation
+// @Description Generate a pending API secret. The current secret keeps working until the rotation is committed with the pending secret. Preparing again replaces the pending secret.
+// @Tags Project
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 200 {object} RotateAPISecretPrepareResponse "Pending API secret"
+// @Failure 401 {object} api.Error "Invalid API credentials"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/rotate-api-secret/prepare [post]
+func (h *Handler) PrepareAPISecretRotation(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "preparing API secret rotation")
+
+	secret, err := h.app.PrepareAPISecretRotation(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	h.respondJSON(w, RotateAPISecretPrepareResponse{APISecret: secret})
+}
+
+// CommitAPISecretRotation makes the pending API secret current
+// @Summary Commit API secret rotation
+// @Description Authenticate with the API key and the pending API secret from prepare to make it current; the previous secret stops working. Safe to retry: a retry with the now-current secret returns status current.
+// @Tags Project
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "Pending API Secret"
+// @Success 200 {object} RotateAPISecretCommitResponse "committed or current"
+// @Failure 401 {object} api.Error "Invalid API credentials"
+// @Failure 409 {object} api.Error "Not authenticated with the pending secret, rotation expired, or no pending rotation"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/rotate-api-secret/commit [post]
+func (h *Handler) CommitAPISecretRotation(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "committing API secret rotation")
+
+	committed, err := h.app.CommitAPISecretRotation(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	status := RotationCurrent
+	if committed {
+		status = RotationCommitted
+	}
+	h.respondJSON(w, RotateAPISecretCommitResponse{Status: status})
+}
