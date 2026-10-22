@@ -84,6 +84,10 @@ type APISecretRotation struct {
 	PendingExpiresAt *time.Time
 }
 
+// CheckAPISecretFunc vets a secret prepare against the locked state: the
+// credentials it authenticated with may have been rotated since.
+type CheckAPISecretFunc func(state APISecretRotation) error
+
 // CommitAPISecretRotationFunc decides whether the pending secret replaces
 // the current one.
 type CommitAPISecretRotationFunc func(state APISecretRotation) (swap bool, err error)

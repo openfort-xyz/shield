@@ -25,4 +25,5 @@ var (
 	ErrPendingAPISecretNotProven       = errors.New("commit must be authenticated with the pending API secret")
 	ErrAPISecretRotationExpired        = errors.New("pending API secret rotation expired")
 	ErrNoPendingAPISecretRotation      = errors.New("no pending API secret rotation")
+	ErrAPISecretRevoked                = errors.New("API secret was rotated")
 )

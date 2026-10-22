@@ -204,14 +204,26 @@ func (s *service) CommitAPIKeyRotation(ctx context.Context, projectID, presented
 	return presentedKey, committed, nil
 }
 
-func (s *service) PrepareAPISecretRotation(ctx context.Context, projectID, presentedKey string, expiresAt time.Time) (string, error) {
+// PrepareAPISecretRotation re-checks the presented key and secret under the
+// project row lock: a request that authenticated just before a commit must not
+// mint a new secret from the one that commit revoked.
+func (s *service) PrepareAPISecretRotation(ctx context.Context, projectID, presentedKey, presentedSecret string, expiresAt time.Time) (string, error) {
 	s.logger.InfoContext(ctx, "preparing API secret rotation", slog.String("project_id", projectID))
 	secret, hash, err := s.newAPISecret()
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to generate API secret", logger.Error(err))
 		return "", err
 	}
-	if err := s.repo.SetPendingAPISecret(ctx, projectID, presentedKey, hash, expiresAt); err != nil {
+	stillCurrent := func(state project.APISecretRotation) error {
+		if presentedKey != state.APIKey {
+			return domainErrors.ErrAPIKeyRevoked
+		}
+		if bcrypt.CompareHashAndPassword([]byte(state.APISecretHash), project.APISecretBytes(presentedSecret)) != nil {
+			return domainErrors.ErrAPISecretRevoked
+		}
+		return nil
+	}
+	if err := s.repo.SetPendingAPISecret(ctx, projectID, hash, expiresAt, stillCurrent); err != nil {
 		s.logger.ErrorContext(ctx, "failed to set pending API secret", logger.Error(err))
 		return "", err
 	}

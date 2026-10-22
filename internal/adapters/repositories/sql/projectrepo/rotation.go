@@ -193,20 +193,24 @@ func (r *repository) CommitAPIKeyRotation(ctx context.Context, projectID string,
 	})
 }
 
-func (r *repository) SetPendingAPISecret(ctx context.Context, projectID, currentKey, secretHash string, expiresAt time.Time) error {
+func (r *repository) SetPendingAPISecret(ctx context.Context, projectID, secretHash string, expiresAt time.Time, check project.CheckAPISecretFunc) error {
 	r.logger.InfoContext(ctx, "setting pending API secret", slog.String("project_id", projectID))
 
-	res := r.db.Model(&Project{}).Where("id = ? AND api_key = ?", projectID, currentKey).Updates(map[string]any{
-		"pending_api_secret":            secretHash,
-		"pending_api_secret_expires_at": expiresAt,
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		dbProj, err := lockProject(tx, projectID)
+		if err != nil {
+			return err
+		}
+
+		if err := check(project.APISecretRotation{APIKey: dbProj.APIKey, APISecretHash: dbProj.APISecret}); err != nil {
+			return err
+		}
+
+		return tx.Model(&Project{}).Where("id = ?", projectID).Updates(map[string]any{
+			"pending_api_secret":            secretHash,
+			"pending_api_secret_expires_at": expiresAt,
+		}).Error
 	})
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected != 1 {
-		return domainErrors.ErrAPIKeyRevoked
-	}
-	return nil
 }
 
 func (r *repository) CommitAPISecretRotation(ctx context.Context, projectID string, commit project.CommitAPISecretRotationFunc) error {

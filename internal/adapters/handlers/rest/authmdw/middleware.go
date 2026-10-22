@@ -66,6 +66,7 @@ func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
 
 		ctx := contexter.WithProjectID(r.Context(), authentication.ProjectID)
 		ctx = contexter.WithAPIKey(ctx, apiKey)
+		ctx = contexter.WithAPISecret(ctx, apiSecret)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

@@ -233,7 +233,7 @@ func (a *ProjectApplication) CommitAPIKeyRotation(ctx context.Context) (string, 
 // PrepareAPISecretRotation returns a new pending API secret. The current
 // secret keeps working until CommitAPISecretRotation is called with the new one.
 func (a *ProjectApplication) PrepareAPISecretRotation(ctx context.Context) (string, error) {
-	secret, err := a.projectSvc.PrepareAPISecretRotation(ctx, contexter.GetProjectID(ctx), contexter.GetAPIKey(ctx), time.Now().Add(rotationPendingTTL))
+	secret, err := a.projectSvc.PrepareAPISecretRotation(ctx, contexter.GetProjectID(ctx), contexter.GetAPIKey(ctx), contexter.GetAPISecret(ctx), time.Now().Add(rotationPendingTTL))
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to prepare API secret rotation", logger.Error(err))
 		return "", fromDomainError(err)

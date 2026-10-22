@@ -26,6 +26,7 @@ func TestFromApplicationError_Rotation(t *testing.T) {
 		{projectapp.ErrPendingAPISecretNotProven, http.StatusConflict, "A_PENDING_NOT_PROVEN"},
 		{projectapp.ErrAPISecretRotationExpired, http.StatusConflict, "A_ROTATION_EXPIRED"},
 		{projectapp.ErrNoPendingAPISecretRotation, http.StatusConflict, "A_NO_PENDING"},
+		{projectapp.ErrAPISecretRevoked, http.StatusUnauthorized, "A_INVALID"},
 		{projectapp.ErrEncryptionPartChanged, http.StatusConflict, "EC_ROTATED"},
 		{projectapp.ErrEncryptionNotConfigured, http.StatusConflict, "EC_MISSING"},
 		{fmt.Errorf("wrapped: %w", projectapp.ErrRotationExpired), http.StatusConflict, "EC_ROTATION_EXPIRED"},

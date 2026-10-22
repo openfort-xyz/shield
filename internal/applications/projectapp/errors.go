@@ -32,6 +32,7 @@ var (
 	ErrPendingAPISecretNotProven        = errors.New("commit must be authenticated with the pending API secret")
 	ErrAPISecretRotationExpired         = errors.New("pending API secret rotation expired")
 	ErrNoPendingAPISecretRotation       = errors.New("no pending API secret rotation")
+	ErrAPISecretRevoked                 = errors.New("API secret was rotated")
 	ErrJWKPemConflict                   = errors.New("jwk and pem cannot be set at the same time")
 	ErrInvalidPemCertificate            = errors.New("invalid PEM certificate")
 	ErrOTPRequired                      = errors.New("OTP is required for this request")
@@ -120,6 +121,10 @@ func fromDomainError(err error) error {
 
 	if errors.Is(err, domainErrors.ErrNoPendingAPISecretRotation) {
 		return ErrNoPendingAPISecretRotation
+	}
+
+	if errors.Is(err, domainErrors.ErrAPISecretRevoked) {
+		return ErrAPISecretRevoked
 	}
 
 	if errors.Is(err, domainErrors.ErrOTPRateLimitExceeded) {

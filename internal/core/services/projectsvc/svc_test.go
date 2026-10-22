@@ -274,11 +274,11 @@ func TestService_CommitAPISecretRotation(t *testing.T) {
 func TestService_PrepareAPISecretRotation_StoresHashNotSecret(t *testing.T) {
 	repo := new(projectmockrepo.MockProjectRepository)
 	var stored string
-	repo.On("SetPendingAPISecret", mock.Anything, "project", "key", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		stored = args.String(3)
+	repo.On("SetPendingAPISecret", mock.Anything, "project", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		stored = args.String(2)
 	}).Return(nil)
 
-	secret, err := New(repo, time.Minute).PrepareAPISecretRotation(context.Background(), "project", "key", time.Now().Add(time.Minute))
+	secret, err := New(repo, time.Minute).PrepareAPISecretRotation(context.Background(), "project", "key", "current", time.Now().Add(time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,12 +292,33 @@ func TestService_PrepareAPISecretRotation_StoresHashNotSecret(t *testing.T) {
 	}
 }
 
-func TestService_PrepareAPISecretRotation_RevokedKey(t *testing.T) {
-	repo := new(projectmockrepo.MockProjectRepository)
-	repo.On("SetPendingAPISecret", mock.Anything, "project", "old-key", mock.Anything, mock.Anything).Return(domainErrors.ErrAPIKeyRevoked)
+// The prepare re-checks the presented credentials against the locked row.
+func TestService_PrepareAPISecretRotation_ChecksLockedState(t *testing.T) {
+	current, currentHash := secretAndHash(t, 1)
+	other, _ := secretAndHash(t, 2)
+	state := project.APISecretRotation{APIKey: "key", APISecretHash: currentHash}
 
-	secret, err := New(repo, time.Minute).PrepareAPISecretRotation(context.Background(), "project", "old-key", time.Now().Add(time.Minute))
-	if secret != "" || !errors.Is(err, domainErrors.ErrAPIKeyRevoked) {
-		t.Fatalf("got %q, %v; want no secret and ErrAPIKeyRevoked", secret, err)
+	tests := []struct {
+		name, key, secret string
+		wantErr           error
+	}{
+		{"current key and secret", "key", current, nil},
+		{"key rotated since authentication", "old-key", current, domainErrors.ErrAPIKeyRevoked},
+		{"secret rotated since authentication", "key", other, domainErrors.ErrAPISecretRevoked},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := new(projectmockrepo.MockProjectRepository)
+			repo.On("SetPendingAPISecret", mock.Anything, "project", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+				if err := args.Get(4).(project.CheckAPISecretFunc)(state); !errors.Is(err, tt.wantErr) {
+					t.Errorf("check err = %v, want %v", err, tt.wantErr)
+				}
+			}).Return(tt.wantErr)
+
+			secret, err := New(repo, time.Minute).PrepareAPISecretRotation(context.Background(), "project", tt.key, tt.secret, time.Now().Add(time.Minute))
+			if (secret == "") != (tt.wantErr != nil) || !errors.Is(err, tt.wantErr) {
+				t.Errorf("got %q, %v; want err %v", secret, err, tt.wantErr)
+			}
+		})
 	}
 }

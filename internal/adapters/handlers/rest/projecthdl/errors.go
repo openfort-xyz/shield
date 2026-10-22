@@ -38,6 +38,7 @@ var applicationErrorMapping = []struct {
 	{projectapp.ErrPendingAPISecretNotProven, api.ErrPendingAPISecretNotProven},
 	{projectapp.ErrAPISecretRotationExpired, api.ErrAPISecretRotationExpired},
 	{projectapp.ErrNoPendingAPISecretRotation, api.ErrNoPendingAPISecretRotation},
+	{projectapp.ErrAPISecretRevoked, api.ErrInvalidAPICredentials},
 	{projectapp.ErrJWKPemConflict, api.ErrJWKPemConflict},
 	{projectapp.ErrInvalidPemCertificate, api.ErrInvalidPemCertificate},
 	{projectapp.ErrOTPRequired, api.ErrOTPRequired},
