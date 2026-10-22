@@ -69,6 +69,7 @@ state count and `0 states left on queue`, and eight `PASS Mut... violates ...` l
 | `SecPrepare` | `projectsvc.PrepareAPISecretRotation`, `projectrepo.SetPendingAPISecret` |
 | `SecCommit` | `authmdw.AuthenticateAPISecretRotationCommit`, `projauth.NewPendingSecretProjectAuthenticator`, `projectsvc.CommitAPISecretRotation`, `projectrepo.CommitAPISecretRotation`, `projectrepo.lockProject` |
 | `SecPendingExpires` | `rotationPendingTTL`, `pending_api_secret_expires_at` |
+| Client `ck`/`cpend`, `cs`/`cpendSec` | The Openfort API (`openfort-xyz/api` `ApiKeyService.rotateShieldCredential`): `apikey.uuid` is the current value, `apikey.pending_uuid` the pending one; it promotes only after a confirmed commit and drops a pending value only on a refusal of its first commit attempt. Concurrent API requests are not modeled; `pending_uuid` is written with a compare-and-swap |
 | Not modeled (DB tests instead) | share entropy changes racing a commit (`projectrepo.listProjectShares` FOR UPDATE OF s; `TestCommitEncryptionKeyRotation_UnguardedWriterNotOverwritten`); duplicate part rows (`TestGuardedWrites_DuplicatePartRows`); `ImportShare` refusing project entropy; `shareapp.migrateToKeychainIfRequired` (`TestKeychainMigration_DuringRotation_KeepsRotatedCiphertext`); cache re-population across an eviction (`TestService_GetByAPIKey_DoesNotRecacheAcrossEviction`); prepare with a revoked key (`TestAPIKeyRotation_PrepareWithRevokedKeyRefused`, `TestAPISecretRotation_PrepareWithRevokedKeyRefused`); the pending secret refused off the commit route and both rotations interleaved over HTTP (`TestAPISecretRotation_HTTP`, `TestAPISecretRotation_HTTP_InterleavedWithAPIKey`); secrets never logged (`TestAPISecretRotation_SecretsNeverLogged`) |
 | Not covered | the 60 s API-key cache on other replicas (documented) |
 
@@ -78,7 +79,7 @@ model.
 
 ## Sync
 
-Model confirmed against the code at: `e25f6cf33a2ff211df730ae716c3ad5ea8f0c493`
+Model confirmed against the code at: `2cd7ebc2728b3cb9abbf43432d4aae9404ad2926`
 
 Move this commit forward only after you confirm that the model still
 describes the code at the new commit: read the diff of every covered
