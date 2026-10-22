@@ -5,26 +5,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.4.0]
 ### Security
-- Restrict custom-provider JWK URLs: `https` on a public address only, checked when the provider is saved and again at fetch time after DNS resolution and on every redirect. Operators allow internal or plain-HTTP hosts with `JWK_ALLOWED_HOSTS`. **Breaking:** existing custom providers with an internal or `http` JWK URL stop authenticating until their host is allowlisted.
+- Restrict custom-provider JWK URLs to `https` on a public address, checked when the provider is saved and again at fetch time, including redirects. Operators allow internal or plain-HTTP hosts with `JWK_ALLOWED_HOSTS`. **Breaking:** custom providers with an internal or `http` JWK URL stop authenticating until their host is allowlisted by @jamalavedra in https://github.com/openfort-xyz/shield/pull/139
 
 ### Added
-- Two-phase rotation of a project's encryption key: `POST /project/rotate-encryption-key/prepare` and `/commit`
-- Two-phase rotation of a project's API key: `POST /project/rotate-api-key/prepare` and `/commit`, committed with the pending key
-- Store a check value of each project encryption key and reject a part that does not reconstruct it with `400 EC_INVALID`
-- Reject a project-entropy share write that overlaps a key rotation commit with `409 EC_ROTATED`
-- TLA+ model of the rotation protocol in `formal/rotation`
-- Reject importing project-entropy shares (`400 SH_INVALID`); export never produces them
-- Log SQL with placeholders instead of bound values
+- Two-phase rotation of a project's encryption key (`POST /project/rotate-encryption-key/prepare` and `/commit`) and API key (`POST /project/rotate-api-key/prepare` and `/commit`, committed with the pending key) by @jamalavedra in https://github.com/openfort-xyz/shield/pull/138
+- Store a check value for each project encryption key and reject a part that does not reconstruct it with `400 EC_INVALID` by @jamalavedra in https://github.com/openfort-xyz/shield/pull/138
+- Reject a project-entropy share write that overlaps a key rotation commit with `409 EC_ROTATED` by @jamalavedra in https://github.com/openfort-xyz/shield/pull/138
+- TLA+ model of the rotation protocol in `formal/rotation` by @jamalavedra in https://github.com/openfort-xyz/shield/pull/138
+
+### Changed
+- Reject importing project-entropy shares with `400 SH_INVALID`; export never produces them by @jamalavedra in https://github.com/openfort-xyz/shield/pull/138
+- Log SQL with placeholders instead of bound values by @jamalavedra in https://github.com/openfort-xyz/shield/pull/138
 
 ### Fixed
-- `BulkUpdate` now runs its updates inside its transaction
-- Fetch each JWK set once and reuse it, instead of fetching it and starting a refresh goroutine on every authenticated request
-- The auth middleware and the project application share one project service instance
+- `BulkUpdate` runs its updates inside its transaction by @jamalavedra in https://github.com/openfort-xyz/shield/pull/138
+- The auth middleware and the project application share one project service instance by @jamalavedra in https://github.com/openfort-xyz/shield/pull/138
+- Fetch each JWK set once and reuse it instead of on every authenticated request by @jamalavedra in https://github.com/openfort-xyz/shield/pull/139
 
 ### Removed
-- `POST /project/reset-api-secret`, which had returned `501 Not Implemented` since it was disabled
+- `POST /project/reset-api-secret`, which had returned `501 Not Implemented` since it was disabled by @jamalavedra in https://github.com/openfort-xyz/shield/pull/138
 
+## [v0.3.7]
+### Changed
+- Dependency updates, including `keyfunc` v3.8.0, `resend-go` v3.7.0, `grpc` v1.83.2 and the Go 1.27.1 base image by @jamalavedra in https://github.com/openfort-xyz/shield/pull/137
+
+## [v0.3.6]
 ### Fixed
 - Reject a caller-supplied encryption part that does not match the share with `400 INVALID_ENCRYPTION_PART` instead of `500 INTERNAL`. The mismatch is logged at WARN with the share reference and whether the part came from `X-Encryption-Part` or an encryption session by @jamalavedra in https://github.com/openfort-xyz/shield/pull/128
 - Require the `exp` claim on custom PEM, custom JWK and Openfort JWT validation; a signed token without an expiry is no longer accepted by @SashaMIT in https://github.com/openfort-xyz/shield/pull/118
