@@ -99,6 +99,9 @@ func (s *Server) Handler() http.Handler {
 	// key (or the current one), not with AuthenticateAPISecret.
 	r.Handle("/project/rotate-api-key/commit",
 		authMdw.AuthenticateAPIKeyRotationCommit(http.HandlerFunc(projectHdl.CommitAPIKeyRotation))).Methods(http.MethodPost)
+	// Same, for the pending API secret.
+	r.Handle("/project/rotate-api-secret/commit",
+		authMdw.AuthenticateAPISecretRotationCommit(http.HandlerFunc(projectHdl.CommitAPISecretRotation))).Methods(http.MethodPost)
 	p := r.PathPrefix("/project").Subrouter()
 	p.Use(authMdw.AuthenticateAPISecret)
 	p.HandleFunc("", projectHdl.GetProject).Methods(http.MethodGet)
@@ -113,6 +116,7 @@ func (s *Server) Handler() http.Handler {
 	p.HandleFunc("/encryption-session", projectHdl.RegisterEncryptionSession).Methods(http.MethodPost)
 	p.HandleFunc("/encryption-key", projectHdl.RegisterEncryptionKey).Methods(http.MethodPost)
 	p.HandleFunc("/rotate-api-key/prepare", projectHdl.PrepareAPIKeyRotation).Methods(http.MethodPost)
+	p.HandleFunc("/rotate-api-secret/prepare", projectHdl.PrepareAPISecretRotation).Methods(http.MethodPost)
 	p.HandleFunc("/rotate-encryption-key/prepare", projectHdl.PrepareEncryptionKeyRotation).Methods(http.MethodPost)
 	p.HandleFunc("/rotate-encryption-key/commit", projectHdl.CommitEncryptionKeyRotation).Methods(http.MethodPost)
 	p.HandleFunc("/enable-2fa", projectHdl.Enable2FA).Methods(http.MethodPost)

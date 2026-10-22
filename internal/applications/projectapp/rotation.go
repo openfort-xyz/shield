@@ -229,3 +229,27 @@ func (a *ProjectApplication) CommitAPIKeyRotation(ctx context.Context) (string, 
 	a.logger.InfoContext(ctx, "API key rotation finished", slog.Bool("committed", committed))
 	return apiKey, committed, nil
 }
+
+// PrepareAPISecretRotation returns a new pending API secret. The current
+// secret keeps working until CommitAPISecretRotation is called with the new one.
+func (a *ProjectApplication) PrepareAPISecretRotation(ctx context.Context) (string, error) {
+	secret, err := a.projectSvc.PrepareAPISecretRotation(ctx, contexter.GetProjectID(ctx), contexter.GetAPIKey(ctx), contexter.GetAPISecret(ctx), time.Now().Add(rotationPendingTTL))
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to prepare API secret rotation", logger.Error(err))
+		return "", fromDomainError(err)
+	}
+	return secret, nil
+}
+
+// CommitAPISecretRotation makes the pending API secret current. It must be
+// authenticated with that pending secret; it reports false when the presented
+// secret is already current with nothing pending (a retry after a lost response).
+func (a *ProjectApplication) CommitAPISecretRotation(ctx context.Context) (bool, error) {
+	committed, err := a.projectSvc.CommitAPISecretRotation(ctx, contexter.GetProjectID(ctx), contexter.GetAPIKey(ctx), contexter.GetAPISecret(ctx))
+	if err != nil {
+		a.logger.WarnContext(ctx, "API secret rotation commit rejected", logger.Error(err))
+		return false, fromDomainError(err)
+	}
+	a.logger.InfoContext(ctx, "API secret rotation finished", slog.Bool("committed", committed))
+	return committed, nil
+}

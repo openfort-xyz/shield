@@ -156,3 +156,12 @@ type RotateAPIKeyCommitResponse struct {
 	APIKey string         `json:"api_key"`
 	Status RotationStatus `json:"status"`
 }
+
+type RotateAPISecretPrepareResponse struct {
+	APISecret string `json:"api_secret"`
+}
+
+// RotateAPISecretCommitResponse does not echo the secret: the caller sent it.
+type RotateAPISecretCommitResponse struct {
+	Status RotationStatus `json:"status"`
+}

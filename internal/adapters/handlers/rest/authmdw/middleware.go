@@ -66,6 +66,7 @@ func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
 
 		ctx := contexter.WithProjectID(r.Context(), authentication.ProjectID)
 		ctx = contexter.WithAPIKey(ctx, apiKey)
+		ctx = contexter.WithAPISecret(ctx, apiSecret)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -99,6 +100,40 @@ func (m *Middleware) AuthenticateAPIKeyRotationCommit(next http.Handler) http.Ha
 
 		ctx := contexter.WithProjectID(r.Context(), authentication.ProjectID)
 		ctx = contexter.WithAPIKey(ctx, apiKey)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// AuthenticateAPISecretRotationCommit accepts the current API key with the
+// project's pending API secret (from a prepared rotation) or its current
+// one, and records both. Committing with the pending secret proves the caller
+// received it. The pending secret authenticates nothing else.
+func (m *Middleware) AuthenticateAPISecretRotationCommit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		apiKey := r.Header.Get(APIKeyHeader)
+		if apiKey == "" {
+			api.RespondWithError(w, api.ErrMissingAPIKey)
+			return
+		}
+
+		apiSecret := r.Header.Get(APISecretHeader)
+		if apiSecret == "" {
+			api.RespondWithError(w, api.ErrMissingAPISecret)
+			return
+		}
+
+		authentication, err := m.authenticationFactory.CreatePendingSecretProjectAuthenticator(apiKey, apiSecret).Authenticate(r.Context())
+		if err != nil {
+			authentication, err = m.authenticationFactory.CreateProjectAuthenticator(apiKey, apiSecret).Authenticate(r.Context())
+		}
+		if err != nil {
+			api.RespondWithError(w, api.ErrInvalidAPICredentials)
+			return
+		}
+
+		ctx := contexter.WithProjectID(r.Context(), authentication.ProjectID)
+		ctx = contexter.WithAPIKey(ctx, apiKey)
+		ctx = contexter.WithAPISecret(ctx, apiSecret)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

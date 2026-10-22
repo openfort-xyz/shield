@@ -171,12 +171,8 @@ func (r *repository) CommitAPIKeyRotation(ctx context.Context, projectID string,
 	r.logger.InfoContext(ctx, "committing API key rotation", slog.String("project_id", projectID))
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		dbProj := &Project{}
-		err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).Where("id = ?", projectID).First(dbProj).Error
+		dbProj, err := lockProject(tx, projectID)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return domainErrors.ErrProjectNotFound
-			}
 			return err
 		}
 
@@ -195,4 +191,62 @@ func (r *repository) CommitAPIKeyRotation(ctx context.Context, projectID string,
 			"pending_api_key_expires_at": nil,
 		}).Error
 	})
+}
+
+func (r *repository) SetPendingAPISecret(ctx context.Context, projectID, secretHash string, expiresAt time.Time, check project.CheckAPISecretFunc) error {
+	r.logger.InfoContext(ctx, "setting pending API secret", slog.String("project_id", projectID))
+
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		dbProj, err := lockProject(tx, projectID)
+		if err != nil {
+			return err
+		}
+
+		if err := check(project.APISecretRotation{APIKey: dbProj.APIKey, APISecretHash: dbProj.APISecret}); err != nil {
+			return err
+		}
+
+		return tx.Model(&Project{}).Where("id = ?", projectID).Updates(map[string]any{
+			"pending_api_secret":            secretHash,
+			"pending_api_secret_expires_at": expiresAt,
+		}).Error
+	})
+}
+
+func (r *repository) CommitAPISecretRotation(ctx context.Context, projectID string, commit project.CommitAPISecretRotationFunc) error {
+	r.logger.InfoContext(ctx, "committing API secret rotation", slog.String("project_id", projectID))
+
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		dbProj, err := lockProject(tx, projectID)
+		if err != nil {
+			return err
+		}
+
+		swap, err := commit(project.APISecretRotation{
+			APIKey:           dbProj.APIKey,
+			APISecretHash:    dbProj.APISecret,
+			PendingHash:      dbProj.PendingAPISecret,
+			PendingExpiresAt: dbProj.PendingAPISecretExpiresAt,
+		})
+		if err != nil || !swap {
+			return err
+		}
+
+		return tx.Model(&Project{}).Where("id = ?", projectID).Updates(map[string]any{
+			"api_secret":                    gorm.Expr("pending_api_secret"),
+			"pending_api_secret":            nil,
+			"pending_api_secret_expires_at": nil,
+		}).Error
+	})
+}
+
+// lockProject reads the project row under FOR UPDATE. API key and API secret
+// commits both take it, so they serialize; each updates only its own columns.
+func lockProject(tx *gorm.DB, projectID string) (*Project, error) {
+	dbProj := &Project{}
+	err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).Where("id = ?", projectID).First(dbProj).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, domainErrors.ErrProjectNotFound
+	}
+	return dbProj, err
 }

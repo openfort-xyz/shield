@@ -1,7 +1,9 @@
 package projectsvc
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"testing"
 	"time"
@@ -11,6 +13,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/stretchr/testify/mock"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestService_Create(t *testing.T) {
@@ -205,5 +208,117 @@ func TestService_GetByAPIKey_DoesNotRecacheAcrossEviction(t *testing.T) {
 	repo.On("GetByAPIKey", mock.Anything, "old-key").Return(nil, domainErrors.ErrProjectNotFound).Once()
 	if _, err := svc.GetByAPIKey(context.Background(), "old-key"); !errors.Is(err, domainErrors.ErrProjectNotFound) {
 		t.Errorf("old key after rotation: err = %v, want %v (served from a re-populated cache)", err, domainErrors.ErrProjectNotFound)
+	}
+}
+
+// secretAndHash returns a hex-encoded secret and its bcrypt hash, as stored.
+func secretAndHash(t *testing.T, seed byte) (string, string) {
+	t.Helper()
+	raw := bytes.Repeat([]byte{seed}, 32)
+	hash, err := bcrypt.GenerateFromPassword(raw, bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return hex.EncodeToString(raw), string(hash)
+}
+
+func TestService_CommitAPISecretRotation(t *testing.T) {
+	future := time.Now().Add(time.Minute)
+	past := time.Now().Add(-time.Minute)
+	current, currentHash := secretAndHash(t, 1)
+	pending, pendingHash := secretAndHash(t, 2)
+	other, _ := secretAndHash(t, 3)
+
+	withPending := func(expires *time.Time) project.APISecretRotation {
+		return project.APISecretRotation{APIKey: "key", APISecretHash: currentHash, PendingHash: &pendingHash, PendingExpiresAt: expires}
+	}
+	tests := []struct {
+		name      string
+		state     project.APISecretRotation
+		key       string
+		presented string
+		wantSwap  bool
+		wantErr   error
+	}{
+		{"pending secret commits", withPending(&future), "key", pending, true, nil},
+		{"current secret with nothing pending", project.APISecretRotation{APIKey: "key", APISecretHash: currentHash}, "key", current, false, nil},
+		{"current secret while pending", withPending(&future), "key", current, false, domainErrors.ErrPendingAPISecretNotProven},
+		{"current secret after expiry", withPending(&past), "key", current, false, domainErrors.ErrAPISecretRotationExpired},
+		{"expired pending secret", withPending(&past), "key", pending, false, domainErrors.ErrAPISecretRotationExpired},
+		{"replaced pending secret", withPending(&future), "key", other, false, domainErrors.ErrNoPendingAPISecretRotation},
+		{"key rotated since authentication", withPending(&future), "old-key", pending, false, domainErrors.ErrAPIKeyRevoked},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := new(projectmockrepo.MockProjectRepository)
+			var swapped bool
+			repo.On("CommitAPISecretRotation", mock.Anything, "project", mock.Anything).Run(func(args mock.Arguments) {
+				commit := args.Get(2).(project.CommitAPISecretRotationFunc)
+				var err error
+				swapped, err = commit(tt.state)
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("decision err = %v, want %v", err, tt.wantErr)
+				}
+			}).Return(tt.wantErr)
+
+			committed, err := New(repo, time.Minute).CommitAPISecretRotation(context.Background(), "project", tt.key, tt.presented)
+
+			if swapped != tt.wantSwap || committed != tt.wantSwap || !errors.Is(err, tt.wantErr) {
+				t.Errorf("swap=%v committed=%v err=%v, want %v %v", swapped, committed, err, tt.wantSwap, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestService_PrepareAPISecretRotation_StoresHashNotSecret(t *testing.T) {
+	repo := new(projectmockrepo.MockProjectRepository)
+	var stored string
+	repo.On("SetPendingAPISecret", mock.Anything, "project", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		stored = args.String(2)
+	}).Return(nil)
+
+	secret, err := New(repo, time.Minute).PrepareAPISecretRotation(context.Background(), "project", "key", "current", time.Now().Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	raw, err := hex.DecodeString(secret)
+	if err != nil || len(raw) != 32 {
+		t.Fatalf("secret %q is not hex-encoded 32 bytes", secret)
+	}
+	if stored == secret || bcrypt.CompareHashAndPassword([]byte(stored), raw) != nil {
+		t.Fatalf("stored %q is not a bcrypt hash of the returned secret", stored)
+	}
+}
+
+// The prepare re-checks the presented credentials against the locked row.
+func TestService_PrepareAPISecretRotation_ChecksLockedState(t *testing.T) {
+	current, currentHash := secretAndHash(t, 1)
+	other, _ := secretAndHash(t, 2)
+	state := project.APISecretRotation{APIKey: "key", APISecretHash: currentHash}
+
+	tests := []struct {
+		name, key, secret string
+		wantErr           error
+	}{
+		{"current key and secret", "key", current, nil},
+		{"key rotated since authentication", "old-key", current, domainErrors.ErrAPIKeyRevoked},
+		{"secret rotated since authentication", "key", other, domainErrors.ErrAPISecretRevoked},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := new(projectmockrepo.MockProjectRepository)
+			repo.On("SetPendingAPISecret", mock.Anything, "project", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+				if err := args.Get(4).(project.CheckAPISecretFunc)(state); !errors.Is(err, tt.wantErr) {
+					t.Errorf("check err = %v, want %v", err, tt.wantErr)
+				}
+			}).Return(tt.wantErr)
+
+			secret, err := New(repo, time.Minute).PrepareAPISecretRotation(context.Background(), "project", tt.key, tt.secret, time.Now().Add(time.Minute))
+			if (secret == "") != (tt.wantErr != nil) || !errors.Is(err, tt.wantErr) {
+				t.Errorf("got %q, %v; want err %v", secret, err, tt.wantErr)
+			}
+		})
 	}
 }

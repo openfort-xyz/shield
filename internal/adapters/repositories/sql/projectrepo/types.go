@@ -18,6 +18,9 @@ type Project struct {
 
 	PendingAPIKey          *string    `gorm:"column:pending_api_key"`
 	PendingAPIKeyExpiresAt *time.Time `gorm:"column:pending_api_key_expires_at"`
+
+	PendingAPISecret          *string    `gorm:"column:pending_api_secret"`
+	PendingAPISecretExpiresAt *time.Time `gorm:"column:pending_api_secret_expires_at"`
 }
 
 type ProjectWithRateLimit struct {
