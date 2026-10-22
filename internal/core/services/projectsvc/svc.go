@@ -31,6 +31,9 @@ type service struct {
 	cache    map[string]*cacheEntry
 	cacheMu  sync.RWMutex
 	cacheTTL time.Duration
+	// evictions counts API-key evictions; a lookup that started before one
+	// must not cache what it read, or it could re-cache a revoked key.
+	evictions uint64
 }
 
 var _ services.ProjectService = (*service)(nil)
@@ -84,6 +87,7 @@ func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Proj
 		s.cacheMu.RUnlock()
 		return entry.project, nil
 	}
+	evictions := s.evictions
 	s.cacheMu.RUnlock()
 
 	proj, err := s.repo.GetByAPIKey(ctx, apiKey)
@@ -93,9 +97,11 @@ func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Proj
 	}
 
 	s.cacheMu.Lock()
-	s.cache[apiKey] = &cacheEntry{
-		project:   proj,
-		expiresAt: time.Now().Add(s.cacheTTL),
+	if s.evictions == evictions {
+		s.cache[apiKey] = &cacheEntry{
+			project:   proj,
+			expiresAt: time.Now().Add(s.cacheTTL),
+		}
 	}
 	s.cacheMu.Unlock()
 
@@ -119,24 +125,73 @@ func (s *service) SaveProjectRateLimits(ctx context.Context, projectID string, s
 	return err
 }
 
-func (s *service) SetEncryptionPart(ctx context.Context, projectID, part string) error {
-	s.logger.InfoContext(ctx, "setting encryption part", slog.String("project_id", projectID))
-	ep, err := s.repo.GetEncryptionPart(ctx, projectID)
+func (s *service) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error {
+	s.logger.InfoContext(ctx, "setting encryption key", slog.String("project_id", projectID))
+	ep, err := s.repo.GetEncryptionKey(ctx, projectID)
 	if err != nil && !errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
 		s.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
 		return err
 	}
 
-	if ep != "" {
+	if ep != nil {
 		s.logger.Warn("encryption part already exists", slog.String("project_id", projectID))
 		return domainErrors.ErrEncryptionPartAlreadyExists
 	}
 
-	err = s.repo.SetEncryptionPart(ctx, projectID, part)
+	err = s.repo.SetEncryptionKey(ctx, projectID, key)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to set encryption part", logger.Error(err))
 		return err
 	}
 
 	return nil
+}
+
+func (s *service) PrepareAPIKeyRotation(ctx context.Context, projectID, presentedKey string, expiresAt time.Time) (string, error) {
+	s.logger.InfoContext(ctx, "preparing API key rotation", slog.String("project_id", projectID))
+	apiKey := uuid.NewString()
+	if err := s.repo.SetPendingAPIKey(ctx, projectID, presentedKey, apiKey, expiresAt); err != nil {
+		s.logger.ErrorContext(ctx, "failed to set pending API key", logger.Error(err))
+		return "", err
+	}
+	return apiKey, nil
+}
+
+func (s *service) CommitAPIKeyRotation(ctx context.Context, projectID, presentedKey string) (string, bool, error) {
+	s.logger.InfoContext(ctx, "committing API key rotation", slog.String("project_id", projectID))
+
+	var oldKey string
+	committed := false
+	err := s.repo.CommitAPIKeyRotation(ctx, projectID, func(state project.APIKeyRotation) (bool, error) {
+		pending := state.PendingAPIKey != nil && state.PendingExpiresAt != nil
+		expired := pending && time.Now().After(*state.PendingExpiresAt)
+		switch {
+		case pending && !expired && *state.PendingAPIKey == presentedKey:
+			oldKey, committed = state.APIKey, true
+			return true, nil
+		case expired && *state.PendingAPIKey == presentedKey:
+			return false, domainErrors.ErrAPIKeyRotationExpired
+		case presentedKey != state.APIKey:
+			return false, domainErrors.ErrNoPendingAPIKeyRotation
+		case pending && !expired:
+			return false, domainErrors.ErrPendingAPIKeyNotProven
+		case expired:
+			return false, domainErrors.ErrAPIKeyRotationExpired
+		default:
+			return false, nil
+		}
+	})
+	if err != nil {
+		return "", false, err
+	}
+
+	if committed {
+		// The cache is per process: other replicas keep accepting the old
+		// key on cached routes until their entry expires (cacheTTL).
+		s.cacheMu.Lock()
+		delete(s.cache, oldKey)
+		s.evictions++
+		s.cacheMu.Unlock()
+	}
+	return presentedKey, committed, nil
 }

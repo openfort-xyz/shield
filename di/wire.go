@@ -29,7 +29,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
-	"github.com/openfort-xyz/shield/internal/core/services/projectsvc"
 	"github.com/openfort-xyz/shield/internal/core/services/providersvc"
 	"github.com/openfort-xyz/shield/internal/core/services/sharesvc"
 	"github.com/openfort-xyz/shield/internal/core/services/usersvc"
@@ -111,20 +110,6 @@ func ProvideInMemoryEncryptionPartsRepository() (r repositories.EncryptionPartsR
 	wire.Build(
 		encryptionpartsrepo.New,
 		ProvideBuntDB,
-	)
-
-	return
-}
-
-func ProvideProjectCacheTTL() time.Duration {
-	return 60 * time.Second
-}
-
-func ProvideProjectService() (s services.ProjectService, err error) {
-	wire.Build(
-		projectsvc.New,
-		ProvideSQLProjectRepository,
-		ProvideProjectCacheTTL,
 	)
 
 	return

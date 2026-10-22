@@ -4,6 +4,8 @@ import (
 	"context"
 
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
+	"github.com/openfort-xyz/shield/pkg/cypher"
 
 	"github.com/openfort-xyz/shield/internal/core/ports/builders"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
@@ -11,8 +13,9 @@ import (
 )
 
 type plainBuilder struct {
-	projectPart            string
-	databasePart           string
+	projectPart            project.ProjectPart
+	databasePart           project.StoredPart
+	keyCheck               *project.KeyCheck
 	projectRepo            repositories.ProjectRepository
 	reconstructionStrategy strategies.ReconstructionStrategy
 }
@@ -25,25 +28,26 @@ func NewEncryptionKeyBuilder(repo repositories.ProjectRepository, reconstruction
 }
 
 func (b *plainBuilder) SetProjectPart(_ context.Context, identifier string) error {
-	b.projectPart = identifier
+	b.projectPart = project.ProjectPart(identifier)
 	return nil
 }
 
 func (b *plainBuilder) SetDatabasePart(ctx context.Context, identifier string) error {
-	part, err := b.projectRepo.GetEncryptionPart(ctx, identifier)
+	key, err := b.projectRepo.GetEncryptionKey(ctx, identifier)
 	if err != nil {
 		return err
 	}
 
-	b.databasePart = part
+	b.databasePart = key.Part
+	b.keyCheck = key.KeyCheck
 	return nil
 }
 
-func (b *plainBuilder) GetProjectPart(_ context.Context) string {
+func (b *plainBuilder) GetProjectPart(_ context.Context) project.ProjectPart {
 	return b.projectPart
 }
 
-func (b *plainBuilder) GetDatabasePart(_ context.Context) string {
+func (b *plainBuilder) GetDatabasePart(_ context.Context) project.StoredPart {
 	return b.databasePart
 }
 
@@ -56,5 +60,14 @@ func (b *plainBuilder) Build(_ context.Context) (string, error) {
 		return "", domainErrors.ErrDatabasePartRequired
 	}
 
-	return b.reconstructionStrategy.Reconstruct(b.databasePart, b.projectPart)
+	key, err := b.reconstructionStrategy.Reconstruct(b.databasePart, b.projectPart)
+	if err != nil {
+		return "", err
+	}
+
+	if b.keyCheck != nil && !cypher.VerifyKeyCheck(key, string(*b.keyCheck)) {
+		return "", domainErrors.ErrInvalidEncryptionPart
+	}
+
+	return key, nil
 }

@@ -15,6 +15,9 @@ type Project struct {
 	UpdatedAt time.Time      `gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`
 	Enable2FA bool           `gorm:"column:enable_2fa"`
+
+	PendingAPIKey          *string    `gorm:"column:pending_api_key"`
+	PendingAPIKeyExpiresAt *time.Time `gorm:"column:pending_api_key_expires_at"`
 }
 
 type ProjectWithRateLimit struct {
@@ -46,9 +49,14 @@ func (RateLimit) TableName() string {
 }
 
 type EncryptionPart struct {
-	ID        string `gorm:"column:id;primaryKey"`
-	ProjectID string `gorm:"column:project_id"`
-	Part      string `gorm:"column:part"`
+	ID        string  `gorm:"column:id;primaryKey"`
+	ProjectID string  `gorm:"column:project_id"`
+	Part      string  `gorm:"column:part"`
+	KeyCheck  *string `gorm:"column:key_check"`
+
+	PendingPart      *string    `gorm:"column:pending_part"`
+	PendingKeyCheck  *string    `gorm:"column:pending_key_check"`
+	PendingExpiresAt *time.Time `gorm:"column:pending_expires_at"`
 }
 
 func (EncryptionPart) TableName() string {

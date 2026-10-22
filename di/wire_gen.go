@@ -29,7 +29,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
-	"github.com/openfort-xyz/shield/internal/core/services/projectsvc"
 	"github.com/openfort-xyz/shield/internal/core/services/providersvc"
 	"github.com/openfort-xyz/shield/internal/core/services/sharesvc"
 	"github.com/openfort-xyz/shield/internal/core/services/usersvc"
@@ -117,16 +116,6 @@ func ProvideInMemoryEncryptionPartsRepository() (repositories.EncryptionPartsRep
 	}
 	encryptionPartsRepository := encryptionpartsrepo.New(client)
 	return encryptionPartsRepository, nil
-}
-
-func ProvideProjectService() (services.ProjectService, error) {
-	projectRepository, err := ProvideSQLProjectRepository()
-	if err != nil {
-		return nil, err
-	}
-	duration := ProvideProjectCacheTTL()
-	projectService := projectsvc.New(projectRepository, duration)
-	return projectService, nil
 }
 
 func ProvideProviderService() (services.ProviderService, error) {
@@ -224,7 +213,7 @@ func ProvideShareApplication() (*shareapp.ShareApplication, error) {
 }
 
 func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
-	projectService, err := ProvideProjectService()
+	servicesProjectService, err := ProvideProjectService()
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +261,7 @@ func ProvideProjectApplication() (*projectapp.ProjectApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	projectApplication := projectapp.New(projectService, projectRepository, providerService, providerRepository, shareRepository, notificationsRepository, userContactRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, notificationsService, requestTracker)
+	projectApplication := projectapp.New(servicesProjectService, projectRepository, providerService, providerRepository, shareRepository, notificationsRepository, userContactRepository, encryptionFactory, encryptionPartsRepository, inMemoryOTPService, notificationsService, requestTracker)
 	return projectApplication, nil
 }
 
@@ -383,19 +372,15 @@ func ProvideRESTServer() (*rest.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	projectService, err := ProvideProjectService()
+	servicesProjectService, err := ProvideProjectService()
 	if err != nil {
 		return nil, err
 	}
-	server := rest.New(config, projectApplication, shareApplication, authenticationFactory, identityFactory, userService, application, projectService)
+	server := rest.New(config, projectApplication, shareApplication, authenticationFactory, identityFactory, userService, application, servicesProjectService)
 	return server, nil
 }
 
 // wire.go:
-
-func ProvideProjectCacheTTL() time.Duration {
-	return 60 * time.Second
-}
 
 type clockImpl struct{}
 

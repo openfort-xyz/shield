@@ -81,19 +81,6 @@ func (r *repository) Get(ctx context.Context, projectID string) (*project.Projec
 	return r.parser.toDomain(dbProj), nil
 }
 
-func (r *repository) UpdateAPISecret(ctx context.Context, projectID, encryptedSecret string) error {
-	r.logger.InfoContext(ctx, "updating API secret", slog.String("project_id", projectID))
-
-	err := r.db.Model(&Project{}).Where("id = ?", projectID).Update("api_secret", encryptedSecret).Error
-
-	if err != nil {
-		r.logger.ErrorContext(ctx, "error updating API secret", logger.Error(err))
-		return err
-	}
-
-	return nil
-}
-
 func (r *repository) Update2FA(ctx context.Context, projectID string, enable2FA bool) error {
 	r.logger.InfoContext(ctx, "updating 2FA", slog.String("project_id", projectID), slog.Bool("enable_2fa", enable2FA))
 
@@ -211,29 +198,42 @@ func (r *repository) HardDelete(ctx context.Context, projectID string) error {
 	return nil
 }
 
-func (r *repository) GetEncryptionPart(ctx context.Context, projectID string) (string, error) {
-	r.logger.InfoContext(ctx, "getting encryption part")
+func (r *repository) GetEncryptionKey(ctx context.Context, projectID string) (*project.EncryptionKey, error) {
+	r.logger.InfoContext(ctx, "getting encryption key")
 
 	encryptionPart := &EncryptionPart{}
 	err := r.db.Model(&EncryptionPart{}).Where("project_id = ?", projectID).First(encryptionPart).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", domainErrors.ErrEncryptionPartNotFound
+			return nil, domainErrors.ErrEncryptionPartNotFound
 		}
-		r.logger.ErrorContext(ctx, "error getting encryption part", logger.Error(err))
-		return "", err
+		r.logger.ErrorContext(ctx, "error getting encryption key", logger.Error(err))
+		return nil, err
 	}
 
-	return encryptionPart.Part, nil
+	return toEncryptionKey(encryptionPart), nil
 }
 
-func (r *repository) SetEncryptionPart(ctx context.Context, projectID, part string) error {
-	r.logger.InfoContext(ctx, "setting encryption part")
+func toEncryptionKey(part *EncryptionPart) *project.EncryptionKey {
+	key := &project.EncryptionKey{Part: project.StoredPart(part.Part)}
+	if part.KeyCheck != nil {
+		check := project.KeyCheck(*part.KeyCheck)
+		key.KeyCheck = &check
+	}
+	return key
+}
+
+func (r *repository) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error {
+	r.logger.InfoContext(ctx, "setting encryption key")
 
 	encryptionPart := &EncryptionPart{
 		ID:        uuid.NewString(),
 		ProjectID: projectID,
-		Part:      part,
+		Part:      string(key.Part),
+	}
+	if key.KeyCheck != nil {
+		check := string(*key.KeyCheck)
+		encryptionPart.KeyCheck = &check
 	}
 
 	err := r.db.Create(encryptionPart).Error

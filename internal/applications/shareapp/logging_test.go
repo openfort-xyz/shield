@@ -202,7 +202,7 @@ func TestGetShareByReferenceLogsWrongPartAsWarning(t *testing.T) {
 		Entropy:   share.EntropyProject,
 	}, nil)
 	userRepo.On("GetUserIDsByExternalID", mock.Anything, externalUserID).Return([]string{userID}, nil)
-	projectRepo.On("GetEncryptionPart", mock.Anything, projectID).Return(storedPart, nil)
+	projectRepo.On("GetEncryptionKey", mock.Anything, projectID).Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 	projectRepo.On("HasSuccessfulMigration", mock.Anything, projectID).Return(true, nil)
 
 	app := New(
@@ -214,7 +214,7 @@ func TestGetShareByReferenceLogsWrongPartAsWarning(t *testing.T) {
 	ctx = contexter.WithExternalUserID(ctx, externalUserID)
 	ctx = contexter.WithProject(ctx, &project.Project{ID: projectID})
 
-	shr, err := app.GetShareByReference(ctx, reference, WithEncryptionPart(otherProjectPart))
+	shr, err := app.GetShareByReference(ctx, reference, WithEncryptionPart(string(otherProjectPart)))
 	require.ErrorIs(t, err, ErrInvalidEncryptionPart)
 	assert.Nil(t, shr)
 

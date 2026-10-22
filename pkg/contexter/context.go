@@ -70,3 +70,17 @@ func GetProject(ctx context.Context) *project.Project {
 
 	return proj
 }
+
+// WithAPIKey records the API key the request authenticated with.
+func WithAPIKey(ctx context.Context, apiKey string) context.Context {
+	return context.WithValue(ctx, ContextKeyAPIKey, apiKey)
+}
+
+func GetAPIKey(ctx context.Context) string {
+	apiKey, ok := ctx.Value(ContextKeyAPIKey).(string)
+	if !ok {
+		return ""
+	}
+
+	return apiKey
+}

@@ -16,7 +16,7 @@ type ShareRepository interface {
 	Delete(ctx context.Context, shareID string) error
 	ListByKeychainID(ctx context.Context, keychainID string) ([]*share.Share, error)
 	ListProjectIDAndEntropy(ctx context.Context, projectID string, entropy share.Entropy) ([]*share.Share, error)
-	UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string) error
+	UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string, guard *share.EncryptionGuard) error
 	Update(ctx context.Context, shr *share.Share) error
 	BulkUpdate(ctx context.Context, shrs []*share.Share) error
 	GetShareStorageMethods(ctx context.Context) ([]*share.StorageMethod, error)

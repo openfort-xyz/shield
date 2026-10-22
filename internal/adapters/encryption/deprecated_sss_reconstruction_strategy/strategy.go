@@ -2,6 +2,7 @@ package depsssrec
 
 import (
 	"github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
 	"github.com/openfort-xyz/shield/pkg/cypher"
 )
@@ -16,12 +17,14 @@ func NewSSSReconstructionStrategy() strategies.ReconstructionStrategy {
 	return &SSSReconstructionStrategy{}
 }
 
-func (s *SSSReconstructionStrategy) Split(data string) (storedPart string, projectPart string, err error) {
+func (s *SSSReconstructionStrategy) Split(data string) (storedPart project.StoredPart, projectPart project.ProjectPart, err error) {
 	for i := 0; i < MaxReties; i++ {
-		storedPart, projectPart, err = cypher.SplitEncryptionKey(data)
+		var stored, proj string
+		stored, proj, err = cypher.SplitEncryptionKey(data)
 		if err != nil {
 			continue
 		}
+		storedPart, projectPart = project.StoredPart(stored), project.ProjectPart(proj)
 
 		err = s.validateSplit(data, storedPart, projectPart)
 		if err == nil {
@@ -32,11 +35,11 @@ func (s *SSSReconstructionStrategy) Split(data string) (storedPart string, proje
 	return
 }
 
-func (s *SSSReconstructionStrategy) Reconstruct(storedPart string, projectPart string) (string, error) {
-	return cypher.ReconstructEncryptionKey(storedPart, projectPart)
+func (s *SSSReconstructionStrategy) Reconstruct(storedPart project.StoredPart, projectPart project.ProjectPart) (string, error) {
+	return cypher.ReconstructEncryptionKey(string(storedPart), string(projectPart))
 }
 
-func (s *SSSReconstructionStrategy) validateSplit(data string, storedPart string, projectPart string) error {
+func (s *SSSReconstructionStrategy) validateSplit(data string, storedPart project.StoredPart, projectPart project.ProjectPart) error {
 	reconstructed, err := s.Reconstruct(storedPart, projectPart)
 	if err != nil {
 		return err

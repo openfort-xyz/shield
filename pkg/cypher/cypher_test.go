@@ -40,3 +40,48 @@ func TestDecryptRejectsWrongKey(t *testing.T) {
 		t.Fatalf("truncated ciphertext returned %v, want an error other than ErrAuthenticationFailed", err)
 	}
 }
+
+func TestKeyCheck(t *testing.T) {
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	otherKey, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf("generate other key: %v", err)
+	}
+	check, err := KeyCheck(key)
+	if err != nil {
+		t.Fatalf("KeyCheck: %v", err)
+	}
+	flipped := []byte(check)
+	flipped[0] ^= 1
+
+	tests := []struct {
+		name     string
+		key      string
+		keyCheck string
+		want     bool
+	}{
+		{"same key", key, check, true},
+		{"different key", otherKey, check, false},
+		{"altered check", key, string(flipped), false},
+		{"empty check", key, "", false},
+		{"key not base64", "%%%", check, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := VerifyKeyCheck(tt.key, tt.keyCheck); got != tt.want {
+				t.Errorf("VerifyKeyCheck = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	again, err := KeyCheck(key)
+	if err != nil || again != check {
+		t.Errorf("KeyCheck is not deterministic: %q then %q (err %v)", check, again, err)
+	}
+	if len(check) != 64 {
+		t.Errorf("KeyCheck length = %d, want 64 (fits key_check VARCHAR(64))", len(check))
+	}
+}

@@ -3,7 +3,10 @@ package cypher
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -115,4 +118,28 @@ func ReconstructEncryptionKey(part1, part2 string) (string, error) {
 	key := sss.Combine(subset)
 
 	return base64.StdEncoding.EncodeToString(key), nil
+}
+
+const keyCheckDomain = "openfort-shield/encryption-key-check/v1"
+
+// KeyCheck returns a value that identifies an encryption key without
+// revealing it: hex(HMAC-SHA256(key, domain)). Storing it lets a
+// reconstructed key be verified before use, which Shamir combine cannot do.
+func KeyCheck(key string) (string, error) {
+	keyBytes, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return "", err
+	}
+	mac := hmac.New(sha256.New, keyBytes)
+	mac.Write([]byte(keyCheckDomain))
+	return hex.EncodeToString(mac.Sum(nil)), nil
+}
+
+// VerifyKeyCheck reports in constant time whether key produces keyCheck.
+func VerifyKeyCheck(key, keyCheck string) bool {
+	got, err := KeyCheck(key)
+	if err != nil {
+		return false
+	}
+	return hmac.Equal([]byte(got), []byte(keyCheck))
 }
