@@ -39,9 +39,11 @@ func (r *repository) Create(ctx context.Context, shr *share.Share) error {
 	}
 
 	dbShr := r.parser.toDatabase(shr)
-	err := r.db.Create(dbShr).Error
+	err := r.underGuard(shr.EncryptionGuard, func(tx *gorm.DB) error {
+		return tx.Create(dbShr).Error
+	})
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating share", logger.Error(err))
+		r.logError(ctx, "error creating share", err)
 		return err
 	}
 
@@ -184,12 +186,14 @@ func (r *repository) ListProjectIDAndEntropy(ctx context.Context, projectID stri
 	return shares, nil
 }
 
-func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string) error {
+func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string, guard *share.EncryptionGuard) error {
 	r.logger.InfoContext(ctx, "updating share", slog.String("id", shareID))
 
-	err := r.db.Model(&Share{}).Where("id = ?", shareID).Update("data", encrypted).Update("entropy", EntropyProject).Error
+	err := r.underGuard(guard, func(tx *gorm.DB) error {
+		return tx.Model(&Share{}).Where("id = ?", shareID).Updates(map[string]any{"data": encrypted, "entropy": EntropyProject}).Error
+	})
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
+		r.logError(ctx, "error updating share", err)
 		return err
 	}
 
@@ -198,24 +202,24 @@ func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID string
 
 // Intentionally left out of ShareRepository interface
 // since usage is only internal
-func updatePasskeyReference(r *repository, passkeyReference *PasskeyReference) error {
+func updatePasskeyReference(db *gorm.DB, passkeyReference *PasskeyReference) error {
 	if passkeyReference != nil {
 		// WHERE clause is necessary for GORM >= v2 (it won't figure out which field to change even if PK is provided otherwise)
-		return r.db.Model(&PasskeyReference{}).Where("share_reference = ?", passkeyReference.ShareReference).Save(passkeyReference).Error
+		return db.Model(&PasskeyReference{}).Where("share_reference = ?", passkeyReference.ShareReference).Save(passkeyReference).Error
 	}
 	return nil
 }
 
 // Intentionally left out of ShareRepository interface
 // since usage is only internal
-func updateShare(r *repository, dbShr *Share) error {
-	err := updatePasskeyReference(r, dbShr.PasskeyReference)
+func updateShare(db *gorm.DB, dbShr *Share) error {
+	err := updatePasskeyReference(db, dbShr.PasskeyReference)
 
 	if err != nil {
 		return err
 	}
 
-	return r.db.
+	return db.
 		Session(&gorm.Session{FullSaveAssociations: true}).
 		Model(&Share{}).
 		Where("id = ?", dbShr.ID).
@@ -226,9 +230,11 @@ func (r *repository) Update(ctx context.Context, shr *share.Share) error {
 	r.logger.InfoContext(ctx, "updating share", slog.String("id", shr.ID))
 
 	dbShr := r.parser.toDatabase(shr)
-	err := updateShare(r, dbShr)
+	err := r.underGuard(shr.EncryptionGuard, func(tx *gorm.DB) error {
+		return updateShare(tx, dbShr)
+	})
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
+		r.logError(ctx, "error updating share", err)
 		return err
 	}
 
@@ -243,9 +249,20 @@ func (r *repository) BulkUpdate(ctx context.Context, shrs []*share.Share) error 
 		dbShares = append(dbShares, r.parser.toDatabase(shr))
 	}
 
-	return r.db.Transaction(func(_ *gorm.DB) error {
+	var guard *share.EncryptionGuard
+	for _, shr := range shrs {
+		if shr.EncryptionGuard != nil {
+			guard = shr.EncryptionGuard
+			break
+		}
+	}
+
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := checkGuard(tx, guard); err != nil {
+			return err
+		}
 		for _, dbShr := range dbShares {
-			err := updateShare(r, dbShr)
+			err := updateShare(tx, dbShr)
 			if err != nil {
 				r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
 				return err
@@ -346,4 +363,48 @@ func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context
 	}
 
 	return result, nil
+}
+
+// underGuard runs fn, and when guard is set runs it in a transaction that
+// first passes checkGuard.
+func (r *repository) underGuard(guard *share.EncryptionGuard, fn func(tx *gorm.DB) error) error {
+	if guard == nil {
+		return fn(r.db.DB)
+	}
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := checkGuard(tx, guard); err != nil {
+			return err
+		}
+		return fn(tx)
+	})
+}
+
+// checkGuard takes FOR SHARE on the project's encryption part row and fails
+// with ErrEncryptionPartChanged unless it still holds the part the caller
+// encrypted under. It reads the row key reconstruction reads (the first by
+// id; a project can hold duplicates). A rotation commit holds FOR UPDATE on
+// the part rows and replaces the part in place, so a write that read the part
+// before the commit blocks here, then sees the new part and aborts; zero rows
+// also abort (TestPartRowLockSemantics). A nil guard checks nothing.
+func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard) error {
+	if guard == nil {
+		return nil
+	}
+	var parts []string
+	err := tx.Raw(`SELECT part FROM shld_encryption_parts WHERE project_id = ? ORDER BY id LIMIT 1 FOR SHARE`, guard.ProjectID).Scan(&parts).Error
+	if err != nil {
+		return err
+	}
+	if len(parts) == 0 || parts[0] != string(guard.StoredPart) {
+		return domainErrors.ErrEncryptionPartChanged
+	}
+	return nil
+}
+
+func (r *repository) logError(ctx context.Context, msg string, err error) {
+	if errors.Is(err, domainErrors.ErrEncryptionPartChanged) {
+		r.logger.WarnContext(ctx, msg, logger.Error(err))
+		return
+	}
+	r.logger.ErrorContext(ctx, msg, logger.Error(err))
 }

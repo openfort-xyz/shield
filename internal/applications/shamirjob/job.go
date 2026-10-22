@@ -7,6 +7,7 @@ import (
 
 	aesenc "github.com/openfort-xyz/shield/internal/adapters/encryption/aes_encryption_strategy"
 	sssrec "github.com/openfort-xyz/shield/internal/adapters/encryption/sss_reconstruction_strategy"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
@@ -30,7 +31,7 @@ func New(projectRepo repositories.ProjectRepository, shareRepo repositories.Shar
 	}
 }
 
-func (j *Job) Execute(ctx context.Context, projectID string, storedPart, projectPart, key string) (err error) {
+func (j *Job) Execute(ctx context.Context, projectID string, storedPart project.StoredPart, projectPart project.ProjectPart, key string) (err error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -87,6 +88,7 @@ func (j *Job) Execute(ctx context.Context, projectID string, storedPart, project
 		}
 
 		shr.Secret = encr
+		shr.EncryptionGuard = &share.EncryptionGuard{ProjectID: projectID, StoredPart: storedPart}
 	}
 
 	j.logger.InfoContext(ctx, "updating shares")

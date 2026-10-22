@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Two-phase rotation of a project's encryption key: `POST /project/rotate-encryption-key/prepare` and `/commit`
+- Two-phase rotation of a project's API key: `POST /project/rotate-api-key/prepare` and `/commit`, committed with the pending key
+- Store a check value of each project encryption key and reject a part that does not reconstruct it with `400 EC_INVALID`
+- Reject a project-entropy share write that overlaps a key rotation commit with `409 EC_ROTATED`
+- TLA+ model of the rotation protocol in `formal/rotation`
+- Reject importing project-entropy shares (`400 SH_INVALID`); export never produces them
+- Log SQL with placeholders instead of bound values
+
+### Fixed
+- `BulkUpdate` now runs its updates inside its transaction
+- The auth middleware and the project application share one project service instance
+
+### Removed
+- `POST /project/reset-api-secret`, which had returned `501 Not Implemented` since it was disabled
+
 ### Fixed
 - Reject a caller-supplied encryption part that does not match the share with `400 INVALID_ENCRYPTION_PART` instead of `500 INTERNAL`. The mismatch is logged at WARN with the share reference and whether the part came from `X-Encryption-Part` or an encryption session by @jamalavedra in https://github.com/openfort-xyz/shield/pull/128
 - Require the `exp` claim on custom PEM, custom JWK and Openfort JWT validation; a signed token without an expiry is no longer accepted by @SashaMIT in https://github.com/openfort-xyz/shield/pull/118

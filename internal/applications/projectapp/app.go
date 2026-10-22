@@ -2,9 +2,7 @@ package projectapp
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha512"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +11,6 @@ import (
 	"time"
 
 	pem "github.com/openfort-xyz/shield/internal/adapters/authenticators/identity/custom_identity"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/google/uuid"
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
@@ -31,6 +28,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
 	"github.com/openfort-xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/pkg/cypher"
 	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
@@ -125,28 +123,6 @@ func (a *ProjectApplication) CreateProject(ctx context.Context, name string, ena
 	}
 
 	return proj, nil
-}
-
-func (a *ProjectApplication) ResetAPISecret(ctx context.Context) (string, error) {
-	a.logger.InfoContext(ctx, "resetting API secret")
-	projectID := contexter.GetProjectID(ctx)
-	newAPISecretBytes := make([]byte, 32)
-	_, err := rand.Read(newAPISecretBytes)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to generate new API secret", logger.Error(err))
-		return "", fromDomainError(err)
-	}
-	encryptedSecret, err := bcrypt.GenerateFromPassword(newAPISecretBytes, bcrypt.DefaultCost)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to encrypt new API secret", logger.Error(err))
-		return "", fromDomainError(err)
-	}
-	err = a.projectRepo.UpdateAPISecret(ctx, projectID, string(encryptedSecret))
-	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to update API secret", logger.Error(err))
-		return "", fromDomainError(err)
-	}
-	return hex.EncodeToString(newAPISecretBytes), nil
 }
 
 func (a *ProjectApplication) GetProject(ctx context.Context) (*project.Project, error) {
@@ -595,8 +571,9 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 		encryptedShares = append(encryptedShares, shr)
 	}
 
+	guard := &share.EncryptionGuard{ProjectID: projectID, StoredPart: builder.GetDatabasePart(ctx)}
 	for _, encryptedShare := range encryptedShares {
-		err = a.sharesRepo.UpdateProjectEncryption(ctx, encryptedShare.ID, encryptedShare.Secret)
+		err = a.sharesRepo.UpdateProjectEncryption(ctx, encryptedShare.ID, encryptedShare.Secret, guard)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to update share", logger.Error(err))
 			return fromDomainError(err)
@@ -661,13 +638,13 @@ func (a *ProjectApplication) RegisterEncryptionKey(ctx context.Context) (string,
 	a.logger.InfoContext(ctx, "registering encryption key")
 	projectID := contexter.GetProjectID(ctx)
 
-	ep, err := a.projectRepo.GetEncryptionPart(ctx, projectID)
+	ep, err := a.projectRepo.GetEncryptionKey(ctx, projectID)
 	if err != nil && !errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
 		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
 		return "", fromDomainError(err)
 	}
 
-	if ep != "" {
+	if ep != nil {
 		a.logger.Warn("encryption part already exists", slog.String("project_id", projectID))
 		return "", ErrEncryptionPartAlreadyExists
 	}
@@ -695,7 +672,14 @@ func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectI
 		return "", ErrInternal
 	}
 
-	err = a.projectSvc.SetEncryptionPart(ctx, projectID, storedPart)
+	keyCheck, err := cypher.KeyCheck(key)
+	if err != nil {
+		a.logger.Error("failed to compute key check", logger.Error(err))
+		return "", ErrInternal
+	}
+	check := project.KeyCheck(keyCheck)
+
+	err = a.projectSvc.SetEncryptionKey(ctx, projectID, &project.EncryptionKey{Part: storedPart, KeyCheck: &check})
 	if err != nil {
 		return "", err
 	}
@@ -706,5 +690,5 @@ func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectI
 		return "", ErrInternal
 	}
 
-	return projectPart, nil
+	return string(projectPart), nil
 }

@@ -486,3 +486,70 @@ Users are automatically associated with a project based on the provided API key.
 - **How it Works:**
   - The client sends a request to register a new encryption key for the project.
   - The handler processes the request and returns the generated encryption part.
+
+#### **2.11 Rotate Encryption Key**
+
+Rotation takes two calls. `prepare` returns the project's half of a new key
+and changes nothing else; `commit` re-encrypts every project-entropy share
+under the new key and makes it current. The response to `prepare` is the
+only copy of the new half, so nothing is replaced until the client proves
+it received it by sending it back. Both calls are safe to retry.
+
+- **Prepare:** `POST /project/rotate-encryption-key/prepare`
+  - Mandatory headers `X-API-Key` and `X-API-Secret`
+  - **Request:** `{"encryption_part": "current_encryption_part"}`
+  - **Response:** `200 OK` `{"encryption_part": "new_encryption_part"}`
+  - Preparing again replaces the pending key; the earlier new part is dead.
+  - A pending key expires after 15 minutes.
+- **Commit:** `POST /project/rotate-encryption-key/commit`
+  - Mandatory headers `X-API-Key` and `X-API-Secret`
+  - **Request:** `{"encryption_part": "current_encryption_part", "new_encryption_part": "new_encryption_part"}`
+  - **Response:** `200 OK` `{"status": "committed"}`, or `{"status": "already_committed"}` when
+    `new_encryption_part` is already current (a retry after a lost response).
+- **Failures:**
+  - `400 EC_INVALID`: a part does not match the current or the pending key.
+  - `409 EC_NO_PENDING`: commit without a pending rotation.
+  - `409 EC_ROTATION_EXPIRED`: the pending rotation expired; prepare again.
+  - `409 EC_NOT_MIGRATED`: the project's key predates the current key-split
+    scheme; reading any share with the current part migrates it.
+  - `409 EC_MISSING`: the project has no encryption key.
+  - `409 EC_UNVERIFIABLE`: the key predates key checks and the project has no
+    project share to verify the part against; register one share first.
+- **After a commit:**
+  - The old part, and every encryption session registered with it, is
+    rejected with `400 EC_INVALID`.
+  - A share write that started before the commit and finishes after it is
+    rejected with `409 EC_ROTATED`; retry it with the new part.
+- **Key check:** Shield stores a check value (HMAC) of each project key and
+  rejects a part that does not reconstruct it, instead of encrypting a share
+  under a key nobody holds. Keys created before this release get one on
+  their first `prepare`.
+- **Upgrades:** rotate only after every Shield replica runs this release. An
+  older replica writes shares without the rotation guard.
+- **Soft-deleted shares** are re-encrypted too, so they stay restorable.
+- **Large projects:** commit re-encrypts every share in one transaction. If it
+  can outlast `WRITE_TIMEOUT`, raise the timeout; a commit whose response is
+  lost is completed by retrying it.
+
+#### **2.12 Rotate API Key**
+
+- **Prepare:** `POST /project/rotate-api-key/prepare`
+  - Mandatory headers `X-API-Key` (current key) and `X-API-Secret`
+  - **Response:** `200 OK` `{"api_key": "pending_api_key"}`
+  - The current key keeps working. Preparing again replaces the pending key.
+    A pending key expires after 15 minutes.
+- **Commit:** `POST /project/rotate-api-key/commit`
+  - Mandatory headers `X-API-Key` set to the **pending** key, and `X-API-Secret`
+  - **Response:** `200 OK` `{"api_key": "pending_api_key", "status": "committed"}`. The
+    previous key stops working. Repeating the commit with the now-current key
+    returns `{"status": "current"}`.
+- **Failures:**
+  - `401 A_INVALID`: unknown or expired key, or wrong secret.
+  - `409 A_PENDING_NOT_PROVEN`: commit sent with the current key while a rotation is pending.
+  - `409 A_ROTATION_EXPIRED`: commit sent with the current key after the pending key expired.
+  - `409 A_NO_PENDING`: the pending key was replaced by another prepare.
+  - A prepare authenticated with a key that a concurrent commit replaced
+    returns `401 A_INVALID`.
+- **Replicas:** `/project/*` rejects the old key immediately. Share routes
+  cache API-key lookups for 60 seconds per Shield instance, so other replicas
+  can accept the old key on those routes for up to 60 seconds.

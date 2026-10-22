@@ -6,15 +6,18 @@ import (
 	"errors"
 
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/internal/core/ports/builders"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
+	"github.com/openfort-xyz/shield/pkg/cypher"
 )
 
 type sessionBuilder struct {
-	projectPart            string
-	databasePart           string
+	projectPart            project.ProjectPart
+	databasePart           project.StoredPart
+	keyCheck               *project.KeyCheck
 	encryptionPartsRepo    repositories.EncryptionPartsRepository
 	projectRepo            repositories.ProjectRepository
 	reconstructionStrategy strategies.ReconstructionStrategy
@@ -53,25 +56,26 @@ func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) 
 		return err
 	}
 
-	b.projectPart = part.EncPart
+	b.projectPart = project.ProjectPart(part.EncPart)
 	return nil
 }
 
 func (b *sessionBuilder) SetDatabasePart(ctx context.Context, identifier string) error {
-	part, err := b.projectRepo.GetEncryptionPart(ctx, identifier)
+	key, err := b.projectRepo.GetEncryptionKey(ctx, identifier)
 	if err != nil {
 		return err
 	}
 
-	b.databasePart = part
+	b.databasePart = key.Part
+	b.keyCheck = key.KeyCheck
 	return nil
 }
 
-func (b *sessionBuilder) GetProjectPart(_ context.Context) string {
+func (b *sessionBuilder) GetProjectPart(_ context.Context) project.ProjectPart {
 	return b.projectPart
 }
 
-func (b *sessionBuilder) GetDatabasePart(_ context.Context) string {
+func (b *sessionBuilder) GetDatabasePart(_ context.Context) project.StoredPart {
 	return b.databasePart
 }
 
@@ -84,5 +88,14 @@ func (b *sessionBuilder) Build(_ context.Context) (string, error) {
 		return "", domainErrors.ErrDatabasePartRequired
 	}
 
-	return b.reconstructionStrategy.Reconstruct(b.databasePart, b.projectPart)
+	key, err := b.reconstructionStrategy.Reconstruct(b.databasePart, b.projectPart)
+	if err != nil {
+		return "", err
+	}
+
+	if b.keyCheck != nil && !cypher.VerifyKeyCheck(key, string(*b.keyCheck)) {
+		return "", domainErrors.ErrInvalidEncryptionPart
+	}
+
+	return key, nil
 }

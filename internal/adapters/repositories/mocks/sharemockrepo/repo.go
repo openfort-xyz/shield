@@ -80,8 +80,8 @@ func (m *MockShareRepository) ListProjectIDAndEntropy(ctx context.Context, proje
 	return args.Get(0).([]*share.Share), args.Error(1)
 }
 
-func (m *MockShareRepository) UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string) error {
-	args := m.Mock.Called(ctx, shareID, encrypted)
+func (m *MockShareRepository) UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string, guard *share.EncryptionGuard) error {
+	args := m.Mock.Called(ctx, shareID, encrypted, guard)
 	return args.Error(0)
 }
 

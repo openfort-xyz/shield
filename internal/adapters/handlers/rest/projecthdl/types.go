@@ -97,10 +97,6 @@ type GetProviderResponse struct {
 	KeyType         KeyType `json:"key_type,omitempty"`
 }
 
-type ResetAPISecretResponse struct {
-	APISecret string `json:"api_secret"`
-}
-
 type UpdateProviderRequest struct {
 	PublishableKey  string  `json:"publishable_key,omitempty"`
 	JWK             string  `json:"jwk,omitempty"`
@@ -125,4 +121,38 @@ type RegisterEncryptionSessionRequest struct {
 
 type RegisterEncryptionSessionResponse struct {
 	SessionID string `json:"session_id"`
+}
+
+type RotateEncryptionKeyPrepareRequest struct {
+	EncryptionPart string `json:"encryption_part"`
+}
+
+type RotateEncryptionKeyPrepareResponse struct {
+	EncryptionPart string `json:"encryption_part"`
+}
+
+type RotateEncryptionKeyCommitRequest struct {
+	EncryptionPart    string `json:"encryption_part"`
+	NewEncryptionPart string `json:"new_encryption_part"`
+}
+
+type RotateEncryptionKeyCommitResponse struct {
+	Status RotationStatus `json:"status"`
+}
+
+type RotationStatus string
+
+const (
+	RotationCommitted        RotationStatus = "committed"
+	RotationAlreadyCommitted RotationStatus = "already_committed"
+	RotationCurrent          RotationStatus = "current"
+)
+
+type RotateAPIKeyPrepareResponse struct {
+	APIKey string `json:"api_key"`
+}
+
+type RotateAPIKeyCommitResponse struct {
+	APIKey string         `json:"api_key"`
+	Status RotationStatus `json:"status"`
 }

@@ -30,6 +30,10 @@
 !README.md
 !LICENSE
 
+!formal/rotation/Rotation.tla
+!formal/rotation/run.sh
+!.claude/skills/verify-key-rotation/SKILL.md
+
 # !Makefile
 
 # ...even if they are in subdirectories

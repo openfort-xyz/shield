@@ -83,49 +83,6 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(resp)
 }
 
-// RestAPISecret resets a project's API secret
-// @Summary Reset API secret
-// @Description Reset a project's API secret
-// @Tags Project
-// @Produce json
-// @Param X-API-Key header string true "API Key"
-// @Param X-API-Secret header string true "API Secret"
-// @Success 200 {object} ResetAPISecretResponse "API secret reset successfully"
-// @Failure 500 {object} api.Error "Internal Server Error"
-// @Router /project/reset-api-secret [post]
-func (h *Handler) ResetAPISecret(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	h.logger.InfoContext(ctx, "resetting api secret")
-
-	// This endpoint requires changes in API to keep secrets between services consistent
-	// Making it available w/o API can create non-recoverable projects, so for now we disable it
-	// Ideally, this workflow could be invoked from the API and would look something like this:
-	// User -> api/reset-shield-secret -> {API calls shield/reset-api-secret} -> shield returns new secret to API -> API updates its records and shows new secret to user}
-	// The curly braces mean transaction: either all calls succeed or none does and no side effects are applied
-	if true {
-		w.WriteHeader(http.StatusNotImplemented)
-		return
-	}
-
-	newAPISecret, err := h.app.ResetAPISecret(ctx)
-
-	if err != nil {
-		api.RespondWithError(w, fromApplicationError(err))
-		return
-	}
-
-	// gosec G117: api_secret is the exact payload this endpoint exists to return.
-	resp, err := json.Marshal(ResetAPISecretResponse{ //nolint:gosec
-		APISecret: newAPISecret,
-	})
-	if err != nil {
-		api.RespondWithError(w, api.ErrInternal)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(resp)
-}
-
 // GetProject retrieves a project
 // @Summary Get a project
 // @Description Get details of a project
@@ -552,4 +509,145 @@ func (h *Handler) Enable2FA(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+// PrepareEncryptionKeyRotation generates a replacement encryption key
+// @Summary Prepare encryption key rotation
+// @Description Verify the current encryption part and generate a replacement key. Returns the project's half of the new key; nothing changes until commit. Preparing again replaces the pending key.
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param request body RotateEncryptionKeyPrepareRequest true "Current encryption part"
+// @Success 200 {object} RotateEncryptionKeyPrepareResponse "New encryption part"
+// @Failure 400 {object} api.Error "Bad Request or invalid encryption part"
+// @Failure 409 {object} api.Error "Encryption not configured or key not migrated"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/rotate-encryption-key/prepare [post]
+func (h *Handler) PrepareEncryptionKeyRotation(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "preparing encryption key rotation")
+
+	var req RotateEncryptionKeyPrepareRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+	if req.EncryptionPart == "" {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("encryption_part is required"))
+		return
+	}
+
+	newPart, err := h.app.PrepareEncryptionKeyRotation(ctx, req.EncryptionPart)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	h.respondJSON(w, RotateEncryptionKeyPrepareResponse{EncryptionPart: newPart})
+}
+
+// CommitEncryptionKeyRotation re-encrypts the project's shares under the prepared key
+// @Summary Commit encryption key rotation
+// @Description Re-encrypt every project-entropy share under the prepared key and make it current. Safe to retry: a retry after a successful commit returns already_committed.
+// @Tags Project
+// @Accept json
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Param request body RotateEncryptionKeyCommitRequest true "Current and new encryption parts"
+// @Success 200 {object} RotateEncryptionKeyCommitResponse "committed or already_committed"
+// @Failure 400 {object} api.Error "Bad Request or invalid encryption part"
+// @Failure 409 {object} api.Error "No pending rotation, rotation expired, encryption not configured or key not migrated"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/rotate-encryption-key/commit [post]
+func (h *Handler) CommitEncryptionKeyRotation(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "committing encryption key rotation")
+
+	var req RotateEncryptionKeyCommitRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+	if req.EncryptionPart == "" || req.NewEncryptionPart == "" {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("encryption_part and new_encryption_part are required"))
+		return
+	}
+
+	committed, err := h.app.CommitEncryptionKeyRotation(ctx, req.EncryptionPart, req.NewEncryptionPart)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	status := RotationAlreadyCommitted
+	if committed {
+		status = RotationCommitted
+	}
+	h.respondJSON(w, RotateEncryptionKeyCommitResponse{Status: status})
+}
+
+func (h *Handler) respondJSON(w http.ResponseWriter, body any) {
+	resp, err := json.Marshal(body)
+	if err != nil {
+		api.RespondWithError(w, api.ErrInternal)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(resp)
+}
+
+// PrepareAPIKeyRotation generates a pending API key
+// @Summary Prepare API key rotation
+// @Description Generate a pending API key. The current key keeps working until the rotation is committed with the pending key. Preparing again replaces the pending key.
+// @Tags Project
+// @Produce json
+// @Param X-API-Key header string true "API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 200 {object} RotateAPIKeyPrepareResponse "Pending API key"
+// @Failure 401 {object} api.Error "Invalid API credentials"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/rotate-api-key/prepare [post]
+func (h *Handler) PrepareAPIKeyRotation(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "preparing API key rotation")
+
+	apiKey, err := h.app.PrepareAPIKeyRotation(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	h.respondJSON(w, RotateAPIKeyPrepareResponse{APIKey: apiKey})
+}
+
+// CommitAPIKeyRotation makes the pending API key current
+// @Summary Commit API key rotation
+// @Description Authenticate with the pending API key from prepare (and the API secret) to make it current; the previous key stops working. Safe to retry: a retry with the now-current key returns status current.
+// @Tags Project
+// @Produce json
+// @Param X-API-Key header string true "Pending API Key"
+// @Param X-API-Secret header string true "API Secret"
+// @Success 200 {object} RotateAPIKeyCommitResponse "committed or current"
+// @Failure 401 {object} api.Error "Invalid API credentials"
+// @Failure 409 {object} api.Error "Not authenticated with the pending key, rotation expired, or no pending rotation"
+// @Failure 500 {object} api.Error "Internal Server Error"
+// @Router /project/rotate-api-key/commit [post]
+func (h *Handler) CommitAPIKeyRotation(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h.logger.InfoContext(ctx, "committing API key rotation")
+
+	apiKey, committed, err := h.app.CommitAPIKeyRotation(ctx)
+	if err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	status := RotationCurrent
+	if committed {
+		status = RotationCommitted
+	}
+	h.respondJSON(w, RotateAPIKeyCommitResponse{APIKey: apiKey, Status: status})
 }

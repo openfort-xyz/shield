@@ -69,11 +69,12 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 
 	var shrOpts []services.ShareOption
 	if shr.RequiresEncryption() {
-		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
+		encryptionKey, guard, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return err
 		}
 
+		shr.EncryptionGuard = guard
 		shrOpts = append(shrOpts, services.WithEncryptionKey(encryptionKey))
 	}
 
@@ -127,11 +128,12 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, re
 	}
 
 	if dbShare.RequiresEncryption() {
-		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
+		encryptionKey, guard, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return nil, err
 		}
 
+		dbShare.EncryptionGuard = guard
 		cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
 		dbShare.Secret, err = cypher.Encrypt(dbShare.Secret)
 		if err != nil {
@@ -233,6 +235,10 @@ func (a *ShareApplication) migrateToKeychainIfRequired(ctx context.Context, usrI
 		usrShr.KeychainID = &userKeychain.ID
 		ref := share.DefaultReference
 		usrShr.Reference = &ref
+		// Leave the data column alone: Update skips empty fields, and writing
+		// back the ciphertext read above would undo a key rotation that
+		// committed in between.
+		usrShr.Secret = ""
 
 		err = a.shareRepo.Update(ctx, usrShr)
 		if err != nil {
@@ -287,7 +293,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 				opt.requireOTPCheck = true
 			}
 
-			encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
+			encryptionKey, _, err := a.reconstructEncryptionKey(ctx, projID, opt)
 			if err != nil {
 				return nil, err
 			}
@@ -326,7 +332,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 		if shr.RequiresEncryption() {
 			// Reconstruct encryption key just once
 			if encryptionKey == nil {
-				retrievedKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
+				retrievedKey, _, err := a.reconstructEncryptionKey(ctx, projID, opt)
 				encryptionKey = &retrievedKey
 				if err != nil {
 					return nil, err
@@ -391,7 +397,7 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 			opt.requireOTPCheck = true
 		}
 
-		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
+		encryptionKey, _, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return nil, err
 		}
@@ -430,7 +436,7 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 			opt.requireOTPCheck = true
 		}
 
-		encryptionKey, err := a.reconstructEncryptionKey(ctx, projID, opt)
+		encryptionKey, _, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return nil, err
 		}
@@ -464,9 +470,9 @@ func (a *ShareApplication) DeleteShare(ctx context.Context, reference *string) e
 
 // decryptSecret replaces shr.Secret with its plaintext. An authentication
 // failure means the key rebuilt from the caller's part is not the key the
-// share was encrypted with. Shamir reconstruction cannot detect a wrong part,
-// so this is the first point where the mismatch is visible, and it is the
-// caller's error rather than Shield's.
+// share was encrypted with. Shamir reconstruction cannot detect a wrong part;
+// for a project without a stored key check this is the first point where the
+// mismatch is visible, and it is the caller's error rather than Shield's.
 func (a *ShareApplication) decryptSecret(ctx context.Context, shr *share.Share, encryptionKey string, opt options) error {
 	secret, err := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey).Decrypt(shr.Secret)
 	if err == nil {
@@ -490,7 +496,10 @@ func (a *ShareApplication) decryptSecret(ctx context.Context, shr *share.Share, 
 	return ErrInternal
 }
 
-func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, error) {
+// reconstructEncryptionKey rebuilds the project key from the caller's part.
+// The returned guard makes a write persist only if the stored part it used
+// is still current (see sharerepo.checkGuard).
+func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, *share.EncryptionGuard, error) {
 	var builderType factories.EncryptionKeyBuilderType
 	var identifier string
 	otpCheckRequired := false
@@ -505,37 +514,42 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 		builderType = factories.Session
 		identifier = *opt.encryptionSession
 	default:
-		return "", ErrEncryptionPartRequired
+		return "", nil, ErrEncryptionPartRequired
 	}
 
 	isMigrated, err := a.projectRepo.HasSuccessfulMigration(ctx, projID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to check migration", logger.Error(err))
-		return "", ErrInternal
+		return "", nil, ErrInternal
 	}
 
 	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType, isMigrated, otpCheckRequired)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
-		return "", ErrInternal
+		return "", nil, ErrInternal
 	}
 
 	err = builder.SetDatabasePart(ctx, projID)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get database encryption part", logger.Error(err))
-		return "", fromDomainError(err)
+		return "", nil, fromDomainError(err)
 	}
 
 	err = builder.SetProjectPart(ctx, identifier)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get project encryption part", logger.Error(err))
-		return "", fromDomainError(err)
+		return "", nil, fromDomainError(err)
 	}
 
 	encryptionKey, err := builder.Build(ctx)
+	if errors.Is(err, domainErrors.ErrInvalidEncryptionPart) {
+		a.logger.WarnContext(ctx, "encryption part does not match the project's key check",
+			slog.String("encryption_part_source", opt.partSource()))
+		return "", nil, ErrInvalidEncryptionPart
+	}
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to reconstruct encryption key", logger.Error(err))
-		return "", ErrInvalidEncryptionPart
+		return "", nil, ErrInvalidEncryptionPart
 	}
 
 	if !isMigrated {
@@ -548,7 +562,7 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 		}()
 	}
 
-	return encryptionKey, nil
+	return encryptionKey, &share.EncryptionGuard{ProjectID: projID, StoredPart: builder.GetDatabasePart(ctx)}, nil
 }
 
 func (a *ShareApplication) ExportShare(ctx context.Context, reference string) (*share.Share, error) {
@@ -571,6 +585,12 @@ func (a *ShareApplication) ExportShare(ctx context.Context, reference string) (*
 func (a *ShareApplication) ImportShare(ctx context.Context, shr *share.Share) error {
 	a.logger.InfoContext(ctx, "importing share")
 	projID := contexter.GetProjectID(ctx)
+
+	// Shield cannot verify imported project-entropy ciphertext against the
+	// project key, and ExportShare never produces it.
+	if shr.Entropy == share.EntropyProject {
+		return ErrProjectEntropyImport
+	}
 
 	usr, err := a.userRepo.Get(ctx, shr.UserID)
 	if err != nil {

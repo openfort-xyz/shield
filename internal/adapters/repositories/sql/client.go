@@ -1,11 +1,16 @@
 package sql
 
 import (
+	"io"
+	"log"
+	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pressly/goose"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 type Client struct {
@@ -27,7 +32,7 @@ func New(cfg *Config) (*Client, error) {
 		PreferSimpleProtocol: true,
 	})
 
-	db, err := gorm.Open(dialector, &gorm.Config{})
+	db, err := gorm.Open(dialector, &gorm.Config{Logger: newGormLogger(os.Stdout)})
 	if err != nil {
 		return nil, err
 	}
@@ -96,4 +101,16 @@ func (c *Client) Close() error {
 	}
 
 	return sqlDB.Close()
+}
+
+// newGormLogger is GORM's default logger with bound parameters left out of
+// slow-query and error lines: they carry share ciphertext, encryption parts
+// and API keys.
+func newGormLogger(w io.Writer) gormlogger.Interface {
+	return gormlogger.New(log.New(w, "\r\n", log.LstdFlags), gormlogger.Config{
+		SlowThreshold:        200 * time.Millisecond,
+		LogLevel:             gormlogger.Warn,
+		ParameterizedQueries: true,
+		Colorful:             true,
+	})
 }

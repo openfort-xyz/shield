@@ -5,6 +5,7 @@ import (
 
 	sss "github.com/openfort-xyz/shamir-secret-sharing-go"
 	"github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
 )
 
@@ -18,7 +19,7 @@ func NewSSSReconstructionStrategy() strategies.ReconstructionStrategy {
 	return &SSSReconstructionStrategy{}
 }
 
-func (s *SSSReconstructionStrategy) Split(data string) (string, string, error) {
+func (s *SSSReconstructionStrategy) Split(data string) (project.StoredPart, project.ProjectPart, error) {
 	for i := 0; i < MaxReties; i++ {
 		rawKey, err := base64.StdEncoding.DecodeString(data)
 		if err != nil {
@@ -34,8 +35,8 @@ func (s *SSSReconstructionStrategy) Split(data string) (string, string, error) {
 			return "", "", errors.ErrFailedToSplitKey
 		}
 
-		storedPart := base64.StdEncoding.EncodeToString(parts[0])
-		projectPart := base64.StdEncoding.EncodeToString(parts[1])
+		storedPart := project.StoredPart(base64.StdEncoding.EncodeToString(parts[0]))
+		projectPart := project.ProjectPart(base64.StdEncoding.EncodeToString(parts[1]))
 
 		err = s.validateSplit(data, storedPart, projectPart)
 		if err == nil {
@@ -46,8 +47,8 @@ func (s *SSSReconstructionStrategy) Split(data string) (string, string, error) {
 	return "", "", errors.ErrFailedToSplitKey
 }
 
-func (s *SSSReconstructionStrategy) Reconstruct(storedPart string, projectPart string) (string, error) {
-	rawStoredPart, err := base64.StdEncoding.DecodeString(storedPart)
+func (s *SSSReconstructionStrategy) Reconstruct(storedPart project.StoredPart, projectPart project.ProjectPart) (string, error) {
+	rawStoredPart, err := base64.StdEncoding.DecodeString(string(storedPart))
 	if err != nil {
 		return "", err
 	}
@@ -57,7 +58,7 @@ func (s *SSSReconstructionStrategy) Reconstruct(storedPart string, projectPart s
 		rawStoredPart = append([]byte{1}, rawStoredPart...)
 	}
 
-	rawProjectPart, err := base64.StdEncoding.DecodeString(projectPart)
+	rawProjectPart, err := base64.StdEncoding.DecodeString(string(projectPart))
 	if err != nil {
 		return "", err
 	}
@@ -78,7 +79,7 @@ func (s *SSSReconstructionStrategy) Reconstruct(storedPart string, projectPart s
 	return base64.StdEncoding.EncodeToString(combined), nil
 }
 
-func (s *SSSReconstructionStrategy) validateSplit(data string, storedPart string, projectPart string) error {
+func (s *SSSReconstructionStrategy) validateSplit(data string, storedPart project.StoredPart, projectPart project.ProjectPart) error {
 	reconstructed, err := s.Reconstruct(storedPart, projectPart)
 	if err != nil {
 		return err

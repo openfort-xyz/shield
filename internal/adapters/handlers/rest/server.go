@@ -69,8 +69,8 @@ func New(cfg *Config,
 	}
 }
 
-// Start starts the REST server
-func (s *Server) Start(ctx context.Context) error {
+// Handler builds the server's HTTP handler: routes, middleware and CORS.
+func (s *Server) Handler() http.Handler {
 	healthzHdl := healthzhdl.New(s.healthzApp)
 	projectHdl := projecthdl.New(s.projectApp)
 	shareHdl := sharehdl.New(s.shareApp)
@@ -95,11 +95,14 @@ func (s *Server) Start(ctx context.Context) error {
 	r.HandleFunc("/register", projectHdl.CreateProject).Methods(http.MethodPost)
 	// This endpoint only lists the available share storage methods, so it does not require authentication
 	r.HandleFunc("/storage-methods", shareHdl.GetShareStorageMethods).Methods(http.MethodGet)
+	// Outside the /project subrouter: it authenticates with the pending API
+	// key (or the current one), not with AuthenticateAPISecret.
+	r.Handle("/project/rotate-api-key/commit",
+		authMdw.AuthenticateAPIKeyRotationCommit(http.HandlerFunc(projectHdl.CommitAPIKeyRotation))).Methods(http.MethodPost)
 	p := r.PathPrefix("/project").Subrouter()
 	p.Use(authMdw.AuthenticateAPISecret)
 	p.HandleFunc("", projectHdl.GetProject).Methods(http.MethodGet)
 	p.HandleFunc("", projectHdl.DeleteProject).Methods(http.MethodDelete)
-	p.HandleFunc("/reset-api-secret", projectHdl.ResetAPISecret).Methods(http.MethodPost)
 	p.HandleFunc("/otp", projectHdl.RequestOTP).Methods(http.MethodPost)
 	p.HandleFunc("/providers", projectHdl.GetProviders).Methods(http.MethodGet)
 	p.HandleFunc("/providers", projectHdl.AddProviders).Methods(http.MethodPost)
@@ -109,6 +112,9 @@ func (s *Server) Start(ctx context.Context) error {
 	p.HandleFunc("/encrypt", projectHdl.EncryptProjectShares).Methods(http.MethodPost)
 	p.HandleFunc("/encryption-session", projectHdl.RegisterEncryptionSession).Methods(http.MethodPost)
 	p.HandleFunc("/encryption-key", projectHdl.RegisterEncryptionKey).Methods(http.MethodPost)
+	p.HandleFunc("/rotate-api-key/prepare", projectHdl.PrepareAPIKeyRotation).Methods(http.MethodPost)
+	p.HandleFunc("/rotate-encryption-key/prepare", projectHdl.PrepareEncryptionKeyRotation).Methods(http.MethodPost)
+	p.HandleFunc("/rotate-encryption-key/commit", projectHdl.CommitEncryptionKeyRotation).Methods(http.MethodPost)
 	p.HandleFunc("/enable-2fa", projectHdl.Enable2FA).Methods(http.MethodPost)
 
 	usr := r.PathPrefix("/user").Subrouter()
@@ -145,7 +151,7 @@ func (s *Server) Start(ctx context.Context) error {
 	a.HandleFunc("/preregister", shareHdl.RegisterShare).Methods(http.MethodPost)
 
 	extraHeaders := strings.Split(s.config.CORSExtraAllowedHeaders, ",")
-	c := cors.New(cors.Options{
+	return cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
 		AllowedHeaders: append([]string{
@@ -173,6 +179,11 @@ func (s *Server) Start(ctx context.Context) error {
 		}, extraHeaders...),
 		MaxAge: s.config.CORSMaxAge,
 	}).Handler(r)
+}
+
+// Start starts the REST server
+func (s *Server) Start(ctx context.Context) error {
+	c := s.Handler()
 
 	s.server.Addr = fmt.Sprintf(":%d", s.config.Port)
 	s.server.Handler = c
