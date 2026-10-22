@@ -5,8 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.4.1]
 ### Added
-- Two-phase rotation of a project's API secret: `POST /project/rotate-api-secret/prepare` and `/commit`, committed with the pending secret. The old secret is rejected on every replica as soon as the commit returns
+- Two-phase rotation of a project's API secret (`POST /project/rotate-api-secret/prepare` and `/commit`, committed with the pending secret); the old secret is rejected on every replica as soon as the commit returns by @jamalavedra in https://github.com/openfort-xyz/shield/pull/142
 
 ## [v0.4.0]
 ### Security
