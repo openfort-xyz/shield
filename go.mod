@@ -3,10 +3,10 @@ module github.com/openfort-xyz/shield
 go 1.26.5
 
 require (
-	github.com/MicahParks/keyfunc/v3 v3.8.0
+	github.com/MicahParks/keyfunc/v3 v3.8.2
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/codahale/sss v0.0.0-20160501174526-0cb9f6d3f7f1
-	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.6.0
 	github.com/gorilla/mux v1.8.1
@@ -34,7 +34,7 @@ require (
 )
 
 require (
-	github.com/MicahParks/jwkset v0.11.0 // indirect
+	github.com/MicahParks/jwkset v0.11.3 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -81,7 +81,7 @@ require (
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
-	golang.org/x/time v0.9.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
