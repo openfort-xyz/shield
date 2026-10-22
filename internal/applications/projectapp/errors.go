@@ -12,6 +12,7 @@ var (
 	ErrProviderMismatch                 = errors.New("provider mismatch")
 	ErrKeyTypeNotSpecified              = errors.New("key type not specified")
 	ErrInvalidProviderConfig            = errors.New("invalid provider config")
+	ErrJWKURLNotAllowed                 = errors.New("JWK URL not allowed")
 	ErrUnknownProviderType              = errors.New("unknown provider type")
 	ErrProviderAlreadyExists            = errors.New("custom authentication already registered for this project")
 	ErrProviderNotFound                 = errors.New("custom authentication not found")

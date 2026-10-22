@@ -69,6 +69,14 @@ Users are automatically associated with a project based on the provided API key.
   - The project provides OIDC-compatible information, such as a JWK URL or a PEM certificate and key type.
   - When using this provider:
     - Specify `X-Auth-Provider: custom` in the request.
+  - A JWK URL must be `https` on a public host. Shield resolves the host itself
+    and refuses loopback, private, link-local (including cloud metadata),
+    CGNAT and other non-public addresses, re-checks every redirect (at most 3),
+    and caps the response at 1 MiB. A URL that breaks these rules is rejected
+    with `400 PV_CFG_INVALID` when the provider is added or updated.
+  - To let tenants use an internal or plain-HTTP JWK host (for example an auth
+    service on the same private network), the operator lists it in
+    `JWK_ALLOWED_HOSTS` as comma-separated `host` or `host:port` entries.
 
 **Important Notes:**
 - The `X-Auth-Provider` header is mandatory for the Shares API to specify which authentication method is being used.

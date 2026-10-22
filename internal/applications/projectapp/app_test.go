@@ -246,7 +246,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 			name: "success",
 			options: []ProviderOption{
 				WithOpenfort("publishableKey"),
-				WithCustomJWK("ur"),
+				WithCustomJWK("https://auth.example.com/.well-known/jwks.json"),
 			},
 			wantErr:       nil,
 			wantProviders: 2,
@@ -313,7 +313,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 		{
 			name: "custom provider already exists",
 			options: []ProviderOption{
-				WithCustomJWK("ur"),
+				WithCustomJWK("https://auth.example.com/.well-known/jwks.json"),
 			},
 			wantErr: ErrProviderAlreadyExists,
 			mock: func() {
@@ -337,7 +337,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 		{
 			name: "custom provider conflict config",
 			options: []ProviderOption{
-				WithCustomJWK("ur"),
+				WithCustomJWK("https://auth.example.com/.well-known/jwks.json"),
 				WithCustomPEM(validPEM, provider.KeyTypeRSA),
 			},
 			wantErr: ErrJWKPemConflict,
@@ -361,7 +361,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 		{
 			name: "error getting custom provider",
 			options: []ProviderOption{
-				WithCustomJWK("ur"),
+				WithCustomJWK("https://auth.example.com/.well-known/jwks.json"),
 			},
 			wantErr: ErrInternal,
 			mock: func() {
@@ -386,7 +386,7 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 			name: "error configuring provider",
 			options: []ProviderOption{
 				WithOpenfort("publishableKey"),
-				WithCustomJWK("ur"),
+				WithCustomJWK("https://auth.example.com/.well-known/jwks.json"),
 			},
 			wantErr: ErrInternal,
 			mock: func() {
@@ -396,6 +396,24 @@ func TestProjectApplication_AddProviders(t *testing.T) {
 				providerRepo.On("GetByProjectAndType", mock.Anything, mock.Anything, provider.TypeCustom).Return(nil, domainErrors.ErrProviderNotFound)
 				providerRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(errors.New("repository error"))
 			},
+		},
+		{
+			name:    "custom JWK on the cloud metadata address",
+			options: []ProviderOption{WithCustomJWK("https://169.254.169.254/latest/meta-data")},
+			wantErr: ErrJWKURLNotAllowed,
+			mock:    func() { providerRepo.ExpectedCalls = nil },
+		},
+		{
+			name:    "custom JWK over plain http",
+			options: []ProviderOption{WithCustomJWK("http://auth.example.com/.well-known/jwks.json")},
+			wantErr: ErrJWKURLNotAllowed,
+			mock:    func() { providerRepo.ExpectedCalls = nil },
+		},
+		{
+			name:    "custom JWK on loopback",
+			options: []ProviderOption{WithCustomJWK("https://127.0.0.1:6443/jwks.json")},
+			wantErr: ErrJWKURLNotAllowed,
+			mock:    func() { providerRepo.ExpectedCalls = nil },
 		},
 	}
 
@@ -642,7 +660,7 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 				providerRepo.On("UpdateCustom", mock.Anything, mock.Anything).Return(nil)
 			},
 			options: []ProviderOption{
-				WithCustomJWK("url"),
+				WithCustomJWK("https://auth.example.com/.well-known/jwks.json"),
 			},
 		},
 		{
@@ -710,7 +728,7 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 				providerRepo.On("Get", mock.Anything, mock.Anything).Return(&provider.Provider{ProjectID: "project_id", Type: provider.TypeOpenfort}, nil)
 			},
 			options: []ProviderOption{
-				WithCustomJWK("ur"),
+				WithCustomJWK("https://auth.example.com/.well-known/jwks.json"),
 			},
 		},
 		{
@@ -765,7 +783,7 @@ func TestProjectApplication_UpdateProvider(t *testing.T) {
 				providerRepo.On("UpdateCustom", mock.Anything, mock.Anything).Return(errors.New("repository error"))
 			},
 			options: []ProviderOption{
-				WithCustomJWK("ur"),
+				WithCustomJWK("https://auth.example.com/.well-known/jwks.json"),
 			},
 		},
 		{

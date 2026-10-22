@@ -18,6 +18,7 @@ var applicationErrorMapping = []struct {
 	{projectapp.ErrProviderMismatch, api.ErrInvalidProviderConfig},
 	{projectapp.ErrKeyTypeNotSpecified, api.ErrMissingKeyType},
 	{projectapp.ErrInvalidProviderConfig, api.ErrInvalidProviderConfig},
+	{projectapp.ErrJWKURLNotAllowed, api.ErrJWKURLNotAllowed},
 	{projectapp.ErrUnknownProviderType, api.ErrUnknownProviderType},
 	{projectapp.ErrProviderAlreadyExists, api.ErrProviderAlreadyExists},
 	{projectapp.ErrProviderNotFound, api.ErrProviderNotFound},
