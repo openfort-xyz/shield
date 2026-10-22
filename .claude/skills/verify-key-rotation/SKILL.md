@@ -78,7 +78,7 @@ model.
 
 ## Sync
 
-Model confirmed against the code at: `3975c3621fb370f51dfe91c05ed1030b0774e4ff`
+Model confirmed against the code at: `e25f6cf33a2ff211df730ae716c3ad5ea8f0c493`
 
 Move this commit forward only after you confirm that the model still
 describes the code at the new commit: read the diff of every covered
