@@ -66,7 +66,7 @@ state count and `0 states left on queue`, and eight `PASS Mut... violates ...` l
 | `PendingExpires` | `rotationPendingTTL`, `pending_expires_at` |
 | `ApiPrepare` | `projectsvc.PrepareAPIKeyRotation`, `projectrepo.SetPendingAPIKey` |
 | `ApiCommit` | `authmdw.AuthenticateAPIKeyRotationCommit`, `projauth.NewPendingProjectAuthenticator`, `projectsvc.CommitAPIKeyRotation`, `projectrepo.CommitAPIKeyRotation` |
-| `SecPrepare` | `projectsvc.PrepareAPISecretRotation`, `projectrepo.SetPendingAPISecret` |
+| `SecPrepare` (atomic: the key and secret are re-checked under the project row lock) | `projectsvc.PrepareAPISecretRotation`, `projectrepo.SetPendingAPISecret`, `projectrepo.lockProject`; `TestAPISecretRotation_PrepareWithRevokedSecretRefused` |
 | `SecCommit` | `authmdw.AuthenticateAPISecretRotationCommit`, `projauth.NewPendingSecretProjectAuthenticator`, `projectsvc.CommitAPISecretRotation`, `projectrepo.CommitAPISecretRotation`, `projectrepo.lockProject` |
 | `SecPendingExpires` | `rotationPendingTTL`, `pending_api_secret_expires_at` |
 | Client `ck`/`cpend`, `cs`/`cpendSec` | The Openfort API (`openfort-xyz/api` `ApiKeyService.rotateShieldCredential`): `apikey.uuid` is the current value, `apikey.pending_uuid` the pending one; it promotes only after a confirmed commit and drops a pending value only on a refusal of its first commit attempt. Concurrent API requests are not modeled; `pending_uuid` is written with a compare-and-swap |
@@ -79,7 +79,7 @@ model.
 
 ## Sync
 
-Model confirmed against the code at: `2cd7ebc2728b3cb9abbf43432d4aae9404ad2926`
+Model confirmed against the code at: `0f2c3b38a17c054065e8ac29b39d9b1df5b09c77`
 
 Move this commit forward only after you confirm that the model still
 describes the code at the new commit: read the diff of every covered
