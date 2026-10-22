@@ -1,6 +1,6 @@
 ---
 name: verify-key-rotation
-description: Model-check and database-test Shield's project key rotation (encryption key and API key). Use after any change to the encryption key builders, reconstruction strategies, share persistence (sharerepo Create/Update/BulkUpdate/UpdateProjectEncryption), shamirjob, projectapp/projectrepo rotation code, projectsvc API-key rotation or cache, or the rotate-* routes and middleware.
+description: Model-check and database-test Shield's project key rotation (encryption key, API key and API secret). Use after any change to the encryption key builders, reconstruction strategies, share persistence (sharerepo Create/Update/BulkUpdate/UpdateProjectEncryption), shamirjob, projectapp/projectrepo rotation code, projectsvc API-key or API-secret rotation or cache, the project authenticator, or the rotate-* routes and middleware.
 ---
 
 # Verify key rotation
@@ -10,8 +10,8 @@ Two promises protect wallets here:
 1. **No undecryptable share.** Every stored project-entropy share decrypts
    under the project's current key. Breaking it loses wallets.
 2. **No stranded client.** A client that keeps what Shield sent it can always
-   reach the current encryption key and authenticate with the current API key,
-   even when responses are lost. Breaking it locks a project out.
+   reach the current encryption key and authenticate with the current API key
+   and API secret, even when responses are lost. Breaking it locks a project out.
 
 `formal/rotation/Rotation.tla` checks both over every interleaving of share
 writers, the shamir job, stale parts and sessions, rotations, expiry and lost
@@ -37,8 +37,8 @@ docker stop shield-test-pg
 ```
 
 `run.sh` downloads `tla2tools.jar` v1.7.4 and verifies its SHA-256. It takes
-about 30 seconds. Expected output: one `PASS baseline` line with the final
-state count and `0 states left on queue`, and seven `PASS Mut... violates ...` lines.
+about 3 minutes. Expected output: one `PASS baseline` line with the final
+state count and `0 states left on queue`, and eight `PASS Mut... violates ...` lines.
 
 ## Reading a failure
 
@@ -66,10 +66,13 @@ state count and `0 states left on queue`, and seven `PASS Mut... violates ...` l
 | `PendingExpires` | `rotationPendingTTL`, `pending_expires_at` |
 | `ApiPrepare` | `projectsvc.PrepareAPIKeyRotation`, `projectrepo.SetPendingAPIKey` |
 | `ApiCommit` | `authmdw.AuthenticateAPIKeyRotationCommit`, `projauth.NewPendingProjectAuthenticator`, `projectsvc.CommitAPIKeyRotation`, `projectrepo.CommitAPIKeyRotation` |
-| Not modeled (DB tests instead) | share entropy changes racing a commit (`projectrepo.listProjectShares` FOR UPDATE OF s; `TestCommitEncryptionKeyRotation_UnguardedWriterNotOverwritten`); duplicate part rows (`TestGuardedWrites_DuplicatePartRows`); `ImportShare` refusing project entropy; `shareapp.migrateToKeychainIfRequired` (`TestKeychainMigration_DuringRotation_KeepsRotatedCiphertext`); cache re-population across an eviction (`TestService_GetByAPIKey_DoesNotRecacheAcrossEviction`); prepare with a revoked key (`TestAPIKeyRotation_PrepareWithRevokedKeyRefused`) |
+| `SecPrepare` | `projectsvc.PrepareAPISecretRotation`, `projectrepo.SetPendingAPISecret` |
+| `SecCommit` | `authmdw.AuthenticateAPISecretRotationCommit`, `projauth.NewPendingSecretProjectAuthenticator`, `projectsvc.CommitAPISecretRotation`, `projectrepo.CommitAPISecretRotation`, `projectrepo.lockProject` |
+| `SecPendingExpires` | `rotationPendingTTL`, `pending_api_secret_expires_at` |
+| Not modeled (DB tests instead) | share entropy changes racing a commit (`projectrepo.listProjectShares` FOR UPDATE OF s; `TestCommitEncryptionKeyRotation_UnguardedWriterNotOverwritten`); duplicate part rows (`TestGuardedWrites_DuplicatePartRows`); `ImportShare` refusing project entropy; `shareapp.migrateToKeychainIfRequired` (`TestKeychainMigration_DuringRotation_KeepsRotatedCiphertext`); cache re-population across an eviction (`TestService_GetByAPIKey_DoesNotRecacheAcrossEviction`); prepare with a revoked key (`TestAPIKeyRotation_PrepareWithRevokedKeyRefused`, `TestAPISecretRotation_PrepareWithRevokedKeyRefused`); the pending secret refused off the commit route and both rotations interleaved over HTTP (`TestAPISecretRotation_HTTP`, `TestAPISecretRotation_HTTP_InterleavedWithAPIKey`); secrets never logged (`TestAPISecretRotation_SecretsNeverLogged`) |
 | Not covered | the 60 s API-key cache on other replicas (documented) |
 
-Bounds: 2 writers, 4 keys of each kind. Projects whose key is not migrated
+Bounds: 2 writers, 4 keys of each kind, 3 API secrets. Projects whose key is not migrated
 are refused by prepare and commit (`EC_NOT_MIGRATED`) and are outside the
 model.
 

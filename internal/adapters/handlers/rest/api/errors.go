@@ -54,6 +54,9 @@ var (
 	ErrPendingAPIKeyNotProven      = &Error{"Commit the API key rotation with the pending key from prepare", "A_PENDING_NOT_PROVEN", http.StatusConflict}
 	ErrAPIKeyRotationExpired       = &Error{"Pending API key rotation expired; call prepare again", "A_ROTATION_EXPIRED", http.StatusConflict}
 	ErrNoPendingAPIKeyRotation     = &Error{"No pending API key rotation for this key; call prepare again", "A_NO_PENDING", http.StatusConflict}
+	ErrPendingAPISecretNotProven   = &Error{"Commit the API secret rotation with the pending secret from prepare", "A_PENDING_NOT_PROVEN", http.StatusConflict}
+	ErrAPISecretRotationExpired    = &Error{"Pending API secret rotation expired; call prepare again", "A_ROTATION_EXPIRED", http.StatusConflict}
+	ErrNoPendingAPISecretRotation  = &Error{"No pending API secret rotation for this secret; call prepare again", "A_NO_PENDING", http.StatusConflict}
 	ErrUnverifiableEncryptionKey   = &Error{"Encryption part cannot be verified: the project has no key check and no project share", "EC_UNVERIFIABLE", http.StatusConflict}
 	ErrProjectNotMigrated          = &Error{"Encryption key is not migrated yet; read any share with the current part, then retry", "EC_NOT_MIGRATED", http.StatusConflict}
 	ErrEncryptionPartAlreadyExists = &Error{"Encryption part already exists", "EC_EXISTS", http.StatusConflict}

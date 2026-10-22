@@ -50,13 +50,7 @@ func New(repo repositories.ProjectRepository, cacheTTL time.Duration) services.P
 
 func (s *service) Create(ctx context.Context, name string, enable2fa bool) (*project.Project, error) {
 	s.logger.InfoContext(ctx, "creating project", slog.String("name", name))
-	apiSecretBytes := make([]byte, 32)
-	_, err := rand.Read(apiSecretBytes)
-	if err != nil {
-		// Shouldn't happen (error is returned for legacy reasons and it's unlikely we'll ever see it)
-		return nil, err
-	}
-	encryptedSecret, err := bcrypt.GenerateFromPassword(apiSecretBytes, s.cost)
+	apiSecret, secretHash, err := s.newAPISecret()
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to encrypt secret", logger.Error(err))
 		return nil, err
@@ -65,7 +59,7 @@ func (s *service) Create(ctx context.Context, name string, enable2fa bool) (*pro
 	proj := &project.Project{
 		Name:      name,
 		APIKey:    uuid.NewString(),
-		APISecret: string(encryptedSecret),
+		APISecret: secretHash,
 		Enable2FA: enable2fa,
 	}
 
@@ -75,8 +69,22 @@ func (s *service) Create(ctx context.Context, name string, enable2fa bool) (*pro
 		return nil, err
 	}
 
-	proj.APISecret = hex.EncodeToString(apiSecretBytes)
+	proj.APISecret = apiSecret
 	return proj, nil
+}
+
+// newAPISecret returns a random API secret (hex-encoded 32 bytes) and the
+// bcrypt hash that is stored in its place.
+func (s *service) newAPISecret() (secret, hash string, err error) {
+	secretBytes := make([]byte, 32)
+	if _, err := rand.Read(secretBytes); err != nil {
+		return "", "", err
+	}
+	hashed, err := bcrypt.GenerateFromPassword(secretBytes, s.cost)
+	if err != nil {
+		return "", "", err
+	}
+	return hex.EncodeToString(secretBytes), string(hashed), nil
 }
 
 func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {
@@ -194,4 +202,52 @@ func (s *service) CommitAPIKeyRotation(ctx context.Context, projectID, presented
 		s.cacheMu.Unlock()
 	}
 	return presentedKey, committed, nil
+}
+
+func (s *service) PrepareAPISecretRotation(ctx context.Context, projectID, presentedKey string, expiresAt time.Time) (string, error) {
+	s.logger.InfoContext(ctx, "preparing API secret rotation", slog.String("project_id", projectID))
+	secret, hash, err := s.newAPISecret()
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to generate API secret", logger.Error(err))
+		return "", err
+	}
+	if err := s.repo.SetPendingAPISecret(ctx, projectID, presentedKey, hash, expiresAt); err != nil {
+		s.logger.ErrorContext(ctx, "failed to set pending API secret", logger.Error(err))
+		return "", err
+	}
+	return secret, nil
+}
+
+// CommitAPISecretRotation decides under the project row lock, so a concurrent
+// prepare or commit cannot change the state between the check and the swap.
+// The API-key cache needs no eviction: the secret check never reads it.
+func (s *service) CommitAPISecretRotation(ctx context.Context, projectID, presentedKey, presentedSecret string) (bool, error) {
+	s.logger.InfoContext(ctx, "committing API secret rotation", slog.String("project_id", projectID))
+
+	secret := project.APISecretBytes(presentedSecret)
+	committed := false
+	err := s.repo.CommitAPISecretRotation(ctx, projectID, func(state project.APISecretRotation) (bool, error) {
+		if presentedKey != state.APIKey {
+			return false, domainErrors.ErrAPIKeyRevoked
+		}
+		pending := state.PendingHash != nil && state.PendingExpiresAt != nil
+		expired := pending && time.Now().After(*state.PendingExpiresAt)
+		isPending := pending && bcrypt.CompareHashAndPassword([]byte(*state.PendingHash), secret) == nil
+		switch {
+		case isPending && !expired:
+			committed = true
+			return true, nil
+		case isPending:
+			return false, domainErrors.ErrAPISecretRotationExpired
+		case bcrypt.CompareHashAndPassword([]byte(state.APISecretHash), secret) != nil:
+			return false, domainErrors.ErrNoPendingAPISecretRotation
+		case pending && !expired:
+			return false, domainErrors.ErrPendingAPISecretNotProven
+		case expired:
+			return false, domainErrors.ErrAPISecretRotationExpired
+		default:
+			return false, nil
+		}
+	})
+	return committed, err
 }

@@ -76,6 +76,21 @@ func WithAPIKey(ctx context.Context, apiKey string) context.Context {
 	return context.WithValue(ctx, ContextKeyAPIKey, apiKey)
 }
 
+// WithAPISecret records the API secret the request authenticated with. Only
+// the secret rotation commit reads it; never log it.
+func WithAPISecret(ctx context.Context, apiSecret string) context.Context {
+	return context.WithValue(ctx, ContextKeyAPISecret, apiSecret)
+}
+
+func GetAPISecret(ctx context.Context) string {
+	apiSecret, ok := ctx.Value(ContextKeyAPISecret).(string)
+	if !ok {
+		return ""
+	}
+
+	return apiSecret
+}
+
 func GetAPIKey(ctx context.Context) string {
 	apiKey, ok := ctx.Value(ContextKeyAPIKey).(string)
 	if !ok {

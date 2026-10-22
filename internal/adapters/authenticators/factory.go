@@ -29,6 +29,10 @@ func (f *authenticatorFactory) CreatePendingProjectAuthenticator(apiKey, apiSecr
 	return projauth.NewPendingProjectAuthenticator(f.projectRepo, apiKey, apiSecret)
 }
 
+func (f *authenticatorFactory) CreatePendingSecretProjectAuthenticator(apiKey, apiSecret string) factories.Authenticator {
+	return projauth.NewPendingSecretProjectAuthenticator(f.projectRepo, apiKey, apiSecret)
+}
+
 func (f *authenticatorFactory) CreateUserAuthenticator(proj *project.Project, token string, identityFactory factories.Identity) factories.Authenticator {
 	return usrauth.NewUserAuthenticator(f.userService, proj, token, identityFactory)
 }

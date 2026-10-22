@@ -114,3 +114,13 @@ func (m *MockProjectRepository) CommitAPIKeyRotation(ctx context.Context, projec
 	args := m.Mock.Called(ctx, projectID, commit)
 	return args.Error(0)
 }
+
+func (m *MockProjectRepository) SetPendingAPISecret(ctx context.Context, projectID, currentKey, secretHash string, expiresAt time.Time) error {
+	args := m.Mock.Called(ctx, projectID, currentKey, secretHash, expiresAt)
+	return args.Error(0)
+}
+
+func (m *MockProjectRepository) CommitAPISecretRotation(ctx context.Context, projectID string, commit project.CommitAPISecretRotationFunc) error {
+	args := m.Mock.Called(ctx, projectID, commit)
+	return args.Error(0)
+}

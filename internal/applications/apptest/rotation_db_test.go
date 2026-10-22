@@ -15,6 +15,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/pkg/cypher"
 	"github.com/openfort-xyz/shield/pkg/random"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (a Apps) register(t *testing.T, p dbtest.Project, part, secret, reference string) {
@@ -410,5 +411,71 @@ func TestAPIKeyRotation_PrepareWithRevokedKeyRefused(t *testing.T) {
 	apps.DB.Raw(`SELECT pending_api_key FROM shld_projects WHERE id = ?`, p.ID).Scan(&stillPending)
 	if stillPending != nil {
 		t.Errorf("revoked key minted a pending key %q", *stillPending)
+	}
+}
+
+// A secret prepare that authenticated with a key a concurrent commit then
+// replaced must not store a pending secret.
+func TestAPISecretRotation_PrepareWithRevokedKeyRefused(t *testing.T) {
+	apps := New(t)
+	p := dbtest.SeedProject(t, apps.DB, "", true)
+	ctx := ProjectContext(p)
+	exp := time.Now().Add(time.Minute)
+
+	pending, err := apps.ProjectSvc.PrepareAPIKeyRotation(ctx, p.ID, p.APIKey, exp)
+	if err != nil {
+		t.Fatalf("prepare key: %v", err)
+	}
+	if _, committed, err := apps.ProjectSvc.CommitAPIKeyRotation(ctx, p.ID, pending); err != nil || !committed {
+		t.Fatalf("commit key: committed=%v err=%v", committed, err)
+	}
+
+	if _, err := apps.ProjectSvc.PrepareAPISecretRotation(ctx, p.ID, p.APIKey, exp); !errors.Is(err, domainErrors.ErrAPIKeyRevoked) {
+		t.Errorf("secret prepare with the revoked key: err = %v, want %v", err, domainErrors.ErrAPIKeyRevoked)
+	}
+	var stillPending *string
+	apps.DB.Raw(`SELECT pending_api_secret FROM shld_projects WHERE id = ?`, p.ID).Scan(&stillPending)
+	if stillPending != nil {
+		t.Errorf("revoked key stored a pending secret")
+	}
+}
+
+// Two commits of the same pending secret serialize on the project row: one
+// swaps, the other sees the secret already current.
+func TestAPISecretRotation_ConcurrentCommitsSerialize(t *testing.T) {
+	apps := New(t)
+	p := dbtest.SeedProject(t, apps.DB, "", true)
+	ctx := ProjectContext(p)
+
+	pending, err := apps.ProjectSvc.PrepareAPISecretRotation(ctx, p.ID, p.APIKey, time.Now().Add(time.Minute))
+	if err != nil {
+		t.Fatalf("prepare: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	results := make([]bool, 2)
+	errs := make([]error, 2)
+	for i := range results {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[i], errs[i] = apps.ProjectSvc.CommitAPISecretRotation(ctx, p.ID, p.APIKey, pending)
+		}()
+	}
+	wg.Wait()
+
+	if errs[0] != nil || errs[1] != nil {
+		t.Fatalf("concurrent commits: errs = %v", errs)
+	}
+	if results[0] == results[1] {
+		t.Errorf("concurrent commits committed = %v; want exactly one", results)
+	}
+	var row struct {
+		APISecret        string
+		PendingAPISecret *string
+	}
+	apps.DB.Raw(`SELECT api_secret, pending_api_secret FROM shld_projects WHERE id = ?`, p.ID).Scan(&row)
+	if row.PendingAPISecret != nil || bcrypt.CompareHashAndPassword([]byte(row.APISecret), project.APISecretBytes(pending)) != nil {
+		t.Errorf("row after concurrent commits: pending=%v, current matches pending secret = false", row.PendingAPISecret)
 	}
 }

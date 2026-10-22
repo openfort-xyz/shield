@@ -74,3 +74,16 @@ type APIKeyRotation struct {
 // CommitAPIKeyRotationFunc decides whether the pending key replaces the
 // current one.
 type CommitAPIKeyRotationFunc func(state APIKeyRotation) (swap bool, err error)
+
+// APISecretRotation is a project's API-secret state as seen by a rotation
+// commit, read under a lock on the project row. Secrets are bcrypt hashes.
+type APISecretRotation struct {
+	APIKey           string
+	APISecretHash    string
+	PendingHash      *string
+	PendingExpiresAt *time.Time
+}
+
+// CommitAPISecretRotationFunc decides whether the pending secret replaces
+// the current one.
+type CommitAPISecretRotationFunc func(state APISecretRotation) (swap bool, err error)

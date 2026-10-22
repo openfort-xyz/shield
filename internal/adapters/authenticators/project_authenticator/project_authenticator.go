@@ -2,8 +2,9 @@ package projauth
 
 import (
 	"context"
-	"encoding/hex"
+	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/openfort-xyz/shield/internal/core/domain/authentication"
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
@@ -17,10 +18,27 @@ import (
 type ProjectAuthenticator struct {
 	lookup            func(ctx context.Context, apiKey string) (*project.Project, error)
 	apiKey, apiSecret string
-	logger            *slog.Logger
-	// lookupMissLevel is the log level for an unknown key: the commit route
-	// tries the pending key first, so a miss there is routine.
+	// secretHash selects the stored hash the secret is checked against.
+	secretHash func(*project.Project) (string, bool)
+	logger     *slog.Logger
+	// lookupMissLevel is the log level for an unknown key or secret: the
+	// commit routes try the pending credential first, so a miss there is
+	// routine.
 	lookupMissLevel slog.Level
+}
+
+var errNoPendingAPISecret = errors.New("no unexpired pending API secret")
+
+func currentSecretHash(proj *project.Project) (string, bool) {
+	return proj.APISecret, true
+}
+
+func pendingSecretHash(proj *project.Project) (string, bool) {
+	if proj.PendingAPISecret == nil || proj.PendingAPISecretExpiresAt == nil ||
+		!time.Now().Before(*proj.PendingAPISecretExpiresAt) {
+		return "", false
+	}
+	return *proj.PendingAPISecret, true
 }
 
 var _ factories.Authenticator = (*ProjectAuthenticator)(nil)
@@ -30,6 +48,7 @@ func NewProjectAuthenticator(repository repositories.ProjectRepository, apiKey, 
 		lookup:          repository.GetByAPIKey,
 		apiKey:          apiKey,
 		apiSecret:       apiSecret,
+		secretHash:      currentSecretHash,
 		logger:          logger.New("api_key_authenticator"),
 		lookupMissLevel: slog.LevelError,
 	}
@@ -42,18 +61,24 @@ func NewPendingProjectAuthenticator(repository repositories.ProjectRepository, a
 		lookup:          repository.GetByPendingAPIKey,
 		apiKey:          apiKey,
 		apiSecret:       apiSecret,
+		secretHash:      currentSecretHash,
 		logger:          logger.New("pending_api_key_authenticator"),
 		lookupMissLevel: slog.LevelDebug,
 	}
 }
 
-func getAPISecretBytes(apiSecret string) []byte {
-	hex32bytes, err := hex.DecodeString(apiSecret)
-	if err != nil {
-		// Old legacy api secrets are UUIDs and new secrets are hex-encoded 32 bytes
-		return []byte(apiSecret)
+// NewPendingSecretProjectAuthenticator authenticates with a project's current
+// API key and its unexpired pending API secret (from a prepared rotation).
+// Only the secret commit route uses it.
+func NewPendingSecretProjectAuthenticator(repository repositories.ProjectRepository, apiKey, apiSecret string) factories.Authenticator {
+	return &ProjectAuthenticator{
+		lookup:          repository.GetByAPIKey,
+		apiKey:          apiKey,
+		apiSecret:       apiSecret,
+		secretHash:      pendingSecretHash,
+		logger:          logger.New("pending_api_secret_authenticator"),
+		lookupMissLevel: slog.LevelDebug,
 	}
-	return hex32bytes
 }
 
 func (a *ProjectAuthenticator) Authenticate(ctx context.Context) (*authentication.Authentication, error) {
@@ -65,11 +90,15 @@ func (a *ProjectAuthenticator) Authenticate(ctx context.Context) (*authenticatio
 		return nil, err
 	}
 
-	apiSecretBytes := getAPISecretBytes(a.apiSecret)
+	hash, ok := a.secretHash(proj)
+	if !ok {
+		a.logger.Log(ctx, a.lookupMissLevel, "failed to authenticate api secret", logger.Error(errNoPendingAPISecret))
+		return nil, errNoPendingAPISecret
+	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(proj.APISecret), apiSecretBytes)
+	err = bcrypt.CompareHashAndPassword([]byte(hash), project.APISecretBytes(a.apiSecret))
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to authenticate api secret", logger.Error(err))
+		a.logger.Log(ctx, a.lookupMissLevel, "failed to authenticate api secret", logger.Error(err))
 		return nil, err
 	}
 

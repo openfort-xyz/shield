@@ -561,3 +561,30 @@ it received it by sending it back. Both calls are safe to retry.
 - **Replicas:** `/project/*` rejects the old key immediately. Share routes
   cache API-key lookups for 60 seconds per Shield instance, so other replicas
   can accept the old key on those routes for up to 60 seconds.
+
+#### **2.13 Rotate API Secret**
+
+- **Prepare:** `POST /project/rotate-api-secret/prepare`
+  - Mandatory headers `X-API-Key` and `X-API-Secret` (current secret)
+  - **Response:** `200 OK` `{"api_secret": "pending_api_secret"}`
+  - The current secret keeps working. Preparing again replaces the pending
+    secret. A pending secret expires after 15 minutes. Shield stores only its
+    bcrypt hash, like the current secret.
+- **Commit:** `POST /project/rotate-api-secret/commit`
+  - Mandatory headers `X-API-Key` (current key) and `X-API-Secret` set to the
+    **pending** secret
+  - **Response:** `200 OK` `{"status": "committed"}`. The previous secret stops
+    working. Repeating the commit with the now-current secret returns
+    `{"status": "current"}`. The response does not repeat the secret.
+- **Failures:**
+  - `401 A_INVALID`: unknown key, wrong or expired secret, or a key that a
+    concurrent API key commit replaced. The pending secret authenticates only
+    this commit route.
+  - `409 A_PENDING_NOT_PROVEN`: commit sent with the current secret while a rotation is pending.
+  - `409 A_ROTATION_EXPIRED`: commit sent with the current secret after the pending secret expired.
+  - `409 A_NO_PENDING`: the pending secret was replaced by another prepare.
+- **Replicas:** the old secret is rejected immediately on every route and every
+  replica: the secret check does not use the API-key cache.
+- **With an API key rotation:** both commits lock the project row and each
+  changes only its own credential, so key and secret rotations can be in
+  flight at once. Commit the secret with whichever key is current.

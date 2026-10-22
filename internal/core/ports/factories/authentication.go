@@ -10,6 +10,7 @@ import (
 type AuthenticationFactory interface {
 	CreateProjectAuthenticator(apiKey, apiSecret string) Authenticator
 	CreatePendingProjectAuthenticator(apiKey, apiSecret string) Authenticator
+	CreatePendingSecretProjectAuthenticator(apiKey, apiSecret string) Authenticator
 	CreateUserAuthenticator(proj *project.Project, token string, identityFactory Identity) Authenticator
 }
 
