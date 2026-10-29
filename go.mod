@@ -20,7 +20,7 @@ require (
 	github.com/smsapi/smsapi-go v0.0.0-20250114133301-1aa5a5466a36
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.11.1
-	github.com/tidwall/buntdb v1.3.1
+	github.com/tidwall/buntdb v1.3.2
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/otel v1.45.0
