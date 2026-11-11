@@ -38,3 +38,5 @@
 
 # ...even if they are in subdirectories
 !*/
+!.github/workflows/actions.lock
+!.github/workflows/verify-lockfile.yml
