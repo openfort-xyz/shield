@@ -1,5 +1,9 @@
 package projecthdl
 
+type SetProjectDisabledRequest struct {
+	APIKey string `json:"api_key"`
+}
+
 type CreateProjectRequest struct {
 	Name                  string `json:"name"`
 	GenerateEncryptionKey bool   `json:"generate_encryption_key,omitempty"`

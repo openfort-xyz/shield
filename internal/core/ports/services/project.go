@@ -10,6 +10,10 @@ import (
 type ProjectService interface {
 	Create(ctx context.Context, name string, enable2fa bool) (*project.Project, error)
 	GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error)
+	// SetDisabled disables or re-enables the project with apiKey and evicts
+	// it from this process's API-key cache. It returns ErrProjectNotFound
+	// when no project has that key.
+	SetDisabled(ctx context.Context, apiKey string, disabled bool) error
 	SaveProjectRateLimits(ctx context.Context, projectID string, smsRateLimit int64, emaiRateLimit int64) error
 	SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error
 	// PrepareAPIKeyRotation stores a new pending API key and returns it.

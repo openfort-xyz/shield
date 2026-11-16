@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
 
@@ -43,7 +44,27 @@ func New(authenticationFactory factories.AuthenticationFactory, identityFactory 
 	}
 }
 
+// AuthenticateAPISecret authenticates the project's API key and secret and
+// refuses a disabled project.
 func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
+	return m.authenticateAPISecret(next, m.authenticationFactory.CreateProjectAuthenticator)
+}
+
+// AuthenticateAPISecretAllowingDisabled is AuthenticateAPISecret that also
+// accepts a disabled project. Only project deletion uses it.
+func (m *Middleware) AuthenticateAPISecretAllowingDisabled(next http.Handler) http.Handler {
+	return m.authenticateAPISecret(next, m.authenticationFactory.CreateProjectAuthenticatorAllowingDisabled)
+}
+
+// projectAuthError maps a project authenticator's error to its response.
+func projectAuthError(err error) *api.Error {
+	if errors.Is(err, domainErrors.ErrProjectDisabled) {
+		return api.ErrProjectDisabled
+	}
+	return api.ErrInvalidAPICredentials
+}
+
+func (m *Middleware) authenticateAPISecret(next http.Handler, newAuthenticator func(apiKey, apiSecret string) factories.Authenticator) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		apiKey := r.Header.Get(APIKeyHeader)
 		if apiKey == "" {
@@ -57,10 +78,9 @@ func (m *Middleware) AuthenticateAPISecret(next http.Handler) http.Handler {
 			return
 		}
 
-		authenticator := m.authenticationFactory.CreateProjectAuthenticator(apiKey, apiSecret)
-		authentication, err := authenticator.Authenticate(r.Context())
+		authentication, err := newAuthenticator(apiKey, apiSecret).Authenticate(r.Context())
 		if err != nil {
-			api.RespondWithError(w, api.ErrInvalidAPICredentials)
+			api.RespondWithError(w, projectAuthError(err))
 			return
 		}
 
@@ -90,11 +110,11 @@ func (m *Middleware) AuthenticateAPIKeyRotationCommit(next http.Handler) http.Ha
 		}
 
 		authentication, err := m.authenticationFactory.CreatePendingProjectAuthenticator(apiKey, apiSecret).Authenticate(r.Context())
-		if err != nil {
+		if err != nil && !errors.Is(err, domainErrors.ErrProjectDisabled) {
 			authentication, err = m.authenticationFactory.CreateProjectAuthenticator(apiKey, apiSecret).Authenticate(r.Context())
 		}
 		if err != nil {
-			api.RespondWithError(w, api.ErrInvalidAPICredentials)
+			api.RespondWithError(w, projectAuthError(err))
 			return
 		}
 
@@ -123,11 +143,11 @@ func (m *Middleware) AuthenticateAPISecretRotationCommit(next http.Handler) http
 		}
 
 		authentication, err := m.authenticationFactory.CreatePendingSecretProjectAuthenticator(apiKey, apiSecret).Authenticate(r.Context())
-		if err != nil {
+		if err != nil && !errors.Is(err, domainErrors.ErrProjectDisabled) {
 			authentication, err = m.authenticationFactory.CreateProjectAuthenticator(apiKey, apiSecret).Authenticate(r.Context())
 		}
 		if err != nil {
-			api.RespondWithError(w, api.ErrInvalidAPICredentials)
+			api.RespondWithError(w, projectAuthError(err))
 			return
 		}
 
@@ -232,6 +252,10 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 		proj, err := m.projectService.GetByAPIKey(r.Context(), apiKey)
 		if err != nil {
 			api.RespondWithError(w, api.ErrInvalidAPICredentials)
+			return
+		}
+		if proj.DisabledAt != nil {
+			api.RespondWithError(w, api.ErrProjectDisabled)
 			return
 		}
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/openfort-xyz/shield/internal/core/domain/authentication"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 
@@ -26,6 +27,9 @@ type ProjectAuthenticator struct {
 	// first, so a miss there is routine.
 	lookupMissLevel slog.Level
 	secretMissLevel slog.Level
+	// allowDisabled lets a disabled project through; only project deletion
+	// uses it, so the Openfort API can purge a disabled project.
+	allowDisabled bool
 }
 
 var errNoPendingAPISecret = errors.New("no unexpired pending API secret")
@@ -54,6 +58,14 @@ func NewProjectAuthenticator(repository repositories.ProjectRepository, apiKey, 
 		lookupMissLevel: slog.LevelError,
 		secretMissLevel: slog.LevelError,
 	}
+}
+
+// NewProjectAuthenticatorAllowingDisabled is NewProjectAuthenticator that
+// also accepts a disabled project.
+func NewProjectAuthenticatorAllowingDisabled(repository repositories.ProjectRepository, apiKey, apiSecret string) factories.Authenticator {
+	a := NewProjectAuthenticator(repository, apiKey, apiSecret).(*ProjectAuthenticator)
+	a.allowDisabled = true
+	return a
 }
 
 // NewPendingProjectAuthenticator authenticates with a project's unexpired
@@ -104,6 +116,11 @@ func (a *ProjectAuthenticator) Authenticate(ctx context.Context) (*authenticatio
 	if err != nil {
 		a.logger.Log(ctx, a.secretMissLevel, "failed to authenticate api secret", logger.Error(err))
 		return nil, err
+	}
+
+	if proj.DisabledAt != nil && !a.allowDisabled {
+		a.logger.InfoContext(ctx, "refused disabled project", slog.String("project_id", proj.ID))
+		return nil, domainErrors.ErrProjectDisabled
 	}
 
 	return &authentication.Authentication{

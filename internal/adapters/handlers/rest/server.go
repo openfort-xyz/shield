@@ -102,10 +102,13 @@ func (s *Server) Handler() http.Handler {
 	// Same, for the pending API secret.
 	r.Handle("/project/rotate-api-secret/commit",
 		authMdw.AuthenticateAPISecretRotationCommit(http.HandlerFunc(projectHdl.CommitAPISecretRotation))).Methods(http.MethodPost)
+	// Outside the /project subrouter: a disabled project can still be
+	// deleted, so the Openfort API can purge it.
+	r.Handle("/project",
+		authMdw.AuthenticateAPISecretAllowingDisabled(http.HandlerFunc(projectHdl.DeleteProject))).Methods(http.MethodDelete)
 	p := r.PathPrefix("/project").Subrouter()
 	p.Use(authMdw.AuthenticateAPISecret)
 	p.HandleFunc("", projectHdl.GetProject).Methods(http.MethodGet)
-	p.HandleFunc("", projectHdl.DeleteProject).Methods(http.MethodDelete)
 	p.HandleFunc("/otp", projectHdl.RequestOTP).Methods(http.MethodPost)
 	p.HandleFunc("/providers", projectHdl.GetProviders).Methods(http.MethodGet)
 	p.HandleFunc("/providers", projectHdl.AddProviders).Methods(http.MethodPost)
@@ -120,6 +123,11 @@ func (s *Server) Handler() http.Handler {
 	p.HandleFunc("/rotate-encryption-key/prepare", projectHdl.PrepareEncryptionKeyRotation).Methods(http.MethodPost)
 	p.HandleFunc("/rotate-encryption-key/commit", projectHdl.CommitEncryptionKeyRotation).Methods(http.MethodPost)
 	p.HandleFunc("/enable-2fa", projectHdl.Enable2FA).Methods(http.MethodPost)
+
+	internal := r.PathPrefix("/internal").Subrouter()
+	internal.Use(authmdw.AuthenticateServiceToken(s.config.ServiceToken))
+	internal.HandleFunc("/projects/disable", projectHdl.DisableProject).Methods(http.MethodPost)
+	internal.HandleFunc("/projects/enable", projectHdl.EnableProject).Methods(http.MethodPost)
 
 	usr := r.PathPrefix("/user").Subrouter()
 	usr.Use(authMdw.AuthenticateAPISecret)

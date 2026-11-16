@@ -14,6 +14,10 @@ type ProjectRepository interface {
 	GetWithRateLimit(ctx context.Context, projectID string) (*project.WithRateLimit, error)
 	GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error)
 	Delete(ctx context.Context, projectID string) error
+	// SetDisabled sets disabled_at (keeping an existing value) or clears it
+	// for the project with apiKey. It returns ErrProjectNotFound when no
+	// project has that key.
+	SetDisabled(ctx context.Context, apiKey string, disabled bool) error
 	// HardDelete permanently removes the project row and, through the DB's
 	// ON DELETE CASCADE constraints, all its providers, users, external
 	// users, shares, keychains, encryption parts, notifications and rate

@@ -19,6 +19,10 @@ type Project struct {
 	// replacement API secret; it only authenticates the secret commit route.
 	PendingAPISecret          *string
 	PendingAPISecretExpiresAt *time.Time
+
+	// DisabledAt is set when Openfort disables the project; every
+	// project-authenticated route except project deletion then refuses it.
+	DisabledAt *time.Time
 }
 
 type WithRateLimit struct {

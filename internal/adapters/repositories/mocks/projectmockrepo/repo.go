@@ -46,6 +46,11 @@ func (m *MockProjectRepository) Update2FA(ctx context.Context, projectID string,
 	return args.Error(0)
 }
 
+func (m *MockProjectRepository) SetDisabled(ctx context.Context, apiKey string, disabled bool) error {
+	args := m.Mock.Called(ctx, apiKey, disabled)
+	return args.Error(0)
+}
+
 func (m *MockProjectRepository) GetByAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {
 	args := m.Mock.Called(ctx, apiKey)
 	if args.Get(0) == nil {
