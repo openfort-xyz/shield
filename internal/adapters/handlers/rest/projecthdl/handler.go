@@ -136,6 +136,36 @@ func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// DisableProject blocks a project on every project-authenticated route
+// except DELETE /project. Idempotent: the first disabled_at is kept.
+func (h *Handler) DisableProject(w http.ResponseWriter, r *http.Request) {
+	h.setProjectDisabled(w, r, true)
+}
+
+// EnableProject lifts a project's disable. Idempotent.
+func (h *Handler) EnableProject(w http.ResponseWriter, r *http.Request) {
+	h.setProjectDisabled(w, r, false)
+}
+
+func (h *Handler) setProjectDisabled(w http.ResponseWriter, r *http.Request, disabled bool) {
+	var req SetProjectDisabledRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+	if req.APIKey == "" {
+		api.RespondWithError(w, api.ErrBadRequestWithMessage("api_key is required"))
+		return
+	}
+
+	if err := h.app.SetProjectDisabled(r.Context(), req.APIKey, disabled); err != nil {
+		api.RespondWithError(w, fromApplicationError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // AddProviders adds providers to a project
 // @Summary Add providers
 // @Description Add one or more providers to a project

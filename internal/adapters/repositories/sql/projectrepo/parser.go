@@ -18,6 +18,7 @@ func (p *parser) toDomain(proj *Project) *project.Project {
 		Enable2FA:                 proj.Enable2FA,
 		PendingAPISecret:          proj.PendingAPISecret,
 		PendingAPISecretExpiresAt: proj.PendingAPISecretExpiresAt,
+		DisabledAt:                proj.DisabledAt,
 	}
 }
 

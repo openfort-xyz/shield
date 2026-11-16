@@ -25,6 +25,10 @@ func (f *authenticatorFactory) CreateProjectAuthenticator(apiKey, apiSecret stri
 	return projauth.NewProjectAuthenticator(f.projectRepo, apiKey, apiSecret)
 }
 
+func (f *authenticatorFactory) CreateProjectAuthenticatorAllowingDisabled(apiKey, apiSecret string) factories.Authenticator {
+	return projauth.NewProjectAuthenticatorAllowingDisabled(f.projectRepo, apiKey, apiSecret)
+}
+
 func (f *authenticatorFactory) CreatePendingProjectAuthenticator(apiKey, apiSecret string) factories.Authenticator {
 	return projauth.NewPendingProjectAuthenticator(f.projectRepo, apiKey, apiSecret)
 }

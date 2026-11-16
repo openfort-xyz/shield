@@ -130,6 +130,25 @@ func (r *repository) GetByAPIKey(ctx context.Context, apiKey string) (*project.P
 	return r.parser.toDomain(dbProj), nil
 }
 
+func (r *repository) SetDisabled(ctx context.Context, apiKey string, disabled bool) error {
+	r.logger.InfoContext(ctx, "setting project disabled", slog.Bool("disabled", disabled))
+
+	var disabledAt any
+	if disabled {
+		disabledAt = gorm.Expr("COALESCE(disabled_at, now())")
+	}
+	res := r.db.Model(&Project{}).Where("api_key = ?", apiKey).Update("disabled_at", disabledAt)
+	if res.Error != nil {
+		r.logger.ErrorContext(ctx, "error setting project disabled", logger.Error(res.Error))
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return domainErrors.ErrProjectNotFound
+	}
+
+	return nil
+}
+
 func (r *repository) Delete(ctx context.Context, projectID string) error {
 	r.logger.InfoContext(ctx, "deleting project")
 

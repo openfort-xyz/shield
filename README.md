@@ -590,3 +590,19 @@ it received it by sending it back. Both calls are safe to retry.
 - **With an API key rotation:** both commits lock the project row and each
   changes only its own credential, so key and secret rotations can be in
   flight at once. Commit the secret with whichever key is current.
+
+#### **2.14 Disabled Projects**
+
+- A disabled project gets `403 PJ_DISABLED` on every route that authenticates
+  the project, the rotation commits included. `DELETE /project` still works.
+- **Disable:** `POST /internal/projects/disable`
+- **Enable:** `POST /internal/projects/enable`
+  - Mandatory header `X-Openfort-Service-Token`, matching `SHIELD_SERVICE_TOKEN`
+    (at least 32 characters; unset or shorter, both routes return `401 A_INVALID`)
+  - **Request:** `{"api_key": "project_api_key"}`
+  - **Response:** `204 No Content`. Both are idempotent.
+- **Failures:** `400` missing `api_key`, `401 A_INVALID` wrong token,
+  `404 PJ_NOT_FOUND` unknown key.
+- **Replicas:** `/project/*` and the other API-secret routes refuse a disabled
+  project immediately. Share routes cache API-key lookups for 60 seconds per
+  Shield instance, so other replicas can serve it for up to 60 seconds.

@@ -116,6 +116,20 @@ func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Proj
 	return proj, nil
 }
 
+func (s *service) SetDisabled(ctx context.Context, apiKey string, disabled bool) error {
+	if err := s.repo.SetDisabled(ctx, apiKey, disabled); err != nil {
+		return err
+	}
+
+	// The cache is per process: other replicas keep serving the cached
+	// project until their entry expires (cacheTTL).
+	s.cacheMu.Lock()
+	delete(s.cache, apiKey)
+	s.evictions++
+	s.cacheMu.Unlock()
+	return nil
+}
+
 func (s *service) SaveProjectRateLimits(ctx context.Context, projectID string, smsRateLimit int64, emailRateLimit int64) error {
 	s.logger.InfoContext(ctx, "save project rate limits", slog.String("project", projectID))
 

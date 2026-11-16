@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
@@ -61,5 +63,23 @@ func TestProjectAuthenticators_PendingSecret(t *testing.T) {
 				t.Errorf("authenticated = %v (err %v), want %v", ok, err, tt.wantOK)
 			}
 		})
+	}
+}
+
+func TestProjectAuthenticators_DisabledProject(t *testing.T) {
+	secret, hash := secretAndHash(t, 1)
+	other, _ := secretAndHash(t, 2)
+	now := time.Now()
+	repo := new(projectmockrepo.MockProjectRepository)
+	repo.On("GetByAPIKey", mock.Anything, "key").Return(&project.Project{ID: "project", APIKey: "key", APISecret: *hash, DisabledAt: &now}, nil)
+
+	if _, err := NewProjectAuthenticator(repo, "key", secret).Authenticate(context.Background()); !errors.Is(err, domainErrors.ErrProjectDisabled) {
+		t.Errorf("disabled project: err = %v, want ErrProjectDisabled", err)
+	}
+	if _, err := NewProjectAuthenticator(repo, "key", other).Authenticate(context.Background()); err == nil || errors.Is(err, domainErrors.ErrProjectDisabled) {
+		t.Errorf("disabled project, wrong secret: err = %v, want a credential error", err)
+	}
+	if auth, err := NewProjectAuthenticatorAllowingDisabled(repo, "key", secret).Authenticate(context.Background()); err != nil || auth.ProjectID != "project" {
+		t.Errorf("allowing disabled: auth = %v, err = %v, want project", auth, err)
 	}
 }

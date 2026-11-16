@@ -23,6 +23,7 @@ func RespondWithError(w http.ResponseWriter, err *Error) {
 
 var (
 	ErrProjectNotFound = &Error{"Project not found", "PJ_NOT_FOUND", http.StatusNotFound}
+	ErrProjectDisabled = &Error{"This project has been disabled. If you believe this is a mistake, contact founders@openfort.io.", "PJ_DISABLED", http.StatusForbidden}
 
 	ErrUnknownProviderType   = &Error{"Unknown provider type", "PV_UNKNOWN", http.StatusBadRequest}
 	ErrMissingProvider       = &Error{"Missing provider", "PV_MISSING", http.StatusBadRequest}
@@ -68,6 +69,7 @@ var (
 	ErrInvalidToken          = &Error{"Invalid token", "A_INVALID", http.StatusUnauthorized}
 	ErrMissingAuthProvider   = &Error{"Missing auth provider", "A_MISSING", http.StatusUnauthorized}
 	ErrInvalidAuthProvider   = &Error{"Invalid auth provider", "A_INVALID", http.StatusUnauthorized}
+	ErrInvalidServiceToken   = &Error{"Invalid service token", "A_INVALID", http.StatusUnauthorized}
 
 	ErrOTPRequired              = &Error{"OTP is required for this request", "OTP_MISSING", http.StatusPreconditionRequired}
 	ErrOTPRateLimitExceeded     = &Error{"Rate limit exceeded to generate OTP", "OTP_RATE_LIMIT", http.StatusTooManyRequests}

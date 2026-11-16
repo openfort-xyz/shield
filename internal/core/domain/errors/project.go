@@ -4,6 +4,7 @@ import "errors"
 
 var (
 	ErrProjectNotFound                 = errors.New("project not found")
+	ErrProjectDisabled                 = errors.New("project is disabled")
 	ErrEncryptionPartNotFound          = errors.New("encryption part not found")
 	ErrKeyInDBAlreadyExists            = errors.New("key in DB already exist")
 	ErrDataInDBNotFound                = errors.New("data in DB not found")

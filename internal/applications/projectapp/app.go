@@ -158,6 +158,17 @@ func (a *ProjectApplication) DeleteProject(ctx context.Context) error {
 	return nil
 }
 
+// SetProjectDisabled disables or re-enables the project with apiKey.
+func (a *ProjectApplication) SetProjectDisabled(ctx context.Context, apiKey string, disabled bool) error {
+	a.logger.InfoContext(ctx, "setting project disabled", slog.Bool("disabled", disabled))
+
+	if err := a.projectSvc.SetDisabled(ctx, apiKey, disabled); err != nil {
+		a.logger.ErrorContext(ctx, "failed to set project disabled", logger.Error(err))
+		return fromDomainError(err)
+	}
+	return nil
+}
+
 func (a *ProjectApplication) Enable2FA(ctx context.Context) error {
 	a.logger.InfoContext(ctx, "enabling 2FA for project")
 	projectID := contexter.GetProjectID(ctx)

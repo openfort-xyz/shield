@@ -21,6 +21,8 @@ type Project struct {
 
 	PendingAPISecret          *string    `gorm:"column:pending_api_secret"`
 	PendingAPISecretExpiresAt *time.Time `gorm:"column:pending_api_secret_expires_at"`
+
+	DisabledAt *time.Time `gorm:"column:disabled_at"`
 }
 
 type ProjectWithRateLimit struct {

@@ -16,6 +16,7 @@ import (
 // - IDLE_TIMEOUT: the idle timeout for the server (if 0, no timeout is set)
 // - CORS_MAX_AGE: the max age for the CORS header
 // - CORS_EXTRA_ALLOWED_HEADERS: the extra allowed headers for the CORS header (comma separated)
+// - SHIELD_SERVICE_TOKEN: the X-Openfort-Service-Token for /internal routes (refused if under 32 chars)
 type Config struct {
 	Port                    int           `env:"PORT" envDefault:"8080"`
 	MetricsPort             int           `env:"METRICS_PORT" envDefault:"9090"`
@@ -25,6 +26,7 @@ type Config struct {
 	IdleTimeout             time.Duration `env:"IDLE_TIMEOUT" envDefault:"15s"`
 	CORSMaxAge              int           `env:"CORS_MAX_AGE" envDefault:"86400"`
 	CORSExtraAllowedHeaders string        `env:"CORS_EXTRA_ALLOWED_HEADERS" envDefault:""`
+	ServiceToken            string        `env:"SHIELD_SERVICE_TOKEN"`
 }
 
 // GetConfigFromEnv gets the configuration from the environment variables.
