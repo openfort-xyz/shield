@@ -68,6 +68,48 @@ func TestGetShareByReference_ScopedToCallersProjectAndIdentity(t *testing.T) {
 	}
 }
 
+// Every user registering without a reference gets the default one, so a project
+// holds many shares under it. The lookup takes the first match by ID; the other
+// project's share is given the lowest ID so a missing project filter returns it.
+func TestGetShareByReference_SameReferenceAcrossUsers_ReturnsCallersShare(t *testing.T) {
+	apps := New(t)
+	owner := dbtest.SeedProject(t, apps.DB, "", false)
+	other := dbtest.SeedProject(t, apps.DB, "", false)
+
+	linkIdentity(t, apps, owner.ID, owner.UserID, "CUSTOM", "subject-a")
+	secondUserID := addUser(t, apps, owner.ID)
+	linkIdentity(t, apps, owner.ID, secondUserID, "CUSTOM", "subject-b")
+	linkIdentity(t, apps, other.ID, other.UserID, "CUSTOM", "subject-a")
+
+	callers := []struct {
+		name string
+		ctx  context.Context
+	}{
+		{"subject-a", identityContext(owner.ID, owner.UserID, "subject-a")},
+		{"subject-b", identityContext(owner.ID, secondUserID, "subject-b")},
+	}
+	for _, c := range callers {
+		err := apps.Share.RegisterShare(c.ctx, &share.Share{Secret: "share-of-" + c.name, Entropy: share.EntropyNone})
+		if err != nil {
+			t.Fatalf("RegisterShare as %s: %v", c.name, err)
+		}
+	}
+	dbtest.Exec(t, apps.DB, `INSERT INTO shld_shares (id, data, user_id, keychain_id, reference, entropy, storage_method_id) VALUES (?, ?, ?, ?, ?, 'none', 0)`,
+		"00000000"+uuid.NewString()[8:], "share-of-other-project", other.UserID, other.KeychainID, share.DefaultReference)
+
+	for _, c := range callers {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := apps.Share.GetShareByReference(c.ctx, share.DefaultReference)
+			if err != nil {
+				t.Fatalf("GetShareByReference: %v", err)
+			}
+			if want := "share-of-" + c.name; got.Secret != want {
+				t.Errorf("secret = %q, want %q", got.Secret, want)
+			}
+		})
+	}
+}
+
 // Pins current behavior: registering a reference already in use, in the same
 // project or another one, stores another share instead of failing.
 func TestRegisterShare_ReferenceInUse_StoresAnotherShare(t *testing.T) {
