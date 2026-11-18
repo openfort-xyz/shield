@@ -631,5 +631,50 @@ has no successful row in `shld_shamir_migrations`, is unmigrated.
 - **Upgrades from v0.4.2:** a v0.4.2 replica still migrates an unmigrated
   project on a share request, and this release does not coordinate with that
   migration. While both releases serve traffic, make sure no unmigrated
-  project is live, for example by disabling those projects (2.14) and
-  enabling them after the rollout, or switch all traffic at once.
+  project is live, for example by disabling those projects (2.14) at least
+  60 seconds before the rollout and enabling them after it, or switch all
+  traffic at once.
+- **Retiring pre-migration keys:** an unmigrated project with no project
+  share, soft-deleted ones included, has nothing under its pre-migration
+  key, so it can be recorded as migrated without re-encrypting anything. Its
+  part is then checked like any key without a key check (2.11): writes with
+  any part proceed until its first project share is stored, after which
+  another part gets `400 EC_INVALID` on reads and `409 EC_UNPROVEN` on
+  writes, and rotation works. Its other shares are not affected. Run this
+  only after every replica runs this release. Eligible projects:
+
+  ```sql
+  SELECT ep.project_id
+  FROM (SELECT DISTINCT project_id FROM shld_encryption_parts) ep
+  WHERE NOT EXISTS (SELECT 1 FROM shld_shamir_migrations m
+                    WHERE m.project_id = ep.project_id AND m.success)
+    AND NOT EXISTS (SELECT 1 FROM shld_shares s JOIN shld_users u ON s.user_id = u.id
+                    WHERE u.project_id = ep.project_id AND s.entropy = 'project');
+  ```
+
+  Record them in one transaction that first locks the unmigrated part rows,
+  so a share write that races it is rejected with `409 EC_ROTATED` instead
+  of being stored under the old key. Check that the insert's row count
+  matches the list before `COMMIT`:
+
+  ```sql
+  BEGIN;
+  SELECT ep.id FROM shld_encryption_parts ep
+  WHERE NOT EXISTS (SELECT 1 FROM shld_shamir_migrations m
+                    WHERE m.project_id = ep.project_id AND m.success)
+  FOR UPDATE OF ep;
+  INSERT INTO shld_shamir_migrations (id, project_id, success)
+  SELECT gen_random_uuid()::text, ep.project_id, true
+  FROM (SELECT DISTINCT project_id FROM shld_encryption_parts) ep
+  WHERE NOT EXISTS (SELECT 1 FROM shld_shamir_migrations m
+                    WHERE m.project_id = ep.project_id AND m.success)
+    AND NOT EXISTS (SELECT 1 FROM shld_shares s JOIN shld_users u ON s.user_id = u.id
+                    WHERE u.project_id = ep.project_id AND s.entropy = 'project');
+  COMMIT;
+  ```
+
+  Never record a project that has a project share as migrated this way: the
+  share stays under the old key and the project's part no longer reads it.
+  Deleting the row undoes this only once every Shield instance has
+  restarted, because each caches a project's migrated status. The behavior
+  is tested in `internal/applications/apptest/retirelegacykey_db_test.go`.
