@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"net/http"
 	"testing"
@@ -97,6 +98,31 @@ func TestUpdateProvider_CookieFieldOnly_HTTP(t *testing.T) {
 	viaCookie := p.do(http.MethodGet, "/shares", "", nil,
 		"X-API-Key", p.apiKey, "X-Auth-Provider", "custom", "Cookie", "session="+p.token(t, user))
 	expect(t, "authenticate with the new cookie", viaCookie, http.StatusNotFound, "SH_NOT_FOUND")
+}
+
+func TestEncryptionPart_StoredPartCoordinate_HTTP(t *testing.T) {
+	const storedPartCoordinate = 1
+	p := newUserProject(t)
+	user := "user-" + uuid.NewString()
+
+	expect(t, "register project-entropy share", p.asUser(t, http.MethodPost, "/shares", user, map[string]any{
+		"secret": "project-secret", "entropy": "project", "encryption_part": p.part,
+	}), http.StatusCreated, "")
+
+	raw, err := base64.StdEncoding.DecodeString(p.part)
+	if err != nil {
+		t.Fatalf("decode encryption part: %v", err)
+	}
+	raw[0] = storedPartCoordinate
+	expect(t, "read with a part on the stored part's coordinate",
+		p.asUser(t, http.MethodGet, "/shares", user, nil, "X-Encryption-Part", base64.StdEncoding.EncodeToString(raw)),
+		http.StatusBadRequest, "EC_INVALID")
+
+	got := p.asUser(t, http.MethodGet, "/shares", user, nil, "X-Encryption-Part", p.part)
+	expect(t, "read with the real part", got, http.StatusOK, "")
+	if got.str("secret") != "project-secret" {
+		t.Fatalf("secret = %q, want project-secret", got.str("secret"))
+	}
 }
 
 func TestShareEncryptionRoutes_HTTP(t *testing.T) {
