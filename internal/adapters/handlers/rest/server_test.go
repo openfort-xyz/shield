@@ -40,7 +40,9 @@ func TestHandler_ZeroRPSDisablesRateLimit(t *testing.T) {
 	}
 	h := newTestHandler(t, cfg)
 
-	const burst = 50
+	// At the default 100 requests per second, 300 requests take at least
+	// 2.8 s even with the limiter's slack of 10.
+	const burst = 300
 	start := time.Now()
 	for i := 0; i < burst; i++ {
 		req := httptest.NewRequest(http.MethodGet, "/project", nil)
