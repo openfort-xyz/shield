@@ -47,10 +47,6 @@ func (b *plainBuilder) GetDatabasePart(_ context.Context) project.StoredPart {
 	return b.databasePart
 }
 
-func (b *plainBuilder) GetKeyCheck(_ context.Context) *project.KeyCheck {
-	return b.keyCheck
-}
-
 func (b *plainBuilder) Build(_ context.Context) (string, error) {
 	if b.projectPart == "" {
 		return "", domainErrors.ErrProjectPartRequired

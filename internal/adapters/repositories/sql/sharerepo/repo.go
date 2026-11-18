@@ -3,7 +3,6 @@ package sharerepo
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
@@ -339,30 +338,14 @@ func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context
 	return result, nil
 }
 
-// proofSampleSize bounds how many shares proveKey tries a key against.
-const proofSampleSize = 1000
-
-// proofFirstBatch is how many shares proveKey reads before the full sample.
-// Postgres computes every row a query asks for whatever the client reads, so
-// a key that decrypts the first shares read stops early only with a small
-// first query.
-const proofFirstBatch = 10
-
 // underGuard runs fn, and when guard is set runs it in a transaction that
-// first passes checkGuard. A key without a key check is proven once per
-// guard, before the transaction and holding no lock; checkGuard applies the
-// result.
+// first passes checkGuard.
 func (r *repository) underGuard(ctx context.Context, guard *share.EncryptionGuard, fn func(tx *gorm.DB) error) error {
 	if guard == nil {
 		return fn(r.db.DB)
 	}
-	var proof error
-	if guard.UnverifiedKey != "" && !guard.KeyProven {
-		proof = r.proveKey(ctx, guard)
-		guard.KeyProven = proof == nil
-	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := checkGuard(tx, guard, proof); err != nil {
+		if err := checkGuard(tx, guard); err != nil {
 			return err
 		}
 		return fn(tx)
@@ -380,11 +363,10 @@ func (r *repository) underGuard(ctx context.Context, guard *share.EncryptionGuar
 // That keeps the write out of a migration only if the migration takes FOR
 // UPDATE on the part rows before it lists shares and inserts its success row
 // in the same transaction. The v0.4.2 migration job does neither, so this
-// does not order writes against it. For a guard with an UnverifiedKey, a key
-// check stored since the key was rebuilt decides, else proof, proveKey's
-// result, does; both come after the part comparison, so a write that raced a
+// does not order writes against it. A key check the row holds then must match
+// the guard's key; it is compared after the part, so a write that raced a
 // rotation reports the rotation. A nil guard checks nothing.
-func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard, proof error) error {
+func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard) error {
 	if guard == nil {
 		return nil
 	}
@@ -408,74 +390,16 @@ func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard, proof error) error {
 			return domainErrors.ErrEncryptionPartChanged
 		}
 	}
-	if guard.UnverifiedKey == "" {
-		return nil
+	if parts[0].KeyCheck != nil && !cypher.VerifyKeyCheck(guard.Key, *parts[0].KeyCheck) {
+		return domainErrors.ErrInvalidEncryptionPart
 	}
-	if parts[0].KeyCheck != nil {
-		if !cypher.VerifyKeyCheck(guard.UnverifiedKey, *parts[0].KeyCheck) {
-			return domainErrors.ErrInvalidEncryptionPart
-		}
-		return nil
-	}
-	return proof
+	return nil
 }
 
 func hasMigrated(tx *gorm.DB, projectID string) (bool, error) {
 	var migrations int64
 	err := tx.Raw(`SELECT count(*) FROM shld_shamir_migrations WHERE project_id = ? AND success`, projectID).Scan(&migrations).Error
 	return migrations > 0, err
-}
-
-// proveKey tries a key that was rebuilt without a key check against up to
-// proofSampleSize of the project's project-entropy shares, soft-deleted ones
-// included as in rotation, in whatever order the index walk yields them, and
-// passes at the first that decrypts. A share that does not, malformed or
-// under another key, is skipped, so one stray share does not lock out the
-// project's part. A project with no such share has nothing to prove a key
-// against, and its writes proceed as before key checks existed.
-func (r *repository) proveKey(ctx context.Context, guard *share.EncryptionGuard) error {
-	tried := 0
-	for _, limit := range []int{proofFirstBatch, proofSampleSize} {
-		proven, n, err := r.tryKey(ctx, guard, limit)
-		if err != nil || proven {
-			return err
-		}
-		tried += n
-		if n < limit {
-			break
-		}
-	}
-	if tried == 0 {
-		return nil
-	}
-	return fmt.Errorf("project %s: none of %d project shares tried decrypts under the key: %w",
-		guard.ProjectID, tried, domainErrors.ErrEncryptionPartUnproven)
-}
-
-// tryKey reads up to limit of the project's project-entropy shares and
-// reports whether one decrypts under the key, and how many it tried.
-func (r *repository) tryKey(ctx context.Context, guard *share.EncryptionGuard, limit int) (bool, int, error) {
-	rows, err := r.db.WithContext(ctx).Raw(`SELECT s.data FROM shld_shares s
-		JOIN shld_users u ON s.user_id = u.id
-		WHERE u.project_id = ? AND s.entropy = 'project'
-		LIMIT ?`, guard.ProjectID, limit).Rows()
-	if err != nil {
-		return false, 0, err
-	}
-	defer rows.Close()
-
-	tried := 0
-	for rows.Next() {
-		var data string
-		if err := rows.Scan(&data); err != nil {
-			return false, tried, err
-		}
-		if _, err := cypher.Decrypt(data, guard.UnverifiedKey); err == nil {
-			return true, tried, nil
-		}
-		tried++
-	}
-	return false, tried, rows.Err()
 }
 
 func (r *repository) logError(ctx context.Context, msg string, err error) {

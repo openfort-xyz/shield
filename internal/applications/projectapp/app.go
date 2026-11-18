@@ -573,9 +573,11 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 		return fromDomainError(err)
 	}
 
-	guard := &share.EncryptionGuard{ProjectID: projectID, StoredPart: builder.GetDatabasePart(ctx), Migrated: isMigrated}
-	if isMigrated && builder.GetKeyCheck(ctx) == nil {
-		guard.UnverifiedKey = encryptionKey
+	guard := &share.EncryptionGuard{
+		ProjectID:  projectID,
+		StoredPart: builder.GetDatabasePart(ctx),
+		Migrated:   isMigrated,
+		Key:        encryptionKey,
 	}
 	cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
 	for _, shr := range shares {

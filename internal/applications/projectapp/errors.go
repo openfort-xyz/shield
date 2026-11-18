@@ -21,7 +21,6 @@ var (
 	ErrEncryptionPartAlreadyExists      = errors.New("encryption part already exists")
 	ErrEncryptionNotConfigured          = errors.New("encryption not configured")
 	ErrEncryptionPartChanged            = errors.New("encryption part changed during request")
-	ErrEncryptionPartUnproven           = errors.New("encryption part decrypts none of the project's sampled shares")
 	ErrNoPendingRotation                = errors.New("no pending encryption key rotation")
 	ErrRotationExpired                  = errors.New("pending encryption key rotation expired")
 	ErrProjectNotMigrated               = errors.New("project encryption key is not migrated yet")
@@ -98,10 +97,6 @@ func fromDomainError(err error) error {
 
 	if errors.Is(err, domainErrors.ErrEncryptionPartChanged) {
 		return ErrEncryptionPartChanged
-	}
-
-	if errors.Is(err, domainErrors.ErrEncryptionPartUnproven) {
-		return ErrEncryptionPartUnproven
 	}
 
 	if errors.Is(err, domainErrors.ErrPendingAPIKeyNotProven) {
