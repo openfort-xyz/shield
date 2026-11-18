@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/dbtest"
@@ -29,6 +30,97 @@ func TestEncryptionSession_OtherUsersOTPSessionIsRejectedAndKept(t *testing.T) {
 	got, err := apps.Share.GetShare(bob.Context(), shareapp.WithEncryptionSession(bobsSession))
 	if err != nil {
 		t.Fatalf("bob using his own session after alice's attempt: %v", err)
+	}
+	if got.Secret != "bob-share" {
+		t.Errorf("bob's share secret = %q, want %q", got.Secret, "bob-share")
+	}
+}
+
+// The same holds on the keychain and by-reference reads.
+func TestEncryptionSession_OtherUsersOTPSessionIsRejectedAndKeptOnOtherReads(t *testing.T) {
+	reads := map[string]func(apps Apps, u User, ref, session string) (string, error){
+		"keychain": func(apps Apps, u User, _, session string) (string, error) {
+			return onlySecret(apps.Share.GetKeychainShares(u.Context(), nil, shareapp.WithEncryptionSession(session)))
+		},
+		"keychain share by reference": func(apps Apps, u User, ref, session string) (string, error) {
+			return onlySecret(apps.Share.GetKeychainShares(u.Context(), &ref, shareapp.WithEncryptionSession(session)))
+		},
+		"share by reference": func(apps Apps, u User, ref, session string) (string, error) {
+			shr, err := apps.Share.GetShareByReference(u.Context(), ref, shareapp.WithEncryptionSession(session))
+			if err != nil {
+				return "", err
+			}
+			return shr.Secret, nil
+		},
+	}
+	for name, read := range reads {
+		t.Run(name, func(t *testing.T) {
+			apps := New(t)
+			p, part := apps.Seed2FAProject(t)
+			alice, bob := apps.NewUser(t, p), apps.NewUser(t, p)
+			aliceRef := storeReferencedShare(t, apps, alice, part, "alice-share")
+			bobRef := storeReferencedShare(t, apps, bob, part, "bob-share")
+			bobsSession := apps.OTPSession(t, p, part, bob.ExternalID, "bob@example.com")
+
+			if _, err := read(apps, alice, aliceRef, bobsSession); !errors.Is(err, shareapp.ErrInvalidEncryptionSession) {
+				t.Errorf("alice using bob's session: err = %v, want %v", err, shareapp.ErrInvalidEncryptionSession)
+			}
+
+			got, err := read(apps, bob, bobRef, bobsSession)
+			if err != nil {
+				t.Fatalf("bob using his own session after alice's attempt: %v", err)
+			}
+			if got != "bob-share" {
+				t.Errorf("bob's share secret = %q, want %q", got, "bob-share")
+			}
+		})
+	}
+}
+
+// storeReferencedShare registers a project-encrypted share for the user under
+// a reference no other share has, and returns the reference.
+func storeReferencedShare(t *testing.T, apps Apps, u User, part, secret string) string {
+	t.Helper()
+	ref := "ref-" + u.ExternalID
+	err := apps.Share.RegisterShare(u.Context(), &share.Share{Secret: secret, Entropy: share.EntropyProject, Reference: &ref},
+		shareapp.WithEncryptionPart(part))
+	if err != nil {
+		t.Fatalf("RegisterShare: %v", err)
+	}
+	return ref
+}
+
+func onlySecret(shrs []*share.Share, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
+	if len(shrs) != 1 {
+		return "", fmt.Errorf("got %d shares, want 1", len(shrs))
+	}
+	return shrs[0].Secret, nil
+}
+
+// Presenting a session in another project must not burn it for its own.
+func TestEncryptionSession_RejectedInAnotherProjectStaysUsableInItsOwn(t *testing.T) {
+	apps := New(t)
+	p, part := apps.SeedEncryptedProject(t)
+	other, otherPart := apps.SeedEncryptedProject(t)
+	alice, bob := apps.NewUser(t, p), apps.NewUser(t, other)
+	apps.StoreShare(t, alice, part, "alice-share")
+	apps.StoreShare(t, bob, otherPart, "bob-share")
+	bobsSession, err := apps.Project.RegisterEncryptionSession(ProjectContext(other), otherPart, bob.ExternalID, nil)
+	if err != nil {
+		t.Fatalf("RegisterEncryptionSession: %v", err)
+	}
+
+	_, err = apps.Share.GetShare(alice.Context(), shareapp.WithEncryptionSession(bobsSession))
+	if !errors.Is(err, shareapp.ErrInvalidEncryptionSession) {
+		t.Errorf("session minted in another project: err = %v, want %v", err, shareapp.ErrInvalidEncryptionSession)
+	}
+
+	got, err := apps.Share.GetShare(bob.Context(), shareapp.WithEncryptionSession(bobsSession))
+	if err != nil {
+		t.Fatalf("bob using his session in its own project afterwards: %v", err)
 	}
 	if got.Secret != "bob-share" {
 		t.Errorf("bob's share secret = %q, want %q", got.Secret, "bob-share")

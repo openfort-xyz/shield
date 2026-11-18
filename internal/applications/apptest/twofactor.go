@@ -56,12 +56,17 @@ type User struct {
 	Project    dbtest.Project
 }
 
-// NewUser inserts a user into the project under a fresh external ID and
-// removes the external ID's contact binding when the test ends.
+// NewUser inserts a user into the project, linked to a fresh external ID
+// through a custom provider as the auth middleware links it, and removes the
+// external ID's contact binding when the test ends.
 func (a Apps) NewUser(t *testing.T, p dbtest.Project) User {
 	t.Helper()
 	u := User{ID: uuid.NewString(), ExternalID: "ext-" + uuid.NewString(), Project: p}
+	providerID := uuid.NewString()
 	dbtest.Exec(t, a.DB, `INSERT INTO shld_users (id, project_id) VALUES (?, ?)`, u.ID, p.ID)
+	dbtest.Exec(t, a.DB, `INSERT INTO shld_providers (id, project_id, type) VALUES (?, ?, 'CUSTOM')`, providerID, p.ID)
+	dbtest.Exec(t, a.DB, `INSERT INTO shld_external_users (id, user_id, external_user_id, provider_id) VALUES (?, ?, ?, ?)`,
+		uuid.NewString(), u.ID, u.ExternalID, providerID)
 	t.Cleanup(func() {
 		if err := a.DB.Exec(`DELETE FROM shld_user_contacts WHERE external_user_id = ?`, u.ExternalID).Error; err != nil {
 			t.Errorf("cleanup user contacts: %v", err)
