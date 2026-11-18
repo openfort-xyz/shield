@@ -102,18 +102,28 @@ func TestRetireLegacyKey_ProjectWithoutProjectShares(t *testing.T) {
 			if _, err := readShare(apps, p, wallet, shareapp.WithEncryptionPart(otherPart)); !errors.Is(err, shareapp.ErrInvalidEncryptionPart) {
 				t.Errorf("read with another part: err = %v, want %v", err, shareapp.ErrInvalidEncryptionPart)
 			}
-			err = apps.Share.RegisterShare(UserContext(p), &share.Share{Secret: "x", Entropy: share.EntropyProject, Reference: ptr("x-" + p.ID[:8])},
+			stray := "stray-" + p.ID[:8]
+			err = apps.Share.RegisterShare(UserContext(p), &share.Share{Secret: "x", Entropy: share.EntropyProject, Reference: &stray},
 				shareapp.WithEncryptionPart(otherPart))
-			if !errors.Is(err, shareapp.ErrEncryptionPartUnproven) {
-				t.Errorf("write with another part: err = %v, want %v", err, shareapp.ErrEncryptionPartUnproven)
+			if err != nil {
+				t.Errorf("write with another part before the project has a key check: %v", err)
 			}
 
 			if _, err := apps.Project.PrepareEncryptionKeyRotation(ctx, otherPart); !errors.Is(err, projectapp.ErrInvalidEncryptionPart) {
 				t.Errorf("prepare with another part: err = %v, want %v", err, projectapp.ErrInvalidEncryptionPart)
 			}
+			if _, err := apps.Project.PrepareEncryptionKeyRotation(ctx, part); !errors.Is(err, projectapp.ErrInvalidEncryptionPart) {
+				t.Errorf("prepare while a share under another part exists: err = %v, want %v", err, projectapp.ErrInvalidEncryptionPart)
+			}
+			dbtest.Exec(t, apps.DB, `DELETE FROM shld_shares WHERE user_id = ? AND reference = ?`, p.UserID, stray)
 			newPart, err := apps.Project.PrepareEncryptionKeyRotation(ctx, part)
 			if err != nil {
 				t.Fatalf("prepare with the project's part: %v", err)
+			}
+			err = apps.Share.RegisterShare(UserContext(p), &share.Share{Secret: "x", Entropy: share.EntropyProject, Reference: &stray},
+				shareapp.WithEncryptionPart(otherPart))
+			if !errors.Is(err, shareapp.ErrInvalidEncryptionPart) {
+				t.Errorf("write with another part once the project has a key check: err = %v, want %v", err, shareapp.ErrInvalidEncryptionPart)
 			}
 			if committed, err := apps.Project.CommitEncryptionKeyRotation(ctx, part, newPart); err != nil || !committed {
 				t.Fatalf("commit: committed = %v, err = %v", committed, err)

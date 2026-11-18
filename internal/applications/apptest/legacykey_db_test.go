@@ -151,55 +151,45 @@ func shareReference(t *testing.T, apps Apps, shareID string) string {
 	return reference
 }
 
-// A key without a check cannot be verified by Build, and Shamir combine
-// accepts a part from another split. Writing under the resulting key would
-// store ciphertext the project's part cannot decrypt.
-func TestLegacyKey_WrongPartWritesRejected(t *testing.T) {
+// v0.4.2 behavior: without a key check any part's write is stored; with one, a wrong part fails.
+func TestLegacyKey_WrongPartWrites(t *testing.T) {
 	apps := New(t)
 	_, otherPart := apps.SeedEncryptedProject(t)
 
-	tests := []struct {
-		name  string
-		write func(p dbtest.Project, projectShareID, plainShareID string) error
-	}{
-		{"RegisterShare", func(p dbtest.Project, _, _ string) error {
-			return apps.Share.RegisterShare(UserContext(p),
-				&share.Share{Secret: "new", Entropy: share.EntropyProject, Reference: ptr("new-" + p.ID[:8])},
-				shareapp.WithEncryptionPart(otherPart))
-		}},
-		{"UpdateShare", func(p dbtest.Project, projectShareID, _ string) error {
-			_, err := apps.Share.UpdateShare(UserContext(p), &share.Share{Secret: "new"},
-				shareReference(t, apps, projectShareID), shareapp.WithEncryptionPart(otherPart))
-			return err
-		}},
-		{"EncryptProjectShares", func(p dbtest.Project, _, _ string) error {
-			return apps.Project.EncryptProjectShares(ProjectContext(p), otherPart)
-		}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, w := range keyWrites {
+		t.Run(w.name+"/without a key check", func(t *testing.T) {
 			p, _, key := seedLegacyProject(t, apps, true)
-			projectShareID := insertProjectShare(t, apps, p, key, "wallet")
-			projectShareData := dbtest.ShareData(t, apps.DB, projectShareID)
-			plainShareID := dbtest.InsertShare(t, apps.DB, p, "none", "plain-share")
+			insertProjectShare(t, apps, p, key, "wallet")
+			otherKey, err := sssrec.NewSSSReconstructionStrategy().Reconstruct(
+				storedPart(t, apps, p), project.ProjectPart(otherPart))
+			if err != nil {
+				t.Fatalf("reconstruct: %v", err)
+			}
 
-			err := tt.write(p, projectShareID, plainShareID)
-
-			if !isUnproven(err) {
-				t.Errorf("write with a wrong part: err = %v, want encryption part unproven", err)
+			if err := w.write(apps, p, otherPart, plainShareRef(t, apps, p)); err != nil {
+				t.Fatalf("write with another part: %v", err)
 			}
-			if n := apps.ShareCount(t, p); n != 2 {
-				t.Errorf("share rows = %d, want 2", n)
-			}
-			if got := dbtest.ShareData(t, apps.DB, projectShareID); got != projectShareData {
-				t.Error("project share rewritten under a wrong key")
-			}
-			if got := dbtest.ShareData(t, apps.DB, plainShareID); got != "plain-share" {
-				t.Errorf("plain share = %q, want it untouched", got)
+			if n := sharesUnderKey(t, apps, p, otherKey); n != 1 {
+				t.Errorf("project shares under the other part's key = %d, want 1", n)
 			}
 			if check := storedKeyCheck(t, apps, p); check != nil {
-				t.Errorf("key check stored from a wrong part: %q", *check)
+				t.Errorf("key check stored by a share write: %q", *check)
+			}
+		})
+
+		t.Run(w.name+"/with a key check", func(t *testing.T) {
+			p, _ := apps.SeedEncryptedProject(t)
+			plainRef := plainShareRef(t, apps, p)
+			before := projectShareData(t, apps, p)
+
+			err := w.write(apps, p, otherPart, plainRef)
+
+			if !errors.Is(err, shareapp.ErrInvalidEncryptionPart) &&
+				!errors.Is(err, projectapp.ErrInvalidEncryptionPart) {
+				t.Errorf("write with another part: err = %v, want invalid encryption part", err)
+			}
+			if after := projectShareData(t, apps, p); !maps.Equal(after, before) {
+				t.Errorf("shares changed by a refused write: %v, want %v", after, before)
 			}
 		})
 	}
