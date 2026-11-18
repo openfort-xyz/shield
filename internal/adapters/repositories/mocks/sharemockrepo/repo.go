@@ -109,11 +109,11 @@ func (m *MockShareRepository) GetShareStorageMethods(ctx context.Context) ([]*sh
 }
 
 func (m *MockShareRepository) GetSharesEncryptionForProjectAndReferences(ctx context.Context, projectID string, references []string) (map[string]share.RecoveryInfo, error) {
-	args := m.Mock.Called(ctx)
+	args := m.Mock.Called(ctx, projectID, references)
 	return args.Get(0).(map[string]share.RecoveryInfo), args.Error(1)
 }
 
 func (m *MockShareRepository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context.Context, projectID string, userIDs []string, reference *string) (map[string]share.RecoveryInfo, error) {
-	args := m.Mock.Called(ctx)
+	args := m.Mock.Called(ctx, projectID, userIDs, reference)
 	return args.Get(0).(map[string]share.RecoveryInfo), args.Error(1)
 }
