@@ -134,7 +134,7 @@ func TestGetShareByReferenceLogsNotFoundAsWarning(t *testing.T) {
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	userRepo := new(usermockedrepo.MockUserRepository)
-	shareRepo.On("GetByReference", mock.Anything, reference).Return(nil, domainErrors.ErrShareNotFound)
+	shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, projectID, externalUserID).Return(nil, domainErrors.ErrShareNotFound)
 
 	encryptionFactory := encryption.NewEncryptionFactory(
 		new(encryptionpartsmockrepo.MockEncryptionPartsRepository), projectRepo)
@@ -195,13 +195,12 @@ func TestGetShareByReferenceLogsWrongPartAsWarning(t *testing.T) {
 	require.NoError(t, err)
 
 	ref := reference
-	shareRepo.On("GetByReference", mock.Anything, reference).Return(&share.Share{
+	shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, projectID, externalUserID).Return(&share.Share{
 		UserID:    userID,
 		Reference: &ref,
 		Secret:    encryptedSecret,
 		Entropy:   share.EntropyProject,
 	}, nil)
-	userRepo.On("GetUserIDsByExternalID", mock.Anything, externalUserID).Return([]string{userID}, nil)
 	projectRepo.On("GetEncryptionKey", mock.Anything, projectID).Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 	projectRepo.On("HasSuccessfulMigration", mock.Anything, projectID).Return(true, nil)
 

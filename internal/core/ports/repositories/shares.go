@@ -13,6 +13,7 @@ type ShareRepository interface {
 	GetByReference(ctx context.Context, reference string) (*share.Share, error)
 	GetByReferenceAndKeychain(ctx context.Context, reference, keychainID string) (*share.Share, error)
 	GetByReferenceAndProjectID(ctx context.Context, reference, projectID string) (*share.Share, error)
+	GetByReferenceForProjectAndExternalUserID(ctx context.Context, reference, projectID, externalUserID string) (*share.Share, error)
 	Delete(ctx context.Context, shareID string) error
 	ListByKeychainID(ctx context.Context, keychainID string) ([]*share.Share, error)
 	ListProjectIDAndEntropy(ctx context.Context, projectID string, entropy share.Entropy) ([]*share.Share, error)
