@@ -666,6 +666,25 @@ func TestLegacyKey_WriteRacingMigrationIsNotPersisted(t *testing.T) {
 	}
 }
 
+// A failed migration re-encrypted nothing, so the project still runs on its
+// pre-migration key and writes under it persist.
+func TestLegacyKey_FailedMigrationKeepsPreMigrationWrites(t *testing.T) {
+	apps := New(t)
+	for _, w := range keyWrites {
+		t.Run(w.name, func(t *testing.T) {
+			p, part, key := seedLegacyProject(t, apps, false)
+			insertProjectShare(t, apps, p, key, "wallet")
+			dbtest.Exec(t, apps.DB, `INSERT INTO shld_shamir_migrations (id, project_id, success) VALUES (?, ?, false)`,
+				uuid.NewString(), p.ID)
+
+			if err := w.write(apps, p, part, plainShareRef(t, apps, p)); err != nil {
+				t.Fatalf("write on a project with only a failed migration: %v", err)
+			}
+			assertSharesDecrypt(t, apps, p, part, 2)
+		})
+	}
+}
+
 // migrateOutOfBand migrates the project in one transaction that takes FOR
 // UPDATE on its part row before it lists shares: every project share,
 // soft-deleted ones included, moves from the pre-migration key to the current
