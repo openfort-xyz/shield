@@ -138,6 +138,8 @@ func (s *Server) Handler() http.Handler {
 	u := r.PathPrefix("/shares").Subrouter()
 	u.Use(authMdw.AuthenticateUser)
 	u.HandleFunc("", shareHdl.GetShare).Methods(http.MethodGet)
+	// Before /{reference}, which would otherwise take "encryption" as a reference.
+	u.HandleFunc("/encryption", shareHdl.GetShareEncryption).Methods(http.MethodGet)
 	u.HandleFunc("/{reference}", shareHdl.GetShareByReference).Methods(http.MethodGet)
 
 	u.HandleFunc("", shareHdl.RegisterShare).Methods(http.MethodPost)
@@ -150,7 +152,6 @@ func (s *Server) Handler() http.Handler {
 
 	e := r.PathPrefix("/shares/encryption").Subrouter()
 	e.Use(authMdw.AuthenticateAPISecret)
-	e.HandleFunc("", shareHdl.GetShareEncryption).Methods(http.MethodGet)
 	e.HandleFunc("/reference/bulk", shareHdl.GetSharesEncryptionForReferences).Methods(http.MethodPost)
 	e.HandleFunc("/user/bulk", shareHdl.GetSharesEncryptionForUsers).Methods(http.MethodPost)
 
