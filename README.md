@@ -534,16 +534,16 @@ it received it by sending it back. Both calls are safe to retry.
   first successful `prepare`, which proves the part against every project
   share; a `prepare` left to expire changes nothing else.
 - **Keys without a key check:** a project-entropy share write proceeds when
-  the part decrypts one of the project's 1000 oldest project shares
-  (soft-deleted ones included), or when the project has none. Otherwise it
-  is rejected with `409 EC_UNPROVEN` and nothing is stored. A share the part
-  does not decrypt, such as one written with another part, does not block
-  the write while another of those shares decrypts. If none of them was
-  written with the project's part, for example because the project's first
-  share came with a wrong part, the project's part gets `EC_UNPROVEN` until
-  those shares are removed from the database (deleting through the API
-  keeps them). Calling `prepare` once the first share written with the
-  project's part is stored rules this out.
+  the part decrypts one of up to 1000 of the project's project shares, in
+  no set order (soft-deleted ones included), or when the project has none.
+  Otherwise it is rejected with `409 EC_UNPROVEN` and nothing is stored. A
+  share the part does not decrypt, such as one written with another part,
+  does not block the write while another of those shares decrypts. If none
+  of them was written with the project's part, for example because the
+  project's first share came with a wrong part, the project's part gets
+  `EC_UNPROVEN` until those shares are removed from the database (deleting
+  through the API keeps them). Calling `prepare` once the first share
+  written with the project's part is stored rules this out.
 - **Upgrades:** rotate only after every Shield replica runs this release. An
   older replica writes shares without the rotation guard.
 - **Soft-deleted shares** are re-encrypted too, so they stay restorable.

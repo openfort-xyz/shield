@@ -342,6 +342,12 @@ func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context
 // proofSampleSize bounds how many shares proveKey tries a key against.
 const proofSampleSize = 1000
 
+// proofFirstBatch is how many shares proveKey reads before the full sample.
+// Postgres computes every row a query asks for whatever the client reads, so
+// a key that decrypts the first shares read stops early only with a small
+// first query.
+const proofFirstBatch = 10
+
 // underGuard runs fn, and when guard is set runs it in a transaction that
 // first passes checkGuard. A key without a key check is proven before the
 // transaction, holding no lock; checkGuard applies the result.
@@ -417,19 +423,41 @@ func hasMigrated(tx *gorm.DB, projectID string) (bool, error) {
 	return migrations > 0, err
 }
 
-// proveKey tries a key that was rebuilt without a key check against the
-// project's oldest project-entropy shares, soft-deleted ones included as in
-// rotation, and passes at the first that decrypts. A share that does not,
-// malformed or under another key, is skipped, so one stray share does not
-// lock out the project's part. A project with no such share has nothing to
-// prove a key against, and its writes proceed as before key checks existed.
+// proveKey tries a key that was rebuilt without a key check against up to
+// proofSampleSize of the project's project-entropy shares, soft-deleted ones
+// included as in rotation, in whatever order the index walk yields them, and
+// passes at the first that decrypts. A share that does not, malformed or
+// under another key, is skipped, so one stray share does not lock out the
+// project's part. A project with no such share has nothing to prove a key
+// against, and its writes proceed as before key checks existed.
 func (r *repository) proveKey(ctx context.Context, guard *share.EncryptionGuard) error {
+	tried := 0
+	for _, limit := range []int{proofFirstBatch, proofSampleSize} {
+		proven, n, err := r.tryKey(ctx, guard, limit)
+		if err != nil || proven {
+			return err
+		}
+		tried += n
+		if n < limit {
+			break
+		}
+	}
+	if tried == 0 {
+		return nil
+	}
+	return fmt.Errorf("project %s: none of %d project shares tried decrypts under the key: %w",
+		guard.ProjectID, tried, domainErrors.ErrEncryptionPartUnproven)
+}
+
+// tryKey reads up to limit of the project's project-entropy shares and
+// reports whether one decrypts under the key, and how many it tried.
+func (r *repository) tryKey(ctx context.Context, guard *share.EncryptionGuard, limit int) (bool, int, error) {
 	rows, err := r.db.WithContext(ctx).Raw(`SELECT s.data FROM shld_shares s
 		JOIN shld_users u ON s.user_id = u.id
 		WHERE u.project_id = ? AND s.entropy = 'project'
-		ORDER BY s.created_at, s.id LIMIT ?`, guard.ProjectID, proofSampleSize).Rows()
+		LIMIT ?`, guard.ProjectID, limit).Rows()
 	if err != nil {
-		return err
+		return false, 0, err
 	}
 	defer rows.Close()
 
@@ -437,21 +465,14 @@ func (r *repository) proveKey(ctx context.Context, guard *share.EncryptionGuard)
 	for rows.Next() {
 		var data string
 		if err := rows.Scan(&data); err != nil {
-			return err
+			return false, tried, err
 		}
 		if _, err := cypher.Decrypt(data, guard.UnverifiedKey); err == nil {
-			return nil
+			return true, tried, nil
 		}
 		tried++
 	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	if tried == 0 {
-		return nil
-	}
-	return fmt.Errorf("project %s: none of its %d oldest project shares decrypts under the key: %w",
-		guard.ProjectID, tried, domainErrors.ErrEncryptionPartUnproven)
+	return false, tried, rows.Err()
 }
 
 func (r *repository) logError(ctx context.Context, msg string, err error) {
