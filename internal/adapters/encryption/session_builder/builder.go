@@ -11,6 +11,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/ports/builders"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
+	"github.com/openfort-xyz/shield/pkg/contexter"
 	"github.com/openfort-xyz/shield/pkg/cypher"
 )
 
@@ -34,7 +35,8 @@ func NewEncryptionKeyBuilder(encryptionPartsRepo repositories.EncryptionPartsRep
 }
 
 func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) error {
-	data, err := b.encryptionPartsRepo.Get(ctx, identifier)
+	key := share.EncryptionSessionKey(identifier)
+	data, err := b.encryptionPartsRepo.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrDataInDBNotFound) {
 			return domainErrors.ErrInvalidEncryptionSession
@@ -47,11 +49,21 @@ func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) 
 		return err
 	}
 
-	if b.requireOTPCheck && !part.OTPVerified {
-		return domainErrors.ErrOTPVerificationRequired
+	// Rejected before the delete below, so presenting someone else's session
+	// does not burn it for its owner.
+	if part.ProjectID != contexter.GetProjectID(ctx) {
+		return domainErrors.ErrInvalidEncryptionSession
+	}
+	if b.requireOTPCheck {
+		if part.UserID == "" || part.UserID != contexter.GetExternalUserID(ctx) {
+			return domainErrors.ErrInvalidEncryptionSession
+		}
+		if !part.OTPVerified {
+			return domainErrors.ErrOTPVerificationRequired
+		}
 	}
 
-	err = b.encryptionPartsRepo.Delete(ctx, identifier)
+	err = b.encryptionPartsRepo.Delete(ctx, key)
 	if err != nil {
 		return err
 	}

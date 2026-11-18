@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -87,14 +88,14 @@ func NewOnboardingTracker(config OnboardingTrackerConfig, clock Clock) *Onboardi
 }
 
 // TrackAttempt tracks an onboarding attempt and returns an error if rate limit is exceeded
-func (ot *OnboardingTracker) TrackAttempt(userID string) error {
+func (ot *OnboardingTracker) TrackAttempt(key string) error {
 	ot.mu.Lock()
 	defer ot.mu.Unlock()
 
 	now := ot.clock.Now().UnixMilli()
 
 	var validAttempts []int64
-	for _, timestamp := range ot.failedAttempts[userID] {
+	for _, timestamp := range ot.failedAttempts[key] {
 		if now-timestamp <= ot.windowMS {
 			validAttempts = append(validAttempts, timestamp)
 		}
@@ -108,10 +109,10 @@ func (ot *OnboardingTracker) TrackAttempt(userID string) error {
 	return nil
 }
 
-func (ot *OnboardingTracker) AddFailedAttempt(userID string) {
-	attempts := ot.failedAttempts[userID]
+func (ot *OnboardingTracker) AddFailedAttempt(key string) {
+	attempts := ot.failedAttempts[key]
 	attempts = append(attempts, ot.clock.Now().UnixMilli())
-	ot.failedAttempts[userID] = attempts
+	ot.failedAttempts[key] = attempts
 }
 
 // CleanupOldRecords removes tracking data older than the window
@@ -143,28 +144,18 @@ func (ot *OnboardingTracker) CleanupOldRecords() {
 	}
 }
 
-// Service defines the interface for OTP operations
-type Service interface {
-	// GenerateOTP generates a new OTP and stores it
-	// Returns 9-digit numeric OTP string
-	GenerateOTP(ctx context.Context, userID string) (string, error)
-
-	// VerifyOTP verifies an OTP for a given device
-	// Returns the OTP request if valid
-	// Returns error if OTP is invalid, expired, or max attempts exceeded
-	VerifyOTP(ctx context.Context, userID, otpCode string) (*otp.Request, error)
-
-	// Cleanup removes expired OTPs and old tracking records
-	Cleanup() error
-
-	// Close closes the OTP service and cleans up resources
-	Close() error
+// recordKey scopes an OTP record and its counters to one project's user. External
+// user IDs are unique only within a project, and OTP records share their
+// store with encryption sessions, hence the prefix. Project IDs are UUIDs, so
+// the first colon after the prefix ends the project ID.
+func recordKey(projectID, userID string) string {
+	return "otp:" + projectID + ":" + userID
 }
 
-// InMemoryOTPService implements Service with comprehensive security controls using buntdb
+// InMemoryOTPService issues and verifies OTPs with security controls, using buntdb
 //
 // Security Features:
-// - Rate Limiting: User onboarding attempts are limited per userID
+// - Rate Limiting: User onboarding attempts are limited per project and userID
 // - Brute Force Protection: OTPs invalidated after 3 failed attempts
 // - Time-based Expiry: OTPs expire after 5 minutes
 // - Memory Management: Automatic cleanup of expired OTPs and old records
@@ -194,13 +185,14 @@ func NewInMemoryOTPService(partsRepo repositories.EncryptionPartsRepository, sec
 // GenerateOTP generates a new OTP and stores it in memory
 //
 // Security Flow:
-// 1. Enforces user onboarding limits per userID
+// 1. Enforces user onboarding limits per project and userID
 // 2. Generates cryptographically secure 9-digit OTP
 // 3. Stores OTP with metadata for verification tracking
 //
 // Returns 9-digit numeric OTP string
-func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string, skipVerification bool) (string, error) {
-	if err := s.securityService.TrackAttempt(userID); err != nil {
+func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, projectID, userID string, skipVerification bool) (string, error) {
+	key := recordKey(projectID, userID)
+	if err := s.securityService.TrackAttempt(key); err != nil {
 		return "", err
 	}
 
@@ -225,7 +217,7 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string, ski
 		Expires: true,
 		TTL:     time.Duration(s.config.OTPExpiryMS+1000) * time.Millisecond, // add some buffer to expiry time, just in case
 	}
-	err = s.partsRepo.Set(ctx, userID, string(requestBytes), &options)
+	err = s.partsRepo.Set(ctx, key, string(requestBytes), &options)
 	if err != nil {
 		return "", err
 	}
@@ -243,8 +235,9 @@ func (s *InMemoryOTPService) GenerateOTP(ctx context.Context, userID string, ski
 // 5. Cleans up successful/failed requests from memory
 //
 // Returns the OTP request if valid, containing authentication context
-func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID string, otpCode *string) (*otp.Request, error) {
-	val, err := s.partsRepo.Get(ctx, userID)
+func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, projectID, userID string, otpCode *string) (*otp.Request, error) {
+	key := recordKey(projectID, userID)
+	val, err := s.partsRepo.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +254,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID string, otpCo
 
 		currentTime := s.clock.Now().UnixMilli()
 		if currentTime-request.CreatedAt > s.config.OTPExpiryMS {
-			err := s.partsRepo.Delete(ctx, userID)
+			err := s.partsRepo.Delete(ctx, key)
 			if err != nil {
 				return nil, err
 			}
@@ -272,13 +265,13 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID string, otpCo
 			request.FailedAttempts++
 
 			if request.FailedAttempts >= s.config.MaxFailedAttempts {
-				err := s.partsRepo.Delete(ctx, userID)
+				err := s.partsRepo.Delete(ctx, key)
 				if err != nil {
 					return nil, err
 				}
 
 				// prevent brute forcing
-				s.securityService.AddFailedAttempt(userID)
+				s.securityService.AddFailedAttempt(key)
 
 				return nil, errors.ErrOTPInvalidated
 			}
@@ -290,7 +283,7 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID string, otpCo
 				Expires: true,
 				TTL:     time.Duration((s.config.OTPExpiryMS-(currentTime-request.CreatedAt))+1000) * time.Millisecond, // add some buffer to expiry time, just in case
 			}
-			err = s.partsRepo.Update(ctx, userID, string(requestBytes), &options)
+			err = s.partsRepo.Update(ctx, key, string(requestBytes), &options)
 			if err != nil {
 				return nil, err
 			}
@@ -300,12 +293,21 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, userID string, otpCo
 	}
 
 	// OTP is valid, remove from storage
-	err = s.partsRepo.Delete(ctx, userID)
+	err = s.partsRepo.Delete(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 
 	return &request, nil
+}
+
+// DeleteOTP removes the user's pending OTP, if there is one.
+func (s *InMemoryOTPService) DeleteOTP(ctx context.Context, projectID, userID string) error {
+	err := s.partsRepo.Delete(ctx, recordKey(projectID, userID))
+	if stderrors.Is(err, errors.ErrEncryptionPartNotFound) {
+		return nil
+	}
+	return err
 }
 
 // Cleanup removes old tracking records
