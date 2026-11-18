@@ -1,6 +1,8 @@
 package apptest
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -13,11 +15,19 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 )
 
-// retireLegacyKey runs the README's "Retiring pre-migration keys" statements,
-// each limited to the project so that tests sharing the database stay apart,
-// and returns how many migration rows the insert added.
 func retireLegacyKey(t *testing.T, apps Apps, p dbtest.Project) int64 {
 	t.Helper()
+	inserted, err := runRetireLegacyKey(apps, p)
+	if err != nil {
+		t.Fatalf("retire pre-migration key: %v", err)
+	}
+	return inserted
+}
+
+// runRetireLegacyKey runs the README's "Retiring pre-migration keys"
+// statements, each limited to the project so that tests sharing the database
+// stay apart, and returns how many migration rows the insert added.
+func runRetireLegacyKey(apps Apps, p dbtest.Project) (int64, error) {
 	var inserted int64
 	err := apps.DB.Transaction(func(tx *gorm.DB) error {
 		err := tx.Exec(`SELECT ep.id FROM shld_encryption_parts ep
@@ -36,11 +46,80 @@ func retireLegacyKey(t *testing.T, apps Apps, p dbtest.Project) int64 {
 			AND ep.project_id = ?`, p.ID)
 		inserted = res.RowsAffected
 		return res.Error
-	})
+	}, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	return inserted, err
+}
+
+// A share write that holds the part row when the procedure starts commits
+// first; the insert, at READ COMMITTED, then sees its share and skips the
+// project. Without the lock, or at REPEATABLE READ, the project is recorded
+// as migrated and the share is left under the pre-migration key.
+func TestRetireLegacyKey_WaitsForInFlightWrite(t *testing.T) {
+	apps := New(t)
+	p, part, _ := seedLegacyProject(t, apps, false)
+	ctx := context.Background()
+	db, err := apps.DB.DB.DB()
 	if err != nil {
-		t.Fatalf("retire pre-migration key: %v", err)
+		t.Fatalf("sql.DB: %v", err)
 	}
-	return inserted
+	blocker, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer func() { _ = blocker.Rollback() }()
+	var blockerPID int
+	if err := blocker.QueryRowContext(ctx, `SELECT pg_backend_pid()`).Scan(&blockerPID); err != nil {
+		t.Fatalf("backend pid: %v", err)
+	}
+	// The share insert's foreign-key check waits on this, after the guard
+	// has taken the part row FOR SHARE.
+	if _, err := blocker.ExecContext(ctx, `SELECT 1 FROM shld_users WHERE id = $1 FOR UPDATE`, p.UserID); err != nil {
+		t.Fatalf("lock user: %v", err)
+	}
+
+	writeDone := make(chan struct{})
+	var writeErr error
+	go func() {
+		defer close(writeDone)
+		writeErr = apps.Share.RegisterShare(UserContext(p),
+			&share.Share{Secret: "wallet", Entropy: share.EntropyProject, Reference: ptr("wallet-" + p.ID[:8])},
+			shareapp.WithEncryptionPart(part))
+	}()
+	if !dbtest.WaitForLockWait(t, apps.DB, blockerPID, writeDone) {
+		t.Fatalf("the write finished before its insert waited: %v", writeErr)
+	}
+	var writePID int
+	if err := apps.DB.Raw(`SELECT pid FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))`, blockerPID).
+		Scan(&writePID).Error; err != nil {
+		t.Fatalf("write backend pid: %v", err)
+	}
+
+	retireDone := make(chan struct{})
+	var inserted int64
+	var retireErr error
+	go func() {
+		defer close(retireDone)
+		inserted, retireErr = runRetireLegacyKey(apps, p)
+	}()
+	if !dbtest.WaitForLockWait(t, apps.DB, writePID, retireDone) {
+		t.Error("the procedure did not wait for the write's part row lock")
+	}
+	if err := blocker.Rollback(); err != nil {
+		t.Fatalf("release user: %v", err)
+	}
+	<-writeDone
+	<-retireDone
+
+	if writeErr != nil {
+		t.Fatalf("write: %v", writeErr)
+	}
+	if retireErr != nil {
+		t.Fatalf("retire pre-migration key: %v", retireErr)
+	}
+	if inserted != 0 {
+		t.Errorf("migration rows inserted = %d, want 0", inserted)
+	}
+	assertSharesDecrypt(t, apps, p, part, 1)
 }
 
 func readShare(apps Apps, p dbtest.Project, reference string, opts ...shareapp.Option) (string, error) {
@@ -102,18 +181,28 @@ func TestRetireLegacyKey_ProjectWithoutProjectShares(t *testing.T) {
 			if _, err := readShare(apps, p, wallet, shareapp.WithEncryptionPart(otherPart)); !errors.Is(err, shareapp.ErrInvalidEncryptionPart) {
 				t.Errorf("read with another part: err = %v, want %v", err, shareapp.ErrInvalidEncryptionPart)
 			}
-			err = apps.Share.RegisterShare(UserContext(p), &share.Share{Secret: "x", Entropy: share.EntropyProject, Reference: ptr("x-" + p.ID[:8])},
+			stray := "stray-" + p.ID[:8]
+			err = apps.Share.RegisterShare(UserContext(p), &share.Share{Secret: "x", Entropy: share.EntropyProject, Reference: &stray},
 				shareapp.WithEncryptionPart(otherPart))
-			if !errors.Is(err, shareapp.ErrEncryptionPartUnproven) {
-				t.Errorf("write with another part: err = %v, want %v", err, shareapp.ErrEncryptionPartUnproven)
+			if err != nil {
+				t.Errorf("write with another part before the project has a key check: %v", err)
 			}
 
 			if _, err := apps.Project.PrepareEncryptionKeyRotation(ctx, otherPart); !errors.Is(err, projectapp.ErrInvalidEncryptionPart) {
 				t.Errorf("prepare with another part: err = %v, want %v", err, projectapp.ErrInvalidEncryptionPart)
 			}
+			if _, err := apps.Project.PrepareEncryptionKeyRotation(ctx, part); !errors.Is(err, projectapp.ErrInvalidEncryptionPart) {
+				t.Errorf("prepare while a share under another part exists: err = %v, want %v", err, projectapp.ErrInvalidEncryptionPart)
+			}
+			dbtest.Exec(t, apps.DB, `DELETE FROM shld_shares WHERE user_id = ? AND reference = ?`, p.UserID, stray)
 			newPart, err := apps.Project.PrepareEncryptionKeyRotation(ctx, part)
 			if err != nil {
 				t.Fatalf("prepare with the project's part: %v", err)
+			}
+			err = apps.Share.RegisterShare(UserContext(p), &share.Share{Secret: "x", Entropy: share.EntropyProject, Reference: &stray},
+				shareapp.WithEncryptionPart(otherPart))
+			if !errors.Is(err, shareapp.ErrInvalidEncryptionPart) {
+				t.Errorf("write with another part once the project has a key check: err = %v, want %v", err, shareapp.ErrInvalidEncryptionPart)
 			}
 			if committed, err := apps.Project.CommitEncryptionKeyRotation(ctx, part, newPart); err != nil || !committed {
 				t.Fatalf("commit: committed = %v, err = %v", committed, err)

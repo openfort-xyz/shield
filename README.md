@@ -533,17 +533,11 @@ it received it by sending it back. Both calls are safe to retry.
   under a key nobody holds. A key created before key checks gets one on its
   first successful `prepare`, which proves the part against every project
   share; a `prepare` left to expire changes nothing else.
-- **Keys without a key check:** a project-entropy share write proceeds when
-  the part decrypts one of up to 1000 of the project's project shares, in
-  no set order (soft-deleted ones included), or when the project has none.
-  Otherwise it is rejected with `409 EC_UNPROVEN` and nothing is stored. A
-  share the part does not decrypt, such as one written with another part,
-  does not block the write while another of those shares decrypts. If none
-  of them was written with the project's part, for example because the
-  project's first share came with a wrong part, the project's part gets
-  `EC_UNPROVEN` until those shares are removed from the database (deleting
-  through the API keeps them). Calling `prepare` once the first share
-  written with the project's part is stored rules this out.
+- **Keys without a key check:** share writes do not verify the part until
+  the project has a key check, which only `prepare` creates. A
+  project-entropy share written with another part before then is stored,
+  and `prepare` fails with `400 EC_INVALID` until that share is removed from
+  the database (deleting through the API keeps it).
 - **Upgrades:** rotate only after every Shield replica runs this release. An
   older replica writes shares without the rotation guard.
 - **Soft-deleted shares** are re-encrypted too, so they stay restorable.
@@ -636,12 +630,12 @@ has no successful row in `shld_shamir_migrations`, is unmigrated.
   traffic at once.
 - **Retiring pre-migration keys:** an unmigrated project with no project
   share, soft-deleted ones included, has nothing under its pre-migration
-  key, so it can be recorded as migrated without re-encrypting anything. Its
-  part is then checked like any key without a key check (2.11): writes with
-  any part proceed until its first project share is stored, after which
-  another part gets `400 EC_INVALID` on reads and `409 EC_UNPROVEN` on
-  writes, and rotation works. Its other shares are not affected. Run this
-  only after every replica runs this release. Eligible projects:
+  key, so it can be recorded as migrated without re-encrypting anything. It
+  then behaves like any migrated project without a key check (2.11): reads
+  with another part fail with `400 EC_INVALID`, a project-entropy write with
+  another part is stored until the project has a key check, and rotation
+  works once it has a project share. Its other shares are not affected. Run
+  this only after every replica runs this release. Eligible projects:
 
   ```sql
   SELECT ep.project_id
@@ -652,13 +646,16 @@ has no successful row in `shld_shamir_migrations`, is unmigrated.
                     WHERE u.project_id = ep.project_id AND s.entropy = 'project');
   ```
 
-  Record them in one transaction that first locks the unmigrated part rows,
-  so a share write that races it is rejected with `409 EC_ROTATED` instead
-  of being stored under the old key. Check that the insert's row count
-  matches the list before `COMMIT`:
+  Record them in one `READ COMMITTED` transaction that first locks the
+  unmigrated part rows. A share write that starts after the lock is rejected
+  with `409 EC_ROTATED`; one already in flight commits first, and the insert
+  then sees its share and skips the project. At `REPEATABLE READ` the insert
+  does not see that share and records the project anyway, leaving the share
+  under the old key. Before `COMMIT`, check that the insert's row count
+  matches the list, less any project skipped that way:
 
   ```sql
-  BEGIN;
+  BEGIN ISOLATION LEVEL READ COMMITTED;
   SELECT ep.id FROM shld_encryption_parts ep
   WHERE NOT EXISTS (SELECT 1 FROM shld_shamir_migrations m
                     WHERE m.project_id = ep.project_id AND m.success)
@@ -678,3 +675,33 @@ has no successful row in `shld_shamir_migrations`, is unmigrated.
   Deleting the row undoes this only once every Shield instance has
   restarted, because each caches a project's migrated status. The behavior
   is tested in `internal/applications/apptest/retirelegacykey_db_test.go`.
+
+#### **2.16 Upgrading from v0.4.2**
+
+- **Database migration:** `shield server` applies pending migrations when
+  it starts, and this release adds two indexes (`idx_shld_shares_user_id`,
+  `idx_shld_users_project_id`). Run `shield db migrate` once before rolling
+  out replicas: replicas that start together race on the index creation,
+  and one can exit with a duplicate-relation error.
+- **Without blocking writes:** the migration's `CREATE INDEX` blocks writes
+  to `shld_shares` and `shld_users` while it builds. To avoid that, create
+  both indexes by hand first, then migrate:
+
+  ```sql
+  CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_shld_shares_user_id ON shld_shares(user_id);
+  CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_shld_users_project_id ON shld_users(project_id);
+  ```
+
+  A failed or cancelled `CONCURRENTLY` build leaves an invalid index, which
+  `IF NOT EXISTS` accepts as it is. Before migrating, check that both show
+  `indisvalid = true`, and drop and recreate any that does not:
+
+  ```sql
+  SELECT c.relname, i.indisvalid
+  FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+  WHERE c.relname IN ('idx_shld_shares_user_id', 'idx_shld_users_project_id');
+  ```
+
+- Rotate keys only after every replica runs this release (2.11), and make
+  sure no unmigrated project is live while both releases serve traffic
+  (2.15).

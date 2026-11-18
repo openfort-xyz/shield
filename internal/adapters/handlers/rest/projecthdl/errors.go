@@ -27,7 +27,6 @@ var applicationErrorMapping = []struct {
 	{projectapp.ErrEncryptionPartAlreadyExists, api.ErrEncryptionPartAlreadyExists},
 	{projectapp.ErrEncryptionNotConfigured, api.ErrEncryptionNotConfigured},
 	{projectapp.ErrEncryptionPartChanged, api.ErrEncryptionPartChanged},
-	{projectapp.ErrEncryptionPartUnproven, api.ErrEncryptionPartUnproven},
 	{projectapp.ErrNoPendingRotation, api.ErrNoPendingRotation},
 	{projectapp.ErrRotationExpired, api.ErrRotationExpired},
 	{projectapp.ErrProjectNotMigrated, api.ErrProjectNotMigrated},

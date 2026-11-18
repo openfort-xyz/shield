@@ -3,9 +3,7 @@ package apptest
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"maps"
-	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -19,7 +17,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/pkg/cypher"
-	"github.com/openfort-xyz/shield/pkg/logger/logtest"
 	"github.com/openfort-xyz/shield/pkg/random"
 )
 
@@ -151,88 +148,48 @@ func shareReference(t *testing.T, apps Apps, shareID string) string {
 	return reference
 }
 
-// A key without a check cannot be verified by Build, and Shamir combine
-// accepts a part from another split. Writing under the resulting key would
-// store ciphertext the project's part cannot decrypt.
-func TestLegacyKey_WrongPartWritesRejected(t *testing.T) {
+// v0.4.2 behavior: without a key check any part's write is stored; with one, a wrong part fails.
+func TestLegacyKey_WrongPartWrites(t *testing.T) {
 	apps := New(t)
 	_, otherPart := apps.SeedEncryptedProject(t)
 
-	tests := []struct {
-		name  string
-		write func(p dbtest.Project, projectShareID, plainShareID string) error
-	}{
-		{"RegisterShare", func(p dbtest.Project, _, _ string) error {
-			return apps.Share.RegisterShare(UserContext(p),
-				&share.Share{Secret: "new", Entropy: share.EntropyProject, Reference: ptr("new-" + p.ID[:8])},
-				shareapp.WithEncryptionPart(otherPart))
-		}},
-		{"UpdateShare", func(p dbtest.Project, projectShareID, _ string) error {
-			_, err := apps.Share.UpdateShare(UserContext(p), &share.Share{Secret: "new"},
-				shareReference(t, apps, projectShareID), shareapp.WithEncryptionPart(otherPart))
-			return err
-		}},
-		{"EncryptProjectShares", func(p dbtest.Project, _, _ string) error {
-			return apps.Project.EncryptProjectShares(ProjectContext(p), otherPart)
-		}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, w := range keyWrites {
+		t.Run(w.name+"/without a key check", func(t *testing.T) {
 			p, _, key := seedLegacyProject(t, apps, true)
-			projectShareID := insertProjectShare(t, apps, p, key, "wallet")
-			projectShareData := dbtest.ShareData(t, apps.DB, projectShareID)
-			plainShareID := dbtest.InsertShare(t, apps.DB, p, "none", "plain-share")
+			insertProjectShare(t, apps, p, key, "wallet")
+			otherKey, err := sssrec.NewSSSReconstructionStrategy().Reconstruct(
+				storedPart(t, apps, p), project.ProjectPart(otherPart))
+			if err != nil {
+				t.Fatalf("reconstruct: %v", err)
+			}
 
-			err := tt.write(p, projectShareID, plainShareID)
-
-			if !isUnproven(err) {
-				t.Errorf("write with a wrong part: err = %v, want encryption part unproven", err)
+			if err := w.write(apps, p, otherPart, plainShareRef(t, apps, p)); err != nil {
+				t.Fatalf("write with another part: %v", err)
 			}
-			if n := apps.ShareCount(t, p); n != 2 {
-				t.Errorf("share rows = %d, want 2", n)
-			}
-			if got := dbtest.ShareData(t, apps.DB, projectShareID); got != projectShareData {
-				t.Error("project share rewritten under a wrong key")
-			}
-			if got := dbtest.ShareData(t, apps.DB, plainShareID); got != "plain-share" {
-				t.Errorf("plain share = %q, want it untouched", got)
+			if n := sharesUnderKey(t, apps, p, otherKey); n != 1 {
+				t.Errorf("project shares under the other part's key = %d, want 1", n)
 			}
 			if check := storedKeyCheck(t, apps, p); check != nil {
-				t.Errorf("key check stored from a wrong part: %q", *check)
+				t.Errorf("key check stored by a share write: %q", *check)
+			}
+		})
+
+		t.Run(w.name+"/with a key check", func(t *testing.T) {
+			p, _ := apps.SeedEncryptedProject(t)
+			plainRef := plainShareRef(t, apps, p)
+			before := projectShareData(t, apps, p)
+
+			err := w.write(apps, p, otherPart, plainRef)
+
+			if !errors.Is(err, shareapp.ErrInvalidEncryptionPart) &&
+				!errors.Is(err, projectapp.ErrInvalidEncryptionPart) {
+				t.Errorf("write with another part: err = %v, want invalid encryption part", err)
+			}
+			if after := projectShareData(t, apps, p); !maps.Equal(after, before) {
+				t.Errorf("shares changed by a refused write: %v, want %v", after, before)
 			}
 		})
 	}
-}
-
-// A refused write can be a wrong part or a project whose sampled shares were
-// all written with one; the operator needs to see which project.
-func TestLegacyKey_UnprovenWriteLogsProjectAtErrorLevel(t *testing.T) {
-	rec := logtest.Start(slog.LevelInfo)
-	defer rec.Stop()
-	apps := New(t)
-	_, otherPart := apps.SeedEncryptedProject(t)
-	p, _, key := seedLegacyProject(t, apps, true)
-	insertProjectShare(t, apps, p, key, "wallet")
-	rec.Reset()
-
-	err := apps.Share.RegisterShare(UserContext(p),
-		&share.Share{Secret: "new", Entropy: share.EntropyProject, Reference: ptr("new-" + p.ID[:8])},
-		shareapp.WithEncryptionPart(otherPart))
-	if !isUnproven(err) {
-		t.Fatalf("write with a wrong part: err = %v, want encryption part unproven", err)
-	}
-
-	for _, r := range rec.Records() {
-		if r.Logger == "share_repository" && r.Severity == "ERROR" && strings.Contains(r.Attr("error"), p.ID) {
-			return
-		}
-	}
-	t.Errorf("no share repository error record names project %s: %v", p.ID, rec.Records())
-}
-
-func isUnproven(err error) bool {
-	return errors.Is(err, shareapp.ErrEncryptionPartUnproven) || errors.Is(err, projectapp.ErrEncryptionPartUnproven)
 }
 
 // keyWrites are the writes that encrypt a share under the project key. Each
@@ -277,17 +234,6 @@ func sharesUnderKey(t *testing.T, apps Apps, p dbtest.Project, key string) int {
 	return n
 }
 
-// strayCiphertext encrypts secret under a key the project's part does not
-// rebuild, as a write with a wrong part before key checks existed left it.
-func strayCiphertext(t *testing.T, secret string) string {
-	t.Helper()
-	ciphertext, err := cypher.Encrypt(secret, randomPart(t))
-	if err != nil {
-		t.Fatalf("encrypt: %v", err)
-	}
-	return ciphertext
-}
-
 // Only rotation, which proves a key against every project share, stores a
 // check for an existing key. A share write that stored one could anchor a
 // wrong part on a project with nothing to prove it against.
@@ -323,210 +269,6 @@ func TestLegacyKey_ShareWritesStoreNoKeyCheck(t *testing.T) {
 				}
 			})
 		}
-	}
-}
-
-// With no project share there is nothing to prove a part against, so a wrong
-// part's write is stored as before key checks existed, and nothing else: the
-// project's part then fails only the writes this stray share makes unproven,
-// until it is deleted, and is never locked out by a stored check.
-func TestLegacyKey_WrongPartFirstOnProjectWithoutShares(t *testing.T) {
-	apps := New(t)
-	_, otherPart := apps.SeedEncryptedProject(t)
-	p, part, _ := seedLegacyProject(t, apps, true)
-	ctx := UserContext(p)
-	stray := "stray-" + p.ID[:8]
-	wallet := "wallet-" + p.ID[:8]
-
-	err := apps.Share.RegisterShare(ctx, &share.Share{Secret: "stray", Entropy: share.EntropyProject, Reference: &stray},
-		shareapp.WithEncryptionPart(otherPart))
-	if err != nil {
-		t.Fatalf("first write with a wrong part on a project without shares: %v", err)
-	}
-	if check := storedKeyCheck(t, apps, p); check != nil {
-		t.Fatalf("key check stored from a wrong part: %q", *check)
-	}
-
-	err = apps.Share.RegisterShare(ctx, &share.Share{Secret: "wallet", Entropy: share.EntropyProject, Reference: &wallet},
-		shareapp.WithEncryptionPart(part))
-	if !isUnproven(err) {
-		t.Errorf("right part while only a stray share exists: err = %v, want encryption part unproven", err)
-	}
-
-	dbtest.Exec(t, apps.DB, `DELETE FROM shld_shares WHERE user_id = ? AND reference = ?`, p.UserID, stray)
-
-	err = apps.Share.RegisterShare(ctx, &share.Share{Secret: "wallet", Entropy: share.EntropyProject, Reference: &wallet},
-		shareapp.WithEncryptionPart(part))
-	if err != nil {
-		t.Fatalf("write with the right part after the stray share is deleted: %v", err)
-	}
-	shrs, err := apps.Share.GetKeychainShares(ctx, &wallet, shareapp.WithEncryptionPart(part))
-	if err != nil || len(shrs) != 1 || shrs[0].Secret != "wallet" {
-		t.Errorf("read with the right part = %v, %v; want %q", shrs, err, "wallet")
-	}
-	if _, err := apps.Project.PrepareEncryptionKeyRotation(ProjectContext(p), part); err != nil {
-		t.Errorf("rotation prepare with the right part: %v", err)
-	}
-}
-
-// A share under another key, as a write with a wrong part before key checks
-// existed could leave, or a share whose data is not ciphertext, must not lock
-// the project's part out of writes while another share proves it.
-func TestLegacyKey_UndecryptableShareDoesNotBlockRightPart(t *testing.T) {
-	apps := New(t)
-	undecryptable := map[string]string{
-		"stray":     strayCiphertext(t, "stray"),
-		"malformed": "%not-ciphertext%",
-	}
-
-	for _, w := range keyWrites {
-		for name, data := range undecryptable {
-			t.Run(w.name+"/"+name, func(t *testing.T) {
-				p, part, key := seedLegacyProject(t, apps, true)
-				dbtest.InsertShare(t, apps.DB, p, "project", data)
-				insertProjectShare(t, apps, p, key, "wallet")
-
-				if err := w.write(apps, p, part, plainShareRef(t, apps, p)); err != nil {
-					t.Errorf("write with the right part: %v", err)
-				}
-				if n := sharesUnderKey(t, apps, p, key); n != 2 {
-					t.Errorf("project shares under the project's key = %d, want 2", n)
-				}
-			})
-		}
-	}
-}
-
-// With only shares the part does not decrypt, nothing proves it: the write is
-// refused with its own error, never an internal one, and stores nothing.
-func TestLegacyKey_OnlyUndecryptableSharesRefuseWrite(t *testing.T) {
-	apps := New(t)
-	undecryptable := map[string]string{
-		"stray":     strayCiphertext(t, "stray"),
-		"malformed": "%not-ciphertext%",
-	}
-
-	for _, w := range keyWrites {
-		for name, data := range undecryptable {
-			t.Run(w.name+"/"+name, func(t *testing.T) {
-				p, part, _ := seedLegacyProject(t, apps, true)
-				dbtest.InsertShare(t, apps.DB, p, "project", data)
-				plainRef := plainShareRef(t, apps, p)
-				before := projectShareData(t, apps, p)
-
-				if err := w.write(apps, p, part, plainRef); !isUnproven(err) {
-					t.Errorf("write: err = %v, want encryption part unproven", err)
-				}
-				if after := projectShareData(t, apps, p); !maps.Equal(after, before) {
-					t.Errorf("shares changed by a refused write: %v, want %v", after, before)
-				}
-			})
-		}
-	}
-}
-
-// proofSample is how many project shares the proof tries at most.
-const proofSample = 1000
-
-// insertProjectShares inserts n project shares for the project's user, in
-// order, all under a key the project's part does not rebuild except the one
-// at position under (1-based; 0 for none), which is under key.
-func insertProjectShares(t *testing.T, apps Apps, p dbtest.Project, n, under int, key string) {
-	t.Helper()
-	ciphertext, err := cypher.Encrypt("wallet", key)
-	if err != nil {
-		t.Fatalf("encrypt: %v", err)
-	}
-	dbtest.Exec(t, apps.DB, `INSERT INTO shld_shares (id, data, user_id, keychain_id, reference, entropy, storage_method_id)
-		SELECT gen_random_uuid(), CASE WHEN g = ? THEN ? ELSE ? END, ?, ?, 'bulk-' || g, 'project', 0
-		FROM generate_series(1, ?) g ORDER BY g`, under, ciphertext, strayCiphertext(t, "stray"), p.UserID, p.KeychainID, n)
-}
-
-// The proof tries up to 1000 of the project's project shares, in no set
-// order: one that decrypts proves the part wherever it sits among them, and
-// more than 1000 that do not refuse it.
-func TestLegacyKey_ProofSample(t *testing.T) {
-	apps := New(t)
-	tests := []struct {
-		name          string
-		shares, under int
-		want          error
-	}{
-		{"decrypting share inserted first of 1000", proofSample, 1, nil},
-		{"decrypting share inserted last of 1000", proofSample, proofSample, nil},
-		{"none of 1001 decrypts", proofSample + 1, 0, shareapp.ErrEncryptionPartUnproven},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p, part, key := seedLegacyProject(t, apps, true)
-			insertProjectShares(t, apps, p, tt.shares, tt.under, key)
-
-			err := apps.Share.RegisterShare(UserContext(p),
-				&share.Share{Secret: "new", Entropy: share.EntropyProject, Reference: ptr("new-" + p.ID[:8])},
-				shareapp.WithEncryptionPart(part))
-
-			if !errors.Is(err, tt.want) {
-				t.Errorf("RegisterShare: err = %v, want %v", err, tt.want)
-			}
-			want := int64(tt.shares + 1)
-			if tt.want != nil {
-				want = int64(tt.shares)
-			}
-			if n := apps.ShareCount(t, p); n != want {
-				t.Errorf("share rows = %d, want %d", n, want)
-			}
-		})
-	}
-}
-
-// EncryptProjectShares proves the part once per call, not once per share it
-// converts. The share under the key comes last, so a proof reads the sample.
-func TestLegacyKey_EncryptProjectSharesProvesOnce(t *testing.T) {
-	apps := New(t)
-	p, part, key := seedLegacyProject(t, apps, true)
-	insertProjectShares(t, apps, p, proofSample, proofSample, key)
-	const plain = 20
-	for range plain {
-		dbtest.InsertShare(t, apps.DB, p, "none", "plain-share")
-	}
-
-	var err error
-	reads := dbtest.ShareReads(t, apps.DB, func() {
-		err = apps.Project.EncryptProjectShares(ProjectContext(p), part)
-	})
-
-	if err != nil {
-		t.Fatalf("EncryptProjectShares: %v", err)
-	}
-	if n := sharesUnderKey(t, apps, p, key); n != 1+plain {
-		t.Errorf("project shares under the project's key = %d, want %d", n, 1+plain)
-	}
-	if len(reads) > 2 {
-		t.Errorf("share queries for %d conversions = %d (%v rows), want those of one proof", plain, len(reads), reads)
-	}
-}
-
-// Soft-deleted shares stay restorable and rotation re-encrypts them, so they
-// prove a part as live ones do: deleting a project's only share does not
-// make it a project without shares, where any part is accepted.
-func TestLegacyKey_SoftDeletedShareProvesPart(t *testing.T) {
-	apps := New(t)
-	_, otherPart := apps.SeedEncryptedProject(t)
-	p, part, key := seedLegacyProject(t, apps, true)
-	id := insertProjectShare(t, apps, p, key, "wallet")
-	dbtest.Exec(t, apps.DB, `UPDATE shld_shares SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?`, id)
-	ctx := UserContext(p)
-
-	err := apps.Share.RegisterShare(ctx, &share.Share{Secret: "new", Entropy: share.EntropyProject, Reference: ptr("wrong-" + p.ID[:8])},
-		shareapp.WithEncryptionPart(otherPart))
-	if !isUnproven(err) {
-		t.Errorf("wrong part with only a soft-deleted share: err = %v, want encryption part unproven", err)
-	}
-	err = apps.Share.RegisterShare(ctx, &share.Share{Secret: "new", Entropy: share.EntropyProject, Reference: ptr("right-" + p.ID[:8])},
-		shareapp.WithEncryptionPart(part))
-	if err != nil {
-		t.Errorf("right part with only a soft-deleted share: %v", err)
 	}
 }
 

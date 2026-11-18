@@ -29,18 +29,10 @@ type EncryptionGuard struct {
 	// zero value is the pre-migration case, so a guard built without it for a
 	// migrated project aborts rather than persists.
 	Migrated bool
-	// UnverifiedKey is the key the write encrypted under when the project
-	// had no key check to verify it against. The write then persists only if
-	// the key decrypts one of up to 1000 of the project's project shares, or
-	// the project has none, or it matches a key check stored since
-	// (sharerepo.checkGuard). Left empty for unmigrated projects: their key is
-	// the stored part whatever part the caller sent, so there is no part to
-	// prove.
-	UnverifiedKey string
-	// KeyProven is set by the share repository once UnverifiedKey passed that
-	// proof, so later writes under the same guard skip it. Their part, migration
-	// and key check comparisons still run.
-	KeyProven bool
+	// Key is the key the write encrypted under. A project can gain a key
+	// check after the key was rebuilt without one (rotation prepare); the
+	// write then persists only if Key matches it.
+	Key string
 }
 
 func (s *Share) RequiresEncryption() bool {
