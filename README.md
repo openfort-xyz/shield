@@ -652,13 +652,16 @@ has no successful row in `shld_shamir_migrations`, is unmigrated.
                     WHERE u.project_id = ep.project_id AND s.entropy = 'project');
   ```
 
-  Record them in one transaction that first locks the unmigrated part rows,
-  so a share write that races it is rejected with `409 EC_ROTATED` instead
-  of being stored under the old key. Check that the insert's row count
-  matches the list before `COMMIT`:
+  Record them in one `READ COMMITTED` transaction that first locks the
+  unmigrated part rows. A share write that starts after the lock is rejected
+  with `409 EC_ROTATED`; one already in flight commits first, and the insert
+  then sees its share and skips the project. At `REPEATABLE READ` the insert
+  does not see that share and records the project anyway, leaving the share
+  under the old key. Before `COMMIT`, check that the insert's row count
+  matches the list, less any project skipped that way:
 
   ```sql
-  BEGIN;
+  BEGIN ISOLATION LEVEL READ COMMITTED;
   SELECT ep.id FROM shld_encryption_parts ep
   WHERE NOT EXISTS (SELECT 1 FROM shld_shamir_migrations m
                     WHERE m.project_id = ep.project_id AND m.success)
