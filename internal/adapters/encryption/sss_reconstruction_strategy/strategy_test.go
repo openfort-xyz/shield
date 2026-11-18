@@ -79,6 +79,7 @@ func TestReconstruct_ValidParts(t *testing.T) {
 		{"current parts", stored, proj},
 		{"legacy 32-byte parts", stored[1:], proj[1:]},
 		{"legacy stored part, current project part", stored[1:], proj},
+		{"current stored part, legacy project part", stored, proj[1:]},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,5 +88,26 @@ func TestReconstruct_ValidParts(t *testing.T) {
 				t.Fatalf("Reconstruct = %q, %v, want the split key", got, err)
 			}
 		})
+	}
+}
+
+// A part on coordinate 0 carries the key itself, so combining it with any
+// other part returns that part's bytes.
+func TestReconstruct_RejectsCoordinateZero(t *testing.T) {
+	_, stored, proj := split(t)
+	_, otherStored, _ := split(t)
+	chosen := append([]byte{0}, bytes.Repeat([]byte{7}, 32)...)
+
+	for i, stored := range [][]byte{stored, otherStored} {
+		got, err := reconstruct(t, stored, chosen)
+		if err == nil && got == encode(chosen[1:]) {
+			t.Errorf("stored part %d, project part on coordinate 0: key = the caller's own bytes %q", i, got)
+		} else if !errors.Is(err, domainErrors.ErrInvalidEncryptionPart) {
+			t.Errorf("stored part %d, project part on coordinate 0: Reconstruct = %q, %v, want ErrInvalidEncryptionPart", i, got, err)
+		}
+	}
+
+	if got, err := reconstruct(t, chosen, proj); !errors.Is(err, domainErrors.ErrInvalidEncryptionPart) {
+		t.Fatalf("stored part on coordinate 0: Reconstruct = %q, %v, want ErrInvalidEncryptionPart", got, err)
 	}
 }
