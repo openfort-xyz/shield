@@ -550,7 +550,7 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 		return "", nil, ErrInvalidEncryptionPart
 	}
 
-	guard := &share.EncryptionGuard{ProjectID: projID, StoredPart: builder.GetDatabasePart(ctx)}
+	guard := &share.EncryptionGuard{ProjectID: projID, StoredPart: builder.GetDatabasePart(ctx), Migrated: isMigrated}
 	if isMigrated && builder.GetKeyCheck(ctx) == nil {
 		guard.UnverifiedKey = encryptionKey
 	}

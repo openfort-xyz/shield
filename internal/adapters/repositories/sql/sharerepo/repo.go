@@ -359,9 +359,12 @@ func (r *repository) underGuard(guard *share.EncryptionGuard, fn func(tx *gorm.D
 // id; a project can hold duplicates). A rotation commit holds FOR UPDATE on
 // the part rows and replaces the part in place, so a write that read the part
 // before the commit blocks here, then sees the new part and aborts; zero rows
-// also abort (TestPartRowLockSemantics). A guard with an UnverifiedKey takes
-// FOR UPDATE instead, so proveKey can store the key check. A nil guard checks
-// nothing.
+// also abort (TestPartRowLockSemantics). A guard for a pre-migration key also
+// aborts once the project has a successful migration; the read runs after the
+// part lock is granted, so a migration that records itself under FOR UPDATE
+// on the part rows cannot interleave with the write. A guard with an
+// UnverifiedKey takes FOR UPDATE instead, so proveKey can store the key
+// check. A nil guard checks nothing.
 func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard) error {
 	if guard == nil {
 		return nil
@@ -382,10 +385,25 @@ func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard) error {
 	if len(parts) == 0 || parts[0].Part != string(guard.StoredPart) {
 		return domainErrors.ErrEncryptionPartChanged
 	}
+	if !guard.Migrated {
+		migrated, err := hasMigrated(tx, guard.ProjectID)
+		if err != nil {
+			return err
+		}
+		if migrated {
+			return domainErrors.ErrEncryptionPartChanged
+		}
+	}
 	if guard.UnverifiedKey == "" {
 		return nil
 	}
 	return proveKey(tx, guard, parts[0].ID, parts[0].KeyCheck)
+}
+
+func hasMigrated(tx *gorm.DB, projectID string) (bool, error) {
+	var migrations int64
+	err := tx.Raw(`SELECT count(*) FROM shld_shamir_migrations WHERE project_id = ? AND success`, projectID).Scan(&migrations).Error
+	return migrations > 0, err
 }
 
 // proveKey verifies a key that was reconstructed without a key check: against

@@ -22,6 +22,12 @@ type Share struct {
 type EncryptionGuard struct {
 	ProjectID  string
 	StoredPart project.StoredPart
+	// Migrated is whether the key came from the current reconstruction. A
+	// migration changes the key without changing the stored part, so a write
+	// under a pre-migration key also aborts once the project is migrated. The
+	// zero value is the pre-migration case, so a guard built without it for a
+	// migrated project aborts rather than persists.
+	Migrated bool
 	// UnverifiedKey is the key the write encrypted under when the project
 	// had no key check to verify it against. The write then persists only if
 	// the key is proven in the same transaction (sharerepo.proveKey). Left

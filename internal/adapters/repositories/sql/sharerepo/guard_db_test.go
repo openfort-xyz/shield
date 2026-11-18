@@ -30,7 +30,7 @@ func TestGuardedWrites(t *testing.T) {
 		t.Run("Create/"+tt.name, func(t *testing.T) {
 			p := dbtest.SeedProject(t, client, "P1", true)
 			shr := &share.Share{Secret: "ciphertext", UserID: p.UserID, KeychainID: &p.KeychainID, Entropy: share.EntropyProject,
-				EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: tt.storedPart}}
+				EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: tt.storedPart, Migrated: true}}
 
 			err := repo.Create(ctx, shr)
 
@@ -49,7 +49,7 @@ func TestGuardedWrites(t *testing.T) {
 			id := dbtest.InsertShare(t, client, p, "project", "old")
 
 			err := repo.Update(ctx, &share.Share{ID: id, Secret: "new", UserID: p.UserID, Entropy: share.EntropyProject,
-				EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: tt.storedPart}})
+				EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: tt.storedPart, Migrated: true}})
 
 			assertGuarded(t, client, id, err, tt.wantErr)
 		})
@@ -59,7 +59,7 @@ func TestGuardedWrites(t *testing.T) {
 			id := dbtest.InsertShare(t, client, p, "none", "old")
 
 			err := repo.UpdateProjectEncryption(ctx, id, "old", "new",
-				&share.EncryptionGuard{ProjectID: p.ID, StoredPart: tt.storedPart})
+				&share.EncryptionGuard{ProjectID: p.ID, StoredPart: tt.storedPart, Migrated: true})
 
 			assertGuarded(t, client, id, err, tt.wantErr)
 		})
@@ -68,7 +68,7 @@ func TestGuardedWrites(t *testing.T) {
 	t.Run("missing part row aborts", func(t *testing.T) {
 		p := dbtest.SeedProject(t, client, "", true)
 		err := repo.Create(ctx, &share.Share{Secret: "c", UserID: p.UserID, KeychainID: &p.KeychainID, Entropy: share.EntropyProject,
-			EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: "P1"}})
+			EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: "P1", Migrated: true}})
 		if !errors.Is(err, domainErrors.ErrEncryptionPartChanged) {
 			t.Errorf("Create without a part row: err = %v, want %v", err, domainErrors.ErrEncryptionPartChanged)
 		}
@@ -101,7 +101,7 @@ func TestGuardedWrites_DuplicatePartRows(t *testing.T) {
 	dbtest.Exec(t, client, `INSERT INTO shld_encryption_parts (id, project_id, part) VALUES ('ffffffff-ffff-ffff-ffff-ffffffffffff', ?, 'SECOND')`, p.ID)
 
 	err := repo.Create(context.Background(), &share.Share{Secret: "c", UserID: p.UserID, KeychainID: &p.KeychainID, Entropy: share.EntropyProject,
-		EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: "FIRST"}})
+		EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: "FIRST", Migrated: true}})
 	if err != nil {
 		t.Errorf("guarded write with the part readers use: %v", err)
 	}
