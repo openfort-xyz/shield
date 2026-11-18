@@ -91,12 +91,21 @@ func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Proj
 	s.logger.InfoContext(ctx, "getting project by api key")
 
 	s.cacheMu.RLock()
-	if entry, ok := s.cache[apiKey]; ok && time.Now().Before(entry.expiresAt) {
+	entry, ok := s.cache[apiKey]
+	if ok && time.Now().Before(entry.expiresAt) {
 		s.cacheMu.RUnlock()
 		return entry.project, nil
 	}
 	evictions := s.evictions
 	s.cacheMu.RUnlock()
+
+	if ok {
+		s.cacheMu.Lock()
+		if s.cache[apiKey] == entry {
+			delete(s.cache, apiKey)
+		}
+		s.cacheMu.Unlock()
+	}
 
 	proj, err := s.repo.GetByAPIKey(ctx, apiKey)
 	if err != nil {
