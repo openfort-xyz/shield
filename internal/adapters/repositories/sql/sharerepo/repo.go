@@ -188,11 +188,16 @@ func (r *repository) ListProjectIDAndEntropy(ctx context.Context, projectID stri
 	return shares, nil
 }
 
-func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string, guard *share.EncryptionGuard) error {
+func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID, plain, encrypted string, guard *share.EncryptionGuard) error {
 	r.logger.InfoContext(ctx, "updating share", slog.String("id", shareID))
 
 	err := r.underGuard(guard, func(tx *gorm.DB) error {
-		return tx.Model(&Share{}).Where("id = ?", shareID).Updates(map[string]any{"data": encrypted, "entropy": EntropyProject}).Error
+		res := tx.Model(&Share{}).Where("id = ? AND entropy = ? AND data = ?", shareID, EntropyNone, plain).
+			Updates(map[string]any{"data": encrypted, "entropy": EntropyProject})
+		if res.Error == nil && res.RowsAffected == 0 {
+			r.logger.WarnContext(ctx, "share changed since it was read; left as is", slog.String("id", shareID))
+		}
+		return res.Error
 	})
 	if err != nil {
 		r.logError(ctx, "error updating share", err)

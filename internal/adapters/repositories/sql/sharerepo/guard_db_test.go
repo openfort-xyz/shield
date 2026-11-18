@@ -68,7 +68,7 @@ func TestGuardedWrites(t *testing.T) {
 			p := dbtest.SeedProject(t, client, "P1", true)
 			id := dbtest.InsertShare(t, client, p, "none", "old")
 
-			err := repo.UpdateProjectEncryption(ctx, id, "new",
+			err := repo.UpdateProjectEncryption(ctx, id, "old", "new",
 				&share.EncryptionGuard{ProjectID: p.ID, StoredPart: tt.storedPart})
 
 			assertGuarded(t, client, id, err, tt.wantErr)

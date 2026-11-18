@@ -573,30 +573,23 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 		return fromDomainError(err)
 	}
 
-	var encryptedShares []*share.Share
+	guard := &share.EncryptionGuard{ProjectID: projectID, StoredPart: builder.GetDatabasePart(ctx)}
+	if isMigrated && builder.GetKeyCheck(ctx) == nil {
+		guard.UnverifiedKey = encryptionKey
+	}
+	cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
 	for _, shr := range shares {
 		if shr.EncryptionParameters != nil || shr.Entropy != share.EntropyNone {
 			continue
 		}
 
-		cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
-		shr.Secret, err = cypher.Encrypt(shr.Secret)
+		encrypted, err := cypher.Encrypt(shr.Secret)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to encrypt share", logger.Error(err))
 			return fromDomainError(err)
 		}
 
-		shr.Entropy = share.EntropyProject
-
-		encryptedShares = append(encryptedShares, shr)
-	}
-
-	guard := &share.EncryptionGuard{ProjectID: projectID, StoredPart: builder.GetDatabasePart(ctx)}
-	if isMigrated && builder.GetKeyCheck(ctx) == nil {
-		guard.UnverifiedKey = encryptionKey
-	}
-	for _, encryptedShare := range encryptedShares {
-		err = a.sharesRepo.UpdateProjectEncryption(ctx, encryptedShare.ID, encryptedShare.Secret, guard)
+		err = a.sharesRepo.UpdateProjectEncryption(ctx, shr.ID, shr.Secret, encrypted, guard)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to update share", logger.Error(err))
 			return fromDomainError(err)
