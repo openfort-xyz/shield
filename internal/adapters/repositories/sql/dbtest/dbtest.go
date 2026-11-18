@@ -25,6 +25,13 @@ func RequireDB(t *testing.T) *sql.Client {
 	if err != nil {
 		t.Fatalf("failed to connect to database: %v", err)
 	}
+	// Cleanups run last-registered first, so registering this before any
+	// SeedProject keeps the pool open for their deletes.
+	t.Cleanup(func() {
+		if err := client.Close(); err != nil {
+			t.Errorf("failed to close database: %v", err)
+		}
+	})
 	return client
 }
 
