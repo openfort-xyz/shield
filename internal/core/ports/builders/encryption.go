@@ -10,7 +10,6 @@ type EncryptionKeyBuilder interface {
 	SetProjectPart(ctx context.Context, identifier string) error
 	SetDatabasePart(ctx context.Context, identifier string) error
 
-	GetProjectPart(ctx context.Context) project.ProjectPart
 	GetDatabasePart(ctx context.Context) project.StoredPart
 	// GetKeyCheck returns the stored key check Build verifies against, nil
 	// for a key created before key checks existed.
