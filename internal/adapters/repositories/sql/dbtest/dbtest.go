@@ -26,6 +26,16 @@ func RequireDB(t *testing.T) *sql.Client {
 	if err != nil {
 		t.Fatalf("failed to connect to database: %v", err)
 	}
+	t.Cleanup(func() {
+		db, err := client.DB.DB()
+		if err != nil {
+			t.Errorf("close database: %v", err)
+			return
+		}
+		if err := db.Close(); err != nil {
+			t.Errorf("close database: %v", err)
+		}
+	})
 	return client
 }
 
