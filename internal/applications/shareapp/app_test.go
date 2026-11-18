@@ -186,8 +186,8 @@ func TestShareApplication_GetShare(t *testing.T) {
 				encryptionPartsRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
-				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithoutOTP), nil)
-				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
+				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithoutOTP), nil)
+				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 
 			},
@@ -207,8 +207,8 @@ func TestShareApplication_GetShare(t *testing.T) {
 				encryptionPartsRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
-				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithOTP), nil)
-				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
+				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithOTP), nil)
+				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 
 			},
@@ -228,8 +228,8 @@ func TestShareApplication_GetShare(t *testing.T) {
 				encryptionPartsRepo.ExpectedCalls = nil
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
-				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithoutOTP), nil)
-				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
+				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithoutOTP), nil)
+				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 
 			},
@@ -549,8 +549,8 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(&tmpEncryptedShare, nil)
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
-				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithoutOTP), nil)
-				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
+				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithoutOTP), nil)
+				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 
 			},
@@ -572,8 +572,8 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(&tmpEncryptedShare, nil)
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
-				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithOTP), nil)
-				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
+				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithOTP), nil)
+				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 
 			},
@@ -595,8 +595,8 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.On("GetByReference", mock.Anything, reference).Return(&tmpEncryptedShare, nil)
 				userRepo.On("GetUserIDsByExternalID", mock.Anything, mock.Anything).Return([]string{userID}, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
-				encryptionPartsRepo.On("Get", mock.Anything, "sessionID").Return(string(storedProjectPartBytesWithoutOTP), nil)
-				encryptionPartsRepo.On("Delete", mock.Anything, "sessionID").Return(nil)
+				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithoutOTP), nil)
+				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 
 			},

@@ -35,7 +35,8 @@ func NewEncryptionKeyBuilder(encryptionPartsRepo repositories.EncryptionPartsRep
 }
 
 func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) error {
-	data, err := b.encryptionPartsRepo.Get(ctx, identifier)
+	key := share.EncryptionSessionKey(identifier)
+	data, err := b.encryptionPartsRepo.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrDataInDBNotFound) {
 			return domainErrors.ErrInvalidEncryptionSession
@@ -62,7 +63,7 @@ func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) 
 		}
 	}
 
-	err = b.encryptionPartsRepo.Delete(ctx, identifier)
+	err = b.encryptionPartsRepo.Delete(ctx, key)
 	if err != nil {
 		return err
 	}

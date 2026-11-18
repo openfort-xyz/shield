@@ -343,7 +343,7 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, ski
 		}
 	}
 
-	otpCode, err := a.otpService.GenerateOTP(ctx, userID, skipVerification)
+	otpCode, err := a.otpService.GenerateOTP(ctx, projectID, userID, skipVerification)
 	if err != nil {
 		return fromDomainError(err)
 	}
@@ -615,7 +615,7 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 	otpVerified := false
 
 	if proj.Enable2FA {
-		otpRequest, err := a.otpService.VerifyOTP(ctx, userID, otpCode)
+		otpRequest, err := a.otpService.VerifyOTP(ctx, projectID, userID, otpCode)
 		if err != nil {
 			if errors.Is(err, domainErrors.ErrDataInDBNotFound) {
 				return "", ErrOTPRequired
@@ -646,7 +646,7 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 		Expires: true,
 		TTL:     time.Duration(5*60*1000) * time.Millisecond, // 5 minutes TTL
 	}
-	err = a.encryptionPartsRepo.Set(ctx, sessionID, string(encPartDataBytes), &options)
+	err = a.encryptionPartsRepo.Set(ctx, share.EncryptionSessionKey(sessionID), string(encPartDataBytes), &options)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to set encryption part", logger.Error(err))
 		return "", fromDomainError(err)
