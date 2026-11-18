@@ -204,11 +204,7 @@ func ProvideShareApplication() (*shareapp.ShareApplication, error) {
 	if err != nil {
 		return nil, err
 	}
-	job, err := ProvideShamirJob()
-	if err != nil {
-		return nil, err
-	}
-	shareApplication := shareapp.New(shareService, shareRepository, projectRepository, userRepository, keychainRepository, encryptionFactory, job)
+	shareApplication := shareapp.New(shareService, shareRepository, projectRepository, userRepository, keychainRepository, encryptionFactory)
 	return shareApplication, nil
 }
 

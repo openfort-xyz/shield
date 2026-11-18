@@ -69,7 +69,7 @@ func NewWithShareRepo(t *testing.T, wrap func(repositories.ShareRepository) repo
 
 	return Apps{
 		DB:          client,
-		Share:       shareapp.New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, factory, job),
+		Share:       shareapp.New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, factory),
 		Project:     projectapp.New(projectSvc, projectRepo, nil, nil, shareRepo, nil, nil, factory, encryptionPartsRepo, nil, nil, nil),
 		ProjectSvc:  projectSvc,
 		ProjectRepo: projectRepo,

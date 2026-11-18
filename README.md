@@ -519,7 +519,7 @@ it received it by sending it back. Both calls are safe to retry.
   - `409 EC_NO_PENDING`: commit without a pending rotation.
   - `409 EC_ROTATION_EXPIRED`: the pending rotation expired; prepare again.
   - `409 EC_NOT_MIGRATED`: the project's key predates the current key-split
-    scheme; reading any share with the current part migrates it.
+    scheme. Shield does not rotate such keys.
   - `409 EC_MISSING`: the project has no encryption key.
   - `409 EC_UNVERIFIABLE`: the key predates key checks and the project has no
     project share to verify the part against; register one share first.

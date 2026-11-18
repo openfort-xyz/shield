@@ -9,8 +9,6 @@ import (
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
 
-	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
-
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
@@ -30,10 +28,9 @@ type ShareApplication struct {
 	userRepo           repositories.UserRepository
 	logger             *slog.Logger
 	encryptionFactory  factories.EncryptionFactory
-	shamirJob          *shamirjob.Job
 }
 
-func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository, userRepo repositories.UserRepository, keychainRepository repositories.KeychainRepository, encryptionFactory factories.EncryptionFactory, shamirJob *shamirjob.Job) *ShareApplication {
+func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository, projectRepo repositories.ProjectRepository, userRepo repositories.UserRepository, keychainRepository repositories.KeychainRepository, encryptionFactory factories.EncryptionFactory) *ShareApplication {
 	return &ShareApplication{
 		shareSvc:           shareSvc,
 		shareRepo:          shareRepo,
@@ -42,7 +39,6 @@ func New(shareSvc services.ShareService, shareRepo repositories.ShareRepository,
 		userRepo:           userRepo,
 		logger:             logger.New("share_application"),
 		encryptionFactory:  encryptionFactory,
-		shamirJob:          shamirJob,
 	}
 }
 
@@ -498,7 +494,9 @@ func (a *ShareApplication) decryptSecret(ctx context.Context, shr *share.Share, 
 
 // reconstructEncryptionKey rebuilds the project key from the caller's part.
 // The returned guard makes a write persist only if the stored part it used
-// is still current (see sharerepo.checkGuard).
+// is still current (see sharerepo.checkGuard). It never migrates a project:
+// the pre-migration key is the stored part alone, so nothing here proves the
+// caller's part, and a migration would bind the project's key to it.
 func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, *share.EncryptionGuard, error) {
 	var builderType factories.EncryptionKeyBuilderType
 	var identifier string
@@ -550,16 +548,6 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to reconstruct encryption key", logger.Error(err))
 		return "", nil, ErrInvalidEncryptionPart
-	}
-
-	if !isMigrated {
-		ctxWithoutCancel := context.WithoutCancel(ctx)
-		go func() {
-			err = a.shamirJob.Execute(ctxWithoutCancel, projID, builder.GetDatabasePart(ctxWithoutCancel), builder.GetProjectPart(ctxWithoutCancel), encryptionKey)
-			if err != nil {
-				a.logger.ErrorContext(ctx, "failed to execute shamir job", logger.Error(err))
-			}
-		}()
 	}
 
 	guard := &share.EncryptionGuard{ProjectID: projID, StoredPart: builder.GetDatabasePart(ctx)}

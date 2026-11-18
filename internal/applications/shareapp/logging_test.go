@@ -13,7 +13,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/usermockedrepo"
-	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
@@ -87,7 +86,7 @@ func TestGetKeychainSharesLogsNotFoundAsWarning(t *testing.T) {
 			// when it runs.
 			app := New(
 				sharesvc.New(shareRepo, keychainRepo, encryptionFactory),
-				shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{},
+				shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory,
 			)
 
 			ctx := contexter.WithProjectID(context.Background(), projectID)
@@ -141,7 +140,7 @@ func TestGetShareByReferenceLogsNotFoundAsWarning(t *testing.T) {
 
 	app := New(
 		sharesvc.New(shareRepo, keychainRepo, encryptionFactory),
-		shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{},
+		shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory,
 	)
 
 	ctx := contexter.WithProjectID(context.Background(), projectID)
@@ -208,7 +207,7 @@ func TestGetShareByReferenceLogsWrongPartAsWarning(t *testing.T) {
 
 	app := New(
 		sharesvc.New(shareRepo, keychainRepo, encryptionFactory),
-		shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{},
+		shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory,
 	)
 
 	ctx := contexter.WithProjectID(context.Background(), projectID)

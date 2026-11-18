@@ -2,9 +2,9 @@ package apptest
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"testing"
-	"time"
 
 	depsssrec "github.com/openfort-xyz/shield/internal/adapters/encryption/deprecated_sss_reconstruction_strategy"
 	sssrec "github.com/openfort-xyz/shield/internal/adapters/encryption/sss_reconstruction_strategy"
@@ -261,9 +261,9 @@ func TestLegacyKey_RacingFirstWritesDoNotMixKeys(t *testing.T) {
 	}
 }
 
-// An unmigrated project's key changes when the shamir job migrates it, with
-// the same stored part. A check stored for the pre-migration key would then
-// reject the project's part.
+// An unmigrated project's key changes when it is migrated, with the same
+// stored part. A check stored for the pre-migration key would then reject the
+// project's part.
 func TestLegacyKey_UnmigratedWriteStoresNoKeyCheck(t *testing.T) {
 	apps := New(t)
 	p, part, _ := seedLegacyProject(t, apps, false)
@@ -273,7 +273,6 @@ func TestLegacyKey_UnmigratedWriteStoresNoKeyCheck(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RegisterShare on an unmigrated project: %v", err)
 	}
-	waitForShamirJob(t, apps, p)
 
 	if check := storedKeyCheck(t, apps, p); check != nil {
 		t.Errorf("key check stored for an unmigrated key: %q", *check)
@@ -292,8 +291,10 @@ func TestLegacyKey_WrongPartReadLeavesSharesUnchanged(t *testing.T) {
 	before := projectShareData(t, apps, p)
 
 	_, _ = apps.Share.GetKeychainShares(UserContext(p), &reference, shareapp.WithEncryptionPart(randomPart(t)))
-	waitForShamirJob(t, apps, p)
 
+	if n := migrationRows(t, apps, p); n != 0 {
+		t.Errorf("migration records after a wrong-part read = %d, want 0", n)
+	}
 	if after := projectShareData(t, apps, p); !maps.Equal(after, before) {
 		t.Error("a read with a wrong part rewrote the project's shares")
 	}
@@ -304,20 +305,53 @@ func TestLegacyKey_WrongPartReadLeavesSharesUnchanged(t *testing.T) {
 	}
 }
 
-// waitForShamirJob waits for the migration RegisterShare started in the
-// background to record its outcome, so it does not outlive the test.
-func waitForShamirJob(t *testing.T, apps Apps, p dbtest.Project) {
-	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		var n int64
-		if err := apps.DB.Raw(`SELECT count(*) FROM shld_shamir_migrations WHERE project_id = ?`, p.ID).Scan(&n).Error; err != nil {
-			t.Fatalf("read migrations: %v", err)
-		}
-		if n > 0 {
-			return
-		}
-		time.Sleep(20 * time.Millisecond)
+// Share reads and writes leave a project's migration status as it is: an
+// unmigrated project keeps working under its pre-migration key, and a
+// migrated one under its key.
+func TestProjectKey_ReadsAndWritesKeepMigrationStatus(t *testing.T) {
+	for _, migrated := range []bool{false, true} {
+		t.Run(fmt.Sprintf("migrated=%v", migrated), func(t *testing.T) {
+			apps := New(t)
+			p, part, key := seedLegacyProject(t, apps, migrated)
+			ctx := UserContext(p)
+			withPart := shareapp.WithEncryptionPart(part)
+			existing := shareReference(t, apps, insertProjectShare(t, apps, p, key, "wallet"))
+			second := "second-" + p.ID[:8]
+			rowsBefore := migrationRows(t, apps, p)
+
+			if shrs, err := apps.Share.GetKeychainShares(ctx, &existing, withPart); err != nil || len(shrs) != 1 || shrs[0].Secret != "wallet" {
+				t.Fatalf("read = %v, %v; want %q", shrs, err, "wallet")
+			}
+			err := apps.Share.RegisterShare(ctx, &share.Share{Secret: "second", Entropy: share.EntropyProject, Reference: &second}, withPart)
+			if err != nil {
+				t.Fatalf("RegisterShare: %v", err)
+			}
+			if _, err := apps.Share.UpdateShare(ctx, &share.Share{Secret: "updated"}, existing, withPart); err != nil {
+				t.Fatalf("UpdateShare: %v", err)
+			}
+
+			for reference, want := range map[string]string{existing: "updated", second: "second"} {
+				shrs, err := apps.Share.GetKeychainShares(ctx, &reference, withPart)
+				if err != nil || len(shrs) != 1 || shrs[0].Secret != want {
+					t.Errorf("read %s = %v, %v; want %q", reference, shrs, err, want)
+				}
+			}
+			if n := migrationRows(t, apps, p); n != rowsBefore {
+				t.Errorf("migration records = %d, want %d", n, rowsBefore)
+			}
+			if got := isMigrated(t, apps, p); got != migrated {
+				t.Errorf("migrated = %v, want %v", got, migrated)
+			}
+			assertSharesDecrypt(t, apps, p, part, 2)
+		})
 	}
-	t.Fatal("shamir job did not record a migration within 10s")
+}
+
+func migrationRows(t *testing.T, apps Apps, p dbtest.Project) int64 {
+	t.Helper()
+	var n int64
+	if err := apps.DB.Raw(`SELECT count(*) FROM shld_shamir_migrations WHERE project_id = ?`, p.ID).Scan(&n).Error; err != nil {
+		t.Fatalf("read migrations: %v", err)
+	}
+	return n
 }

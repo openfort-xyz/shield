@@ -173,7 +173,6 @@ func ProvideShareApplication() (a *shareapp.ShareApplication, err error) {
 		ProvideSQLUserRepository,
 		ProvideSQLKeychainRepository,
 		ProvideEncryptionFactory,
-		ProvideShamirJob,
 	)
 
 	return

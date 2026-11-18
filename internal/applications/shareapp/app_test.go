@@ -13,7 +13,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/usermockedrepo"
-	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
@@ -35,7 +34,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory)
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
 		t.Fatalf("%s", key)
@@ -387,7 +386,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory)
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
 		t.Fatalf("%s", key)
@@ -773,7 +772,7 @@ func TestShareApplication_GetShareEncryption(t *testing.T) {
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory)
 
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
@@ -866,7 +865,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory)
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
 		t.Fatalf("%s", key)
@@ -1028,7 +1027,7 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory)
 
 	testKeychain := &keychain.Keychain{
 		ID:     "test_keychain",
@@ -1124,7 +1123,7 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
-	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{})
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory)
 	updates := &share.Share{
 		ID:                   "share-id",
 		Secret:               "secret",
