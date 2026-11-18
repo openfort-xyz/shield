@@ -285,7 +285,7 @@ func (a *ProjectApplication) verifyAndSaveUserContacts(ctx context.Context, user
 			if err := a.userContactRepo.Save(ctx, &usercontact.UserContact{ExternalUserID: userID, Email: emailHashStr}); err != nil {
 				return err
 			}
-		case userContactInfo.Email != "" && emailHashStr != userContactInfo.Email:
+		case emailHashStr != userContactInfo.Email:
 			return ErrUserContactInformationMismatch
 		}
 	} else if phone != nil {
@@ -300,7 +300,7 @@ func (a *ProjectApplication) verifyAndSaveUserContacts(ctx context.Context, user
 			if err := a.userContactRepo.Save(ctx, &usercontact.UserContact{ExternalUserID: userID, Phone: phoneHashStr}); err != nil {
 				return err
 			}
-		case userContactInfo.Phone != "" && phoneHashStr != userContactInfo.Phone:
+		case phoneHashStr != userContactInfo.Phone:
 			return ErrUserContactInformationMismatch
 		}
 	}
@@ -331,8 +331,14 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, ski
 		var allow bool
 		switch {
 		case email != nil:
+			if !validation.IsValidEmail(*email) {
+				return ErrEmailIsInvalid
+			}
 			allow = a.rateLimiter.TrackRequest(projectID, project.EmailRateLimit)
 		case phone != nil:
+			if !validation.IsValidPhoneNumber(*phone) {
+				return ErrPhoneNumberIsInvalid
+			}
 			allow = a.rateLimiter.TrackRequest(projectID, project.SMSRateLimit)
 		default:
 			return ErrNoUserContactInformationProvided
@@ -340,6 +346,12 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, ski
 
 		if !allow {
 			return ErrOTPRateLimitExceeded
+		}
+
+		// Before an OTP exists, so a contact other than the bound one never
+		// receives or replaces one.
+		if err := a.verifyAndSaveUserContacts(ctx, userID, email, phone); err != nil {
+			return err
 		}
 	}
 
@@ -356,10 +368,6 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, ski
 
 	switch {
 	case email != nil:
-		if !validation.IsValidEmail(*email) {
-			return ErrEmailIsInvalid
-		}
-
 		price, err := a.notificationService.SendEmail(ctx, *email, OTPEmailSubject, otpCode, userID)
 		if err != nil {
 			return err
@@ -370,10 +378,6 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, ski
 			return err
 		}
 	case phone != nil:
-		if !validation.IsValidPhoneNumber(*phone) {
-			return ErrPhoneNumberIsInvalid
-		}
-
 		price, err := a.notificationService.SendSMS(ctx, *phone, otpCode)
 		if err != nil {
 			return err
@@ -385,11 +389,6 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, ski
 		}
 	default:
 		return ErrOTPUserInfoMissing
-	}
-
-	err = a.verifyAndSaveUserContacts(ctx, userID, email, phone)
-	if err != nil {
-		return err
 	}
 
 	return nil
