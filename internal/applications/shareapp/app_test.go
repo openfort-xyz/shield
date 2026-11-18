@@ -1161,3 +1161,28 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 		})
 	}
 }
+
+// The bulk recovery-info lookups are scoped by the project the caller
+// authenticated as; the repository is where that scope is applied.
+func TestShareApplication_BulkEncryptionLookupsUseAuthenticatedProject(t *testing.T) {
+	ctx := contexter.WithProjectID(context.Background(), "project_id")
+	shareRepo := new(sharemockrepo.MockShareRepository)
+	shareRepo.Test(t)
+	app := New(nil, shareRepo, nil, nil, nil, nil, nil)
+
+	references := []string{"ref-1", "ref-2"}
+	externalUserIDs := []string{"ext-1", "ext-2"}
+	reference := "ref-1"
+	byReference := map[string]share.RecoveryInfo{"ref-1": {Entropy: share.EntropyNone}}
+	byUser := map[string]share.RecoveryInfo{"ext-1": {Entropy: share.EntropyProject}}
+	shareRepo.On("GetSharesEncryptionForProjectAndReferences", mock.Anything, "project_id", references).Return(byReference, nil)
+	shareRepo.On("GetSharesEncryptionForProjectAndExternalUserIDs", mock.Anything, "project_id", externalUserIDs, &reference).Return(byUser, nil)
+
+	got, err := app.GetSharesEncryptionForReferences(ctx, references)
+	assert.NoError(t, err)
+	assert.Equal(t, byReference, got)
+
+	got, err = app.GetSharesEncryptionForUsers(ctx, externalUserIDs, &reference)
+	assert.NoError(t, err)
+	assert.Equal(t, byUser, got)
+}
