@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/gorilla/mux"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/api"
@@ -16,6 +17,14 @@ type Handler struct {
 	app    *projectapp.ProjectApplication
 	logger *slog.Logger
 	parser *parser
+}
+
+// maxCookieFieldNameLength is the width, in characters, of the
+// cookie_field_name column.
+const maxCookieFieldNameLength = 64
+
+func validCookieFieldName(name *string) bool {
+	return name == nil || utf8.RuneCountInString(*name) <= maxCookieFieldNameLength
 }
 
 // New creates a new project handler
@@ -197,6 +206,10 @@ func (h *Handler) AddProviders(w http.ResponseWriter, r *http.Request) {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
 	}
+	if req.Providers.Custom != nil && !validCookieFieldName(req.Providers.Custom.CookieFieldName) {
+		api.RespondWithError(w, api.ErrCookieFieldNameTooLong)
+		return
+	}
 
 	providers, err := h.app.AddProviders(ctx, h.parser.fromAddProvidersRequest(&req)...)
 	if err != nil {
@@ -344,6 +357,10 @@ func (h *Handler) UpdateProvider(w http.ResponseWriter, r *http.Request) {
 	err := json.Unmarshal(body, &req)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+	if !validCookieFieldName(req.CookieFieldName) {
+		api.RespondWithError(w, api.ErrCookieFieldNameTooLong)
 		return
 	}
 
