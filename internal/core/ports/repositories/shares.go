@@ -10,7 +10,6 @@ type ShareRepository interface {
 	Create(ctx context.Context, shr *share.Share) error
 	Get(ctx context.Context, shareID string) (*share.Share, error)
 	GetByUserID(ctx context.Context, userID string) (*share.Share, error)
-	GetByReference(ctx context.Context, reference string) (*share.Share, error)
 	GetByReferenceAndKeychain(ctx context.Context, reference, keychainID string) (*share.Share, error)
 	GetByReferenceAndProjectID(ctx context.Context, reference, projectID string) (*share.Share, error)
 	GetByReferenceForProjectAndExternalUserID(ctx context.Context, reference, projectID, externalUserID string) (*share.Share, error)
