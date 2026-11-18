@@ -19,6 +19,7 @@ var (
 	ErrFailedToSplitKey                = errors.New("failed to split key")
 	ErrOTPVerificationRequired         = errors.New("otp verification required")
 	ErrEncryptionPartChanged           = errors.New("encryption part changed during request")
+	ErrEncryptionPartUnproven          = errors.New("encryption part decrypts none of the project's oldest shares")
 	ErrPendingAPIKeyNotProven          = errors.New("commit must be authenticated with the pending API key")
 	ErrAPIKeyRotationExpired           = errors.New("pending API key rotation expired")
 	ErrNoPendingAPIKeyRotation         = errors.New("no pending API key rotation")
