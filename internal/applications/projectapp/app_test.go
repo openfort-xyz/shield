@@ -86,7 +86,6 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
-				projectRepo.On("GetEncryptionKey", mock.Anything, mock.Anything).Return(nil, nil)
 				projectRepo.On("SetEncryptionKey", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				projectRepo.On("CreateMigration", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
@@ -112,7 +111,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
-				projectRepo.On("GetEncryptionKey", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+				projectRepo.On("SetEncryptionKey", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("repository error"))
 				projectRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 			},
 		},
@@ -127,7 +126,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
-				projectRepo.On("GetEncryptionKey", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+				projectRepo.On("SetEncryptionKey", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("repository error"))
 				projectRepo.On("Delete", mock.Anything, mock.Anything).Return(errors.New("repository error"))
 			},
 		},

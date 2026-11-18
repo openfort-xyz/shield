@@ -85,7 +85,6 @@ func TestService_SetEncryptionKey(t *testing.T) {
 			wantErr: false,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetEncryptionKey", mock.Anything, testProjectID).Return(nil, domainErrors.ErrEncryptionPartNotFound)
 				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey).Return(nil)
 			},
 		},
@@ -94,24 +93,15 @@ func TestService_SetEncryptionKey(t *testing.T) {
 			wantErr: true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetEncryptionKey", mock.Anything, testProjectID).Return(&project.EncryptionKey{Part: project.StoredPart("test-encryption-part")}, nil)
+				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey).Return(domainErrors.ErrEncryptionPartAlreadyExists)
 			},
 			err: domainErrors.ErrEncryptionPartAlreadyExists,
-		},
-		{
-			name:    "repository error on get encryption part",
-			wantErr: true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetEncryptionKey", mock.Anything, testProjectID).Return(nil, errors.New("repository error"))
-			},
 		},
 		{
 			name:    "repository error on set encryption part",
 			wantErr: true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetEncryptionKey", mock.Anything, testProjectID).Return(nil, domainErrors.ErrEncryptionPartNotFound)
 				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey).Return(errors.New("repository error"))
 			},
 		},

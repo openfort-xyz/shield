@@ -149,18 +149,11 @@ func (s *service) SaveProjectRateLimits(ctx context.Context, projectID string, s
 
 func (s *service) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error {
 	s.logger.InfoContext(ctx, "setting encryption key", slog.String("project_id", projectID))
-	ep, err := s.repo.GetEncryptionKey(ctx, projectID)
-	if err != nil && !errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
-		s.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
+	err := s.repo.SetEncryptionKey(ctx, projectID, key)
+	if errors.Is(err, domainErrors.ErrEncryptionPartAlreadyExists) {
+		s.logger.WarnContext(ctx, "encryption part already exists", slog.String("project_id", projectID))
 		return err
 	}
-
-	if ep != nil {
-		s.logger.Warn("encryption part already exists", slog.String("project_id", projectID))
-		return domainErrors.ErrEncryptionPartAlreadyExists
-	}
-
-	err = s.repo.SetEncryptionKey(ctx, projectID, key)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to set encryption part", logger.Error(err))
 		return err

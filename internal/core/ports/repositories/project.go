@@ -29,6 +29,9 @@ type ProjectRepository interface {
 	// GetEncryptionKey returns ErrEncryptionPartNotFound when the project has
 	// no encryption key.
 	GetEncryptionKey(ctx context.Context, projectID string) (*project.EncryptionKey, error)
+	// SetEncryptionKey stores the project's encryption key. It returns
+	// ErrEncryptionPartAlreadyExists when the project already has one, and
+	// of concurrent calls for one project at most one stores a key.
 	SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error
 
 	// PrepareEncryptionKeyRotation runs prepare in a transaction holding

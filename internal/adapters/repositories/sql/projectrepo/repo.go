@@ -242,6 +242,9 @@ func toEncryptionKey(part *EncryptionPart) *project.EncryptionKey {
 	return key
 }
 
+// SetEncryptionKey checks for an existing part and inserts under the project
+// row lock: shld_encryption_parts has no unique project_id, so the lock is
+// what keeps concurrent registrations from both inserting.
 func (r *repository) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error {
 	r.logger.InfoContext(ctx, "setting encryption key")
 
@@ -255,13 +258,19 @@ func (r *repository) SetEncryptionKey(ctx context.Context, projectID string, key
 		encryptionPart.KeyCheck = &check
 	}
 
-	err := r.db.Create(encryptionPart).Error
-	if err != nil {
-		r.logger.ErrorContext(ctx, "error setting encryption part", logger.Error(err))
-		return err
-	}
-
-	return nil
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if _, err := lockProject(tx, projectID); err != nil {
+			return err
+		}
+		var existing int64
+		if err := tx.Model(&EncryptionPart{}).Where("project_id = ?", projectID).Count(&existing).Error; err != nil {
+			return err
+		}
+		if existing > 0 {
+			return domainErrors.ErrEncryptionPartAlreadyExists
+		}
+		return tx.Create(encryptionPart).Error
+	})
 }
 
 func (r *repository) CreateMigration(ctx context.Context, projectID string, success bool) error {
