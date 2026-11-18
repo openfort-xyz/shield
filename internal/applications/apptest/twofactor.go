@@ -11,22 +11,25 @@ import (
 	"github.com/openfort-xyz/shield/pkg/contexter"
 )
 
-// Notifier records every email and SMS body by destination.
+// Notifier records every email and SMS body handed to it, by destination.
+// With Fail set it records the message and then returns Fail, like a
+// provider that errors after accepting a message.
 type Notifier struct {
+	Fail error
 	sent map[string][]string
 }
 
 func (n *Notifier) SendEmail(_ context.Context, to, _, body, _ string) (float32, error) {
 	n.sent[to] = append(n.sent[to], body)
-	return 0, nil
+	return 0, n.Fail
 }
 
 func (n *Notifier) SendSMS(_ context.Context, to, message string) (float32, error) {
 	n.sent[to] = append(n.sent[to], message)
-	return 0, nil
+	return 0, n.Fail
 }
 
-// Sent returns the messages delivered to the destination, oldest first.
+// Sent returns the messages handed over for the destination, oldest first.
 func (n *Notifier) Sent(to string) []string {
 	return n.sent[to]
 }

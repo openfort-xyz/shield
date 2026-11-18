@@ -230,3 +230,94 @@ func TestOTP_MismatchedContactGetsNoOTP(t *testing.T) {
 		})
 	}
 }
+
+var errProviderRejected = errors.New("provider rejected the destination")
+
+func byEmail(to string) (email, phone *string) { return &to, nil }
+func byPhone(to string) (email, phone *string) { return nil, &to }
+
+// A first OTP request whose delivery fails, such as to a mistyped phone number
+// the provider rejects, must not bind its contact: a retry with the corrected
+// contact gets an OTP there.
+func TestOTP_FailedFirstDeliveryLeavesContactUnbound(t *testing.T) {
+	cases := []struct {
+		name, typo, fixed string
+		via               func(to string) (email, phone *string)
+	}{
+		{"email", "alice@exmaple.com", "alice@example.com", byEmail},
+		{"phone", "+346000000001", "+346000000002", byPhone},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			apps := New(t)
+			p, part := apps.Seed2FAProject(t)
+			alice := apps.NewUser(t, p)
+			ctx := ProjectContext(p)
+
+			apps.Notifier.Fail = errProviderRejected
+			email, phone := tc.via(tc.typo)
+			if err := apps.Project.GenerateOTP(ctx, alice.ExternalID, false, email, phone); !errors.Is(err, errProviderRejected) {
+				t.Fatalf("GenerateOTP to %s: err = %v, want %v", tc.typo, err, errProviderRejected)
+			}
+			apps.Notifier.Fail = nil
+
+			email, phone = tc.via(tc.fixed)
+			if err := apps.Project.GenerateOTP(ctx, alice.ExternalID, false, email, phone); err != nil {
+				t.Fatalf("GenerateOTP to the corrected contact %s: %v", tc.fixed, err)
+			}
+			sent := apps.Notifier.Sent(tc.fixed)
+			if len(sent) != 1 {
+				t.Fatalf("%d messages delivered to %s, want 1", len(sent), tc.fixed)
+			}
+			if _, err := apps.Project.RegisterEncryptionSession(ctx, part, alice.ExternalID, &sent[0]); err != nil {
+				t.Errorf("OTP delivered to the corrected contact: %v", err)
+			}
+		})
+	}
+}
+
+// A request whose delivery failed issued no OTP: the code must not verify even
+// if the provider sent it before erroring.
+func TestOTP_FailedDeliveryLeavesNoPendingOTP(t *testing.T) {
+	apps := New(t)
+	p, part := apps.Seed2FAProject(t)
+	alice := apps.NewUser(t, p)
+	email := "alice@example.com"
+
+	apps.Notifier.Fail = errProviderRejected
+	if err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, &email, nil); !errors.Is(err, errProviderRejected) {
+		t.Fatalf("GenerateOTP: err = %v, want %v", err, errProviderRejected)
+	}
+	sent := apps.Notifier.Sent(email)
+	if len(sent) != 1 {
+		t.Fatalf("%d messages handed to the provider for %s, want 1", len(sent), email)
+	}
+
+	_, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, alice.ExternalID, &sent[0])
+	if !errors.Is(err, projectapp.ErrOTPRequired) {
+		t.Errorf("code from the failed request: err = %v, want %v", err, projectapp.ErrOTPRequired)
+	}
+}
+
+// A failed delivery to the bound contact must leave the binding in place.
+func TestOTP_FailedDeliveryKeepsExistingContact(t *testing.T) {
+	apps := New(t)
+	p, _ := apps.Seed2FAProject(t)
+	alice := apps.NewUser(t, p)
+	email, other := "alice@example.com", "attacker@example.com"
+	apps.RequestEmailOTP(t, p, alice.ExternalID, email)
+
+	apps.Notifier.Fail = errProviderRejected
+	if err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, &email, nil); !errors.Is(err, errProviderRejected) {
+		t.Fatalf("GenerateOTP to the bound contact: err = %v, want %v", err, errProviderRejected)
+	}
+	apps.Notifier.Fail = nil
+
+	err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, &other, nil)
+	if !errors.Is(err, projectapp.ErrUserContactInformationMismatch) {
+		t.Errorf("GenerateOTP to %s: err = %v, want %v", other, err, projectapp.ErrUserContactInformationMismatch)
+	}
+	if sent := apps.Notifier.Sent(other); len(sent) != 0 {
+		t.Errorf("%d messages delivered to %s, want 0", len(sent), other)
+	}
+}
