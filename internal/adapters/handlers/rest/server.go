@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 	metrics "github.com/openfort-xyz/metrics"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/authmdw"
+	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/bodylimitmdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/projecthdl"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/ratelimitermdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/requestmdw"
@@ -91,6 +92,7 @@ func (s *Server) Handler() http.Handler {
 
 	r.Use(requestmdw.RequestIDMiddleware)
 	r.Use(responsemdw.ResponseMiddleware)
+	r.Use(bodylimitmdw.LimitBody)
 	r.HandleFunc("/healthz", healthzHdl.Healthz).Methods(http.MethodGet)
 	r.HandleFunc("/register", projectHdl.CreateProject).Methods(http.MethodPost)
 	// This endpoint only lists the available share storage methods, so it does not require authentication
@@ -136,6 +138,8 @@ func (s *Server) Handler() http.Handler {
 	u := r.PathPrefix("/shares").Subrouter()
 	u.Use(authMdw.AuthenticateUser)
 	u.HandleFunc("", shareHdl.GetShare).Methods(http.MethodGet)
+	// Before /{reference}, which would otherwise take "encryption" as a reference.
+	u.HandleFunc("/encryption", shareHdl.GetShareEncryption).Methods(http.MethodGet)
 	u.HandleFunc("/{reference}", shareHdl.GetShareByReference).Methods(http.MethodGet)
 
 	u.HandleFunc("", shareHdl.RegisterShare).Methods(http.MethodPost)
@@ -148,7 +152,6 @@ func (s *Server) Handler() http.Handler {
 
 	e := r.PathPrefix("/shares/encryption").Subrouter()
 	e.Use(authMdw.AuthenticateAPISecret)
-	e.HandleFunc("", shareHdl.GetShareEncryption).Methods(http.MethodGet)
 	e.HandleFunc("/reference/bulk", shareHdl.GetSharesEncryptionForReferences).Methods(http.MethodPost)
 	e.HandleFunc("/user/bulk", shareHdl.GetSharesEncryptionForUsers).Methods(http.MethodPost)
 

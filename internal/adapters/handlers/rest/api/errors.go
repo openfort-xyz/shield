@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -46,6 +47,7 @@ var (
 	ErrEncryptionNotConfigured     = &Error{"Encryption not configured", "EC_MISSING", http.StatusConflict}
 	ErrJWKPemConflict              = &Error{"JWK and PEM cannot be set at the same time", "PV_CFG_INVALID", http.StatusConflict}
 	ErrInvalidPemCertificate       = &Error{"Invalid PEM certificate", "PV_CFG_INVALID", http.StatusBadRequest}
+	ErrCookieFieldNameTooLong      = &Error{"Cookie field name must be at most 64 characters", "PV_CFG_INVALID", http.StatusBadRequest}
 	ErrInvalidEncryptionPart       = &Error{"Invalid encryption part", "EC_INVALID", http.StatusBadRequest}
 	ErrInvalidEncryptionSession    = &Error{"Invalid encryption session", "EC_INVALID", http.StatusBadRequest}
 	ErrProjectEntropyImport        = &Error{"Project-entropy shares cannot be imported", "SH_INVALID", http.StatusBadRequest}
@@ -94,4 +96,8 @@ var (
 
 func ErrBadRequestWithMessage(message string) *Error {
 	return &Error{message, "BAD_REQUEST", http.StatusBadRequest}
+}
+
+func ErrBodyTooLarge(limit int64) *Error {
+	return &Error{fmt.Sprintf("Request body exceeds %d bytes", limit), "BODY_TOO_LARGE", http.StatusRequestEntityTooLarge}
 }

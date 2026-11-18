@@ -323,9 +323,17 @@ func TestImportShare_ProjectEntropyRejected(t *testing.T) {
 func TestEncryptionKeyRotation_LegacyWithoutSharesRefused(t *testing.T) {
 	apps := New(t)
 	_, someonesPart := apps.SeedEncryptedProject(t)
-	p := dbtest.SeedProject(t, apps.DB, "AQIDBA==", true)
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	storedPart, _, err := sssrec.NewSSSReconstructionStrategy().Split(key)
+	if err != nil {
+		t.Fatalf("split: %v", err)
+	}
+	p := dbtest.SeedProject(t, apps.DB, string(storedPart), true)
 
-	_, err := apps.Project.PrepareEncryptionKeyRotation(ProjectContext(p), someonesPart)
+	_, err = apps.Project.PrepareEncryptionKeyRotation(ProjectContext(p), someonesPart)
 
 	if !errors.Is(err, projectapp.ErrUnverifiableEncryptionKey) {
 		t.Errorf("prepare on a legacy project without shares: err = %v, want %v", err, projectapp.ErrUnverifiableEncryptionKey)

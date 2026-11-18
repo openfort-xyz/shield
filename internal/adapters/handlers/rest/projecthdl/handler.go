@@ -2,9 +2,9 @@ package projecthdl
 
 import (
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/gorilla/mux"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/api"
@@ -17,6 +17,14 @@ type Handler struct {
 	app    *projectapp.ProjectApplication
 	logger *slog.Logger
 	parser *parser
+}
+
+// maxCookieFieldNameLength is the width, in characters, of the
+// cookie_field_name column.
+const maxCookieFieldNameLength = 64
+
+func validCookieFieldName(name *string) bool {
+	return name == nil || utf8.RuneCountInString(*name) <= maxCookieFieldNameLength
 }
 
 // New creates a new project handler
@@ -43,14 +51,13 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "creating project")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var req CreateProjectRequest
-	err = json.Unmarshal(body, &req)
+	err := json.Unmarshal(body, &req)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
@@ -148,8 +155,13 @@ func (h *Handler) EnableProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) setProjectDisabled(w http.ResponseWriter, r *http.Request, disabled bool) {
+	body, ok := api.ReadBody(w, r)
+	if !ok {
+		return
+	}
+
 	var req SetProjectDisabledRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.Unmarshal(body, &req); err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
 	}
@@ -183,16 +195,19 @@ func (h *Handler) AddProviders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "adding providers")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var req AddProvidersRequest
-	err = json.Unmarshal(body, &req)
+	err := json.Unmarshal(body, &req)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+	if req.Providers.Custom != nil && !validCookieFieldName(req.Providers.Custom.CookieFieldName) {
+		api.RespondWithError(w, api.ErrCookieFieldNameTooLong)
 		return
 	}
 
@@ -216,14 +231,13 @@ func (h *Handler) RequestOTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "generating otp for user")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var req GenerateOTPRequest
-	err = json.Unmarshal(body, &req)
+	err := json.Unmarshal(body, &req)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
@@ -334,16 +348,19 @@ func (h *Handler) UpdateProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var req UpdateProviderRequest
-	err = json.Unmarshal(body, &req)
+	err := json.Unmarshal(body, &req)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
+		return
+	}
+	if !validCookieFieldName(req.CookieFieldName) {
+		api.RespondWithError(w, api.ErrCookieFieldNameTooLong)
 		return
 	}
 
@@ -417,14 +434,13 @@ func (h *Handler) EncryptProjectShares(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "encrypting project shares")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var req EncryptBodyRequest
-	err = json.Unmarshal(body, &req)
+	err := json.Unmarshal(body, &req)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
@@ -456,14 +472,13 @@ func (h *Handler) RegisterEncryptionSession(w http.ResponseWriter, r *http.Reque
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "registering encryption session")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var req RegisterEncryptionSessionRequest
-	err = json.Unmarshal(body, &req)
+	err := json.Unmarshal(body, &req)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
@@ -559,8 +574,13 @@ func (h *Handler) PrepareEncryptionKeyRotation(w http.ResponseWriter, r *http.Re
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "preparing encryption key rotation")
 
+	body, ok := api.ReadBody(w, r)
+	if !ok {
+		return
+	}
+
 	var req RotateEncryptionKeyPrepareRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.Unmarshal(body, &req); err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
 	}
@@ -596,8 +616,13 @@ func (h *Handler) CommitEncryptionKeyRotation(w http.ResponseWriter, r *http.Req
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "committing encryption key rotation")
 
+	body, ok := api.ReadBody(w, r)
+	if !ok {
+		return
+	}
+
 	var req RotateEncryptionKeyCommitRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.Unmarshal(body, &req); err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
 	}
