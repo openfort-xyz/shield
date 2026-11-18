@@ -1,12 +1,17 @@
 package rest
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/openfort-xyz/shield/internal/adapters/authenticators"
@@ -49,8 +54,10 @@ func TestHandler_ZeroRPSDisablesRateLimit(t *testing.T) {
 	}
 }
 
+const bodyLimit = 256 << 10
+
 func TestHandler_LimitsRequestBodySize(t *testing.T) {
-	const limit = 256 << 10
+	const limit = bodyLimit
 	h := newTestHandler(t, &Config{RPS: 0})
 
 	tests := []struct {
@@ -63,7 +70,7 @@ func TestHandler_LimitsRequestBodySize(t *testing.T) {
 	}{
 		{"public route over the limit", "/register", limit + 1, false, http.StatusRequestEntityTooLarge, ""},
 		{"public route over the limit, no Content-Length", "/register", limit + 1, true, http.StatusRequestEntityTooLarge, ""},
-		{"authenticated route over the limit", "/shares/encryption/user/bulk", limit + 1, false, http.StatusRequestEntityTooLarge, ""},
+		{"authenticated route over the limit, no credentials", "/shares/encryption/user/bulk", limit + 1, false, http.StatusUnauthorized, "Missing API key"},
 		{"body at the limit reaches the handler", "/register", limit, false, http.StatusBadRequest, "failed to parse request body"},
 	}
 	for _, tt := range tests {
@@ -84,6 +91,67 @@ func TestHandler_LimitsRequestBodySize(t *testing.T) {
 				t.Fatalf("message = %v, want %q", got["message"], tt.wantMessage)
 			}
 		})
+	}
+}
+
+// A caller that declares a body and never sends it must still get its
+// authentication failure, not wait out the read timeout.
+func TestHandler_AuthenticatesBeforeReadingBody(t *testing.T) {
+	srv := httptest.NewServer(newTestHandler(t, &Config{RPS: 0}))
+	defer srv.Close()
+
+	conn, err := net.Dial("tcp", srv.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fmt.Fprintf(conn, "POST /shares/encryption/user/bulk HTTP/1.1\r\nHost: shield\r\nContent-Length: %d\r\n\r\n", bodyLimit+1); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("no response while the declared body is unsent: %v", err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", res.StatusCode)
+	}
+}
+
+func TestHandler_LimitsChunkedBody(t *testing.T) {
+	h := newTestHandler(t, &Config{RPS: 0})
+	var transferEncoding []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		transferEncoding = r.TransferEncoding
+		h.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+
+	body := io.MultiReader(bytes.NewReader(bytes.Repeat([]byte("a"), bodyLimit+1)))
+	res, err := http.Post(srv.URL+"/register", "application/json", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	got := map[string]any{}
+	_ = json.NewDecoder(res.Body).Decode(&got)
+	if res.StatusCode != http.StatusRequestEntityTooLarge || got["code"] != "BODY_TOO_LARGE" {
+		t.Fatalf("got %d %v, want 413 BODY_TOO_LARGE", res.StatusCode, got)
+	}
+	if len(transferEncoding) != 1 || transferEncoding[0] != "chunked" {
+		t.Fatalf("request Transfer-Encoding = %v, want chunked", transferEncoding)
+	}
+}
+
+func TestHandler_BodyReadErrorIsBadRequest(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/register", iotest.ErrReader(errors.New("connection reset")))
+	status, body := serve(newTestHandler(t, &Config{RPS: 0}), req)
+	if status != http.StatusBadRequest || body["message"] != "failed to read request body" {
+		t.Fatalf("got %d %v, want 400 failed to read request body", status, body)
 	}
 }
 

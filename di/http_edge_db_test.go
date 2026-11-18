@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -98,6 +99,16 @@ func TestUpdateProvider_CookieFieldOnly_HTTP(t *testing.T) {
 	viaCookie := p.do(http.MethodGet, "/shares", "", nil,
 		"X-API-Key", p.apiKey, "X-Auth-Provider", "custom", "Cookie", "session="+p.token(t, user))
 	expect(t, "authenticate with the new cookie", viaCookie, http.StatusNotFound, "SH_NOT_FOUND")
+}
+
+func TestBodyLimit_AuthenticatedRequest_HTTP(t *testing.T) {
+	c, apiKey, _ := newProject(t)
+	overLimit := strings.Repeat("a", 256<<10)
+
+	for _, path := range []string{"/shares/encryption/user/bulk", "/project/rotate-encryption-key/prepare"} {
+		expect(t, "POST "+path+" over the body limit", c.do(http.MethodPost, path, apiKey, overLimit),
+			http.StatusRequestEntityTooLarge, "BODY_TOO_LARGE")
+	}
 }
 
 func TestEncryptionPart_StoredPartCoordinate_HTTP(t *testing.T) {
