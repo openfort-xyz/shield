@@ -68,6 +68,31 @@ func TestGetShareByReference_ScopedToCallersProjectAndIdentity(t *testing.T) {
 	}
 }
 
+// Pins current behavior: registering a reference already in use, in the same
+// project or another one, stores another share instead of failing.
+func TestRegisterShare_ReferenceInUse_StoresAnotherShare(t *testing.T) {
+	apps := New(t)
+	owner := dbtest.SeedProject(t, apps.DB, "", false)
+	other := dbtest.SeedProject(t, apps.DB, "", false)
+
+	reference := "ref-" + uuid.NewString()
+	for i, p := range []dbtest.Project{owner, owner, other} {
+		ref := reference
+		err := apps.Share.RegisterShare(UserContext(p),
+			&share.Share{Secret: "wallet-share", Entropy: share.EntropyNone, Reference: &ref})
+		if err != nil {
+			t.Fatalf("RegisterShare #%d: %v", i+1, err)
+		}
+	}
+
+	if n := apps.ShareCount(t, owner); n != 2 {
+		t.Errorf("shares in the registering project = %d, want 2", n)
+	}
+	if n := apps.ShareCount(t, other); n != 1 {
+		t.Errorf("shares in the other project = %d, want 1", n)
+	}
+}
+
 func addUser(t *testing.T, apps Apps, projectID string) string {
 	t.Helper()
 	id := uuid.NewString()
