@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/dbtest"
 )
 
 // fakeOpenfortAPI answers Shield's third-party token check the way the Openfort
@@ -53,6 +55,16 @@ func TestEncryptionSession_OpenfortSecondUserID_HTTP(t *testing.T) {
 
 	expect(t, "register alice's share", asPlayer(http.MethodPost, "/shares", "alice",
 		map[string]any{"secret": "alice-secret", "entropy": "project", "encryption_part": part}), http.StatusCreated, "")
+	var linked []string
+	err := dbtest.RequireDB(t).Raw(`SELECT eu.external_user_id FROM shld_external_users eu
+		JOIN shld_users u ON u.id = eu.user_id JOIN shld_projects p ON p.id = u.project_id
+		WHERE p.api_key = ?`, apiKey).Scan(&linked).Error
+	if err != nil {
+		t.Fatalf("read external users: %v", err)
+	}
+	if len(linked) != 1 || linked[0] != "pla_alice"+suffix {
+		t.Fatalf("alice's share is linked to %v, want only her player ID pla_alice%s", linked, suffix)
+	}
 	expect(t, "register bob's share", asPlayer(http.MethodPost, "/shares", "bob",
 		map[string]any{"secret": "bob-secret", "entropy": "project", "encryption_part": part}), http.StatusCreated, "")
 	expect(t, "enable 2FA", c.do(http.MethodPost, "/project/enable-2fa", apiKey, nil), http.StatusOK, "")
