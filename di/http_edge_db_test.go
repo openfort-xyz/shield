@@ -28,15 +28,7 @@ type userProject struct {
 func newUserProject(t *testing.T) userProject {
 	t.Helper()
 	c, apiKey, part := newProject(t)
-	signer, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("generate key: %v", err)
-	}
-	pubDER, err := x509.MarshalPKIXPublicKey(&signer.PublicKey)
-	if err != nil {
-		t.Fatalf("marshal public key: %v", err)
-	}
-	pubPEM := string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubDER}))
+	signer, pubPEM := newSigner(t)
 
 	res := c.do(http.MethodPost, "/project/providers", apiKey,
 		map[string]any{"providers": map[string]any{"custom": map[string]any{"pem": pubPEM, "key_type": "rsa"}}})
@@ -47,6 +39,19 @@ func newUserProject(t *testing.T) userProject {
 	}
 	providerID, _ := providers[0].(map[string]any)["provider_id"].(string)
 	return userProject{httpClient: c, apiKey: apiKey, part: part, providerID: providerID, signer: signer}
+}
+
+func newSigner(t *testing.T) (*rsa.PrivateKey, string) {
+	t.Helper()
+	signer, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	pubDER, err := x509.MarshalPKIXPublicKey(&signer.PublicKey)
+	if err != nil {
+		t.Fatalf("marshal public key: %v", err)
+	}
+	return signer, string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubDER}))
 }
 
 func (p userProject) token(t *testing.T, externalUserID string) string {
@@ -99,6 +104,33 @@ func TestUpdateProvider_CookieFieldOnly_HTTP(t *testing.T) {
 	viaCookie := p.do(http.MethodGet, "/shares", "", nil,
 		"X-API-Key", p.apiKey, "X-Auth-Provider", "custom", "Cookie", "session="+p.token(t, user))
 	expect(t, "authenticate with the new cookie", viaCookie, http.StatusNotFound, "SH_NOT_FOUND")
+}
+
+func TestProvider_CookieFieldNameLength_HTTP(t *testing.T) {
+	const maxLength = 64
+	p := newUserProject(t)
+	path := "/project/providers/" + p.providerID
+
+	expect(t, "update with a cookie field name over the limit",
+		p.do(http.MethodPut, path, p.apiKey, map[string]any{"cookie_field_name": strings.Repeat("c", maxLength+1)}),
+		http.StatusBadRequest, "PV_CFG_INVALID")
+	atLimit := strings.Repeat("é", maxLength)
+	expect(t, "update with a cookie field name at the limit",
+		p.do(http.MethodPut, path, p.apiKey, map[string]any{"cookie_field_name": atLimit}), http.StatusOK, "")
+	if got := p.do(http.MethodGet, path, p.apiKey, nil).str("cookie_field_name"); got != atLimit {
+		t.Fatalf("cookie_field_name = %q, want %q", got, atLimit)
+	}
+
+	c, apiKey, _ := newProject(t)
+	_, pubPEM := newSigner(t)
+	expect(t, "add with a cookie field name over the limit", c.do(http.MethodPost, "/project/providers", apiKey,
+		map[string]any{"providers": map[string]any{"custom": map[string]any{
+			"pem": pubPEM, "key_type": "rsa", "cookie_field_name": strings.Repeat("c", maxLength+1),
+		}}}), http.StatusBadRequest, "PV_CFG_INVALID")
+	got := c.do(http.MethodGet, "/project/providers", apiKey, nil)
+	if providers, _ := got.Body["providers"].([]any); got.Status != http.StatusOK || len(providers) != 0 {
+		t.Fatalf("providers after a rejected add = %d %v, want none", got.Status, got.Body)
+	}
 }
 
 func TestBodyLimit_AuthenticatedRequest_HTTP(t *testing.T) {
