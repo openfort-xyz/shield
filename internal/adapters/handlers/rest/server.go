@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 	metrics "github.com/openfort-xyz/metrics"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/authmdw"
+	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/bodylimitmdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/projecthdl"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/ratelimitermdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/requestmdw"
@@ -91,6 +92,7 @@ func (s *Server) Handler() http.Handler {
 
 	r.Use(requestmdw.RequestIDMiddleware)
 	r.Use(responsemdw.ResponseMiddleware)
+	r.Use(bodylimitmdw.LimitBody)
 	r.HandleFunc("/healthz", healthzHdl.Healthz).Methods(http.MethodGet)
 	r.HandleFunc("/register", projectHdl.CreateProject).Methods(http.MethodPost)
 	// This endpoint only lists the available share storage methods, so it does not require authentication
