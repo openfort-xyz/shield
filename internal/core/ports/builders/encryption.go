@@ -12,6 +12,9 @@ type EncryptionKeyBuilder interface {
 
 	GetProjectPart(ctx context.Context) project.ProjectPart
 	GetDatabasePart(ctx context.Context) project.StoredPart
+	// GetKeyCheck returns the stored key check Build verifies against, nil
+	// for a key created before key checks existed.
+	GetKeyCheck(ctx context.Context) *project.KeyCheck
 
 	// Build reconstructs the key and, when the project stores a key check,
 	// rejects a key that does not match it with ErrInvalidEncryptionPart.

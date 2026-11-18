@@ -592,6 +592,9 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 	}
 
 	guard := &share.EncryptionGuard{ProjectID: projectID, StoredPart: builder.GetDatabasePart(ctx)}
+	if isMigrated && builder.GetKeyCheck(ctx) == nil {
+		guard.UnverifiedKey = encryptionKey
+	}
 	for _, encryptedShare := range encryptedShares {
 		err = a.sharesRepo.UpdateProjectEncryption(ctx, encryptedShare.ID, encryptedShare.Secret, guard)
 		if err != nil {

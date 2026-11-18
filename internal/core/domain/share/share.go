@@ -22,6 +22,13 @@ type Share struct {
 type EncryptionGuard struct {
 	ProjectID  string
 	StoredPart project.StoredPart
+	// UnverifiedKey is the key the write encrypted under when the project
+	// had no key check to verify it against. The write then persists only if
+	// the key is proven in the same transaction (sharerepo.proveKey). Left
+	// empty for unmigrated projects: the shamir job changes their key without
+	// changing the stored part, so a check stored now would reject the right
+	// part after the migration.
+	UnverifiedKey string
 }
 
 func (s *Share) RequiresEncryption() bool {

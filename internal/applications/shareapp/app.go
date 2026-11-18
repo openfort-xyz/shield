@@ -562,7 +562,11 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 		}()
 	}
 
-	return encryptionKey, &share.EncryptionGuard{ProjectID: projID, StoredPart: builder.GetDatabasePart(ctx)}, nil
+	guard := &share.EncryptionGuard{ProjectID: projID, StoredPart: builder.GetDatabasePart(ctx)}
+	if isMigrated && builder.GetKeyCheck(ctx) == nil {
+		guard.UnverifiedKey = encryptionKey
+	}
+	return encryptionKey, guard, nil
 }
 
 func (a *ShareApplication) ExportShare(ctx context.Context, reference string) (*share.Share, error) {

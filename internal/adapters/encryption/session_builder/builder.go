@@ -79,6 +79,10 @@ func (b *sessionBuilder) GetDatabasePart(_ context.Context) project.StoredPart {
 	return b.databasePart
 }
 
+func (b *sessionBuilder) GetKeyCheck(_ context.Context) *project.KeyCheck {
+	return b.keyCheck
+}
+
 func (b *sessionBuilder) Build(_ context.Context) (string, error) {
 	if b.projectPart == "" {
 		return "", domainErrors.ErrProjectPartRequired

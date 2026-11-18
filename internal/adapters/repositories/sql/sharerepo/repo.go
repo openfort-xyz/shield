@@ -3,6 +3,7 @@ package sharerepo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
@@ -11,6 +12,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/pkg/cypher"
 	"github.com/openfort-xyz/shield/pkg/logger"
 	"gorm.io/gorm"
 )
@@ -385,24 +387,75 @@ func (r *repository) underGuard(guard *share.EncryptionGuard, fn func(tx *gorm.D
 // id; a project can hold duplicates). A rotation commit holds FOR UPDATE on
 // the part rows and replaces the part in place, so a write that read the part
 // before the commit blocks here, then sees the new part and aborts; zero rows
-// also abort (TestPartRowLockSemantics). A nil guard checks nothing.
+// also abort (TestPartRowLockSemantics). A guard with an UnverifiedKey takes
+// FOR UPDATE instead, so proveKey can store the key check. A nil guard checks
+// nothing.
 func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard) error {
 	if guard == nil {
 		return nil
 	}
-	var parts []string
-	err := tx.Raw(`SELECT part FROM shld_encryption_parts WHERE project_id = ? ORDER BY id LIMIT 1 FOR SHARE`, guard.ProjectID).Scan(&parts).Error
+	lock := "FOR SHARE"
+	if guard.UnverifiedKey != "" {
+		lock = "FOR UPDATE"
+	}
+	var parts []struct {
+		ID       string
+		Part     string
+		KeyCheck *string
+	}
+	err := tx.Raw(`SELECT id, part, key_check FROM shld_encryption_parts WHERE project_id = ? ORDER BY id LIMIT 1 `+lock, guard.ProjectID).Scan(&parts).Error
 	if err != nil {
 		return err
 	}
-	if len(parts) == 0 || parts[0] != string(guard.StoredPart) {
+	if len(parts) == 0 || parts[0].Part != string(guard.StoredPart) {
 		return domainErrors.ErrEncryptionPartChanged
 	}
-	return nil
+	if guard.UnverifiedKey == "" {
+		return nil
+	}
+	return proveKey(tx, guard, parts[0].ID, parts[0].KeyCheck)
+}
+
+// proveKey verifies a key that was reconstructed without a key check: against
+// the check if one was stored since, else by decrypting every project-entropy
+// share of the project (soft-deleted ones too), and then stores its check. A
+// project with no such share has no ciphertext to prove a part against: its
+// first write stores the check of the key it used, in the write's own
+// transaction, so no later write can use a different key.
+func proveKey(tx *gorm.DB, guard *share.EncryptionGuard, partID string, keyCheck *string) error {
+	key := guard.UnverifiedKey
+	if keyCheck != nil {
+		if !cypher.VerifyKeyCheck(key, *keyCheck) {
+			return domainErrors.ErrInvalidEncryptionPart
+		}
+		return nil
+	}
+
+	var shares []struct{ ID, Data string }
+	err := tx.Raw(`SELECT s.id, s.data FROM shld_shares s
+		JOIN shld_users u ON s.user_id = u.id
+		WHERE u.project_id = ? AND s.entropy = 'project'`, guard.ProjectID).Scan(&shares).Error
+	if err != nil {
+		return err
+	}
+	for _, shr := range shares {
+		if _, err := cypher.Decrypt(shr.Data, key); err != nil {
+			if errors.Is(err, cypher.ErrAuthenticationFailed) {
+				return fmt.Errorf("share %s does not decrypt under the key: %w", shr.ID, domainErrors.ErrInvalidEncryptionPart)
+			}
+			return err
+		}
+	}
+
+	check, err := cypher.KeyCheck(key)
+	if err != nil {
+		return err
+	}
+	return tx.Exec(`UPDATE shld_encryption_parts SET key_check = ? WHERE id = ?`, check, partID).Error
 }
 
 func (r *repository) logError(ctx context.Context, msg string, err error) {
-	if errors.Is(err, domainErrors.ErrEncryptionPartChanged) {
+	if errors.Is(err, domainErrors.ErrEncryptionPartChanged) || errors.Is(err, domainErrors.ErrInvalidEncryptionPart) {
 		r.logger.WarnContext(ctx, msg, logger.Error(err))
 		return
 	}
