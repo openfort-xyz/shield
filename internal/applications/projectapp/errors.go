@@ -96,6 +96,10 @@ func fromDomainError(err error) error {
 		return ErrEncryptionPartChanged
 	}
 
+	if errors.Is(err, domainErrors.ErrEncryptionPartUnproven) {
+		return ErrEncryptionPartUnproven
+	}
+
 	if errors.Is(err, domainErrors.ErrPendingAPIKeyNotProven) {
 		return ErrPendingAPIKeyNotProven
 	}

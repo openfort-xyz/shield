@@ -170,7 +170,6 @@ func TestEncryptionKeyRotation_WrongCurrentPartChangesNothing(t *testing.T) {
 func TestEncryptionKeyRotation_LegacyKeyWithoutCheck(t *testing.T) {
 	apps := New(t)
 	p, part, key := seedLegacyProject(t, apps, true)
-	// Inserted directly: a write through RegisterShare would store the key check.
 	id := insertProjectShare(t, apps, p, key, "wallet")
 	dbtest.Exec(t, apps.DB, `UPDATE shld_shares SET reference = ? WHERE id = ?`, share.DefaultReference, id)
 	_, otherPart := apps.SeedEncryptedProject(t)

@@ -30,10 +30,11 @@ type EncryptionGuard struct {
 	Migrated bool
 	// UnverifiedKey is the key the write encrypted under when the project
 	// had no key check to verify it against. The write then persists only if
-	// the key is proven in the same transaction (sharerepo.proveKey). Left
-	// empty for unmigrated projects: their key is the stored part whatever
-	// part the caller sent, and a migration changes it without changing the
-	// stored part, so a check stored now would reject the right part after it.
+	// the key decrypts one of the project's oldest project shares, or the
+	// project has none, or it matches a key check stored since
+	// (sharerepo.checkGuard). Left empty for unmigrated projects: their key is
+	// the stored part whatever part the caller sent, so there is no part to
+	// prove.
 	UnverifiedKey string
 }
 

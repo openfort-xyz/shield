@@ -50,6 +50,7 @@ var (
 	ErrInvalidEncryptionSession    = &Error{"Invalid encryption session", "EC_INVALID", http.StatusBadRequest}
 	ErrProjectEntropyImport        = &Error{"Project-entropy shares cannot be imported", "SH_INVALID", http.StatusBadRequest}
 	ErrEncryptionPartChanged       = &Error{"Encryption key was rotated during the request, retry with the current encryption part", "EC_ROTATED", http.StatusConflict}
+	ErrEncryptionPartUnproven      = &Error{"Encryption part does not decrypt any of the project's oldest project shares", "EC_UNPROVEN", http.StatusConflict}
 	ErrNoPendingRotation           = &Error{"No pending encryption key rotation; call prepare first", "EC_NO_PENDING", http.StatusConflict}
 	ErrRotationExpired             = &Error{"Pending encryption key rotation expired; call prepare again", "EC_ROTATION_EXPIRED", http.StatusConflict}
 	ErrPendingAPIKeyNotProven      = &Error{"Commit the API key rotation with the pending key from prepare", "A_PENDING_NOT_PROVEN", http.StatusConflict}

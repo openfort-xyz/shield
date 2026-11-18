@@ -41,7 +41,7 @@ func (r *repository) Create(ctx context.Context, shr *share.Share) error {
 	}
 
 	dbShr := r.parser.toDatabase(shr)
-	err := r.underGuard(shr.EncryptionGuard, func(tx *gorm.DB) error {
+	err := r.underGuard(ctx, shr.EncryptionGuard, func(tx *gorm.DB) error {
 		return tx.Create(dbShr).Error
 	})
 	if err != nil {
@@ -191,7 +191,7 @@ func (r *repository) ListProjectIDAndEntropy(ctx context.Context, projectID stri
 func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID, plain, encrypted string, guard *share.EncryptionGuard) error {
 	r.logger.InfoContext(ctx, "updating share", slog.String("id", shareID))
 
-	err := r.underGuard(guard, func(tx *gorm.DB) error {
+	err := r.underGuard(ctx, guard, func(tx *gorm.DB) error {
 		res := tx.Model(&Share{}).Where("id = ? AND entropy = ? AND data = ?", shareID, EntropyNone, plain).
 			Updates(map[string]any{"data": encrypted, "entropy": EntropyProject})
 		if res.Error == nil && res.RowsAffected == 0 {
@@ -237,7 +237,7 @@ func (r *repository) Update(ctx context.Context, shr *share.Share) error {
 	r.logger.InfoContext(ctx, "updating share", slog.String("id", shr.ID))
 
 	dbShr := r.parser.toDatabase(shr)
-	err := r.underGuard(shr.EncryptionGuard, func(tx *gorm.DB) error {
+	err := r.underGuard(ctx, shr.EncryptionGuard, func(tx *gorm.DB) error {
 		return updateShare(tx, dbShr)
 	})
 	if err != nil {
@@ -339,14 +339,22 @@ func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context
 	return result, nil
 }
 
+// proofSampleSize bounds how many shares proveKey tries a key against.
+const proofSampleSize = 1000
+
 // underGuard runs fn, and when guard is set runs it in a transaction that
-// first passes checkGuard.
-func (r *repository) underGuard(guard *share.EncryptionGuard, fn func(tx *gorm.DB) error) error {
+// first passes checkGuard. A key without a key check is proven before the
+// transaction, holding no lock; checkGuard applies the result.
+func (r *repository) underGuard(ctx context.Context, guard *share.EncryptionGuard, fn func(tx *gorm.DB) error) error {
 	if guard == nil {
 		return fn(r.db.DB)
 	}
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := checkGuard(tx, guard); err != nil {
+	var proof error
+	if guard.UnverifiedKey != "" {
+		proof = r.proveKey(ctx, guard)
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := checkGuard(tx, guard, proof); err != nil {
 			return err
 		}
 		return fn(tx)
@@ -362,23 +370,20 @@ func (r *repository) underGuard(guard *share.EncryptionGuard, fn func(tx *gorm.D
 // also abort (TestPartRowLockSemantics). A guard for a pre-migration key also
 // aborts once the project has a successful migration; the read runs after the
 // part lock is granted, so a migration that records itself under FOR UPDATE
-// on the part rows cannot interleave with the write. A guard with an
-// UnverifiedKey takes FOR UPDATE instead, so proveKey can store the key
-// check. A nil guard checks nothing.
-func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard) error {
+// on the part rows cannot interleave with the write. For a guard with an
+// UnverifiedKey, a key check stored since the key was rebuilt decides, else
+// proof, proveKey's result, does; both come after the part comparison, so a
+// write that raced a rotation reports the rotation. A nil guard checks
+// nothing.
+func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard, proof error) error {
 	if guard == nil {
 		return nil
 	}
-	lock := "FOR SHARE"
-	if guard.UnverifiedKey != "" {
-		lock = "FOR UPDATE"
-	}
 	var parts []struct {
-		ID       string
 		Part     string
 		KeyCheck *string
 	}
-	err := tx.Raw(`SELECT id, part, key_check FROM shld_encryption_parts WHERE project_id = ? ORDER BY id LIMIT 1 `+lock, guard.ProjectID).Scan(&parts).Error
+	err := tx.Raw(`SELECT part, key_check FROM shld_encryption_parts WHERE project_id = ? ORDER BY id LIMIT 1 FOR SHARE`, guard.ProjectID).Scan(&parts).Error
 	if err != nil {
 		return err
 	}
@@ -397,7 +402,13 @@ func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard) error {
 	if guard.UnverifiedKey == "" {
 		return nil
 	}
-	return proveKey(tx, guard, parts[0].ID, parts[0].KeyCheck)
+	if parts[0].KeyCheck != nil {
+		if !cypher.VerifyKeyCheck(guard.UnverifiedKey, *parts[0].KeyCheck) {
+			return domainErrors.ErrInvalidEncryptionPart
+		}
+		return nil
+	}
+	return proof
 }
 
 func hasMigrated(tx *gorm.DB, projectID string) (bool, error) {
@@ -406,42 +417,41 @@ func hasMigrated(tx *gorm.DB, projectID string) (bool, error) {
 	return migrations > 0, err
 }
 
-// proveKey verifies a key that was reconstructed without a key check: against
-// the check if one was stored since, else by decrypting every project-entropy
-// share of the project (soft-deleted ones too), and then stores its check. A
-// project with no such share has no ciphertext to prove a part against: its
-// first write stores the check of the key it used, in the write's own
-// transaction, so no later write can use a different key.
-func proveKey(tx *gorm.DB, guard *share.EncryptionGuard, partID string, keyCheck *string) error {
-	key := guard.UnverifiedKey
-	if keyCheck != nil {
-		if !cypher.VerifyKeyCheck(key, *keyCheck) {
-			return domainErrors.ErrInvalidEncryptionPart
-		}
-		return nil
-	}
-
-	var shares []struct{ ID, Data string }
-	err := tx.Raw(`SELECT s.id, s.data FROM shld_shares s
+// proveKey tries a key that was rebuilt without a key check against the
+// project's oldest project-entropy shares, soft-deleted ones included as in
+// rotation, and passes at the first that decrypts. A share that does not,
+// malformed or under another key, is skipped, so one stray share does not
+// lock out the project's part. A project with no such share has nothing to
+// prove a key against, and its writes proceed as before key checks existed.
+func (r *repository) proveKey(ctx context.Context, guard *share.EncryptionGuard) error {
+	rows, err := r.db.WithContext(ctx).Raw(`SELECT s.data FROM shld_shares s
 		JOIN shld_users u ON s.user_id = u.id
-		WHERE u.project_id = ? AND s.entropy = 'project'`, guard.ProjectID).Scan(&shares).Error
+		WHERE u.project_id = ? AND s.entropy = 'project'
+		ORDER BY s.created_at, s.id LIMIT ?`, guard.ProjectID, proofSampleSize).Rows()
 	if err != nil {
 		return err
 	}
-	for _, shr := range shares {
-		if _, err := cypher.Decrypt(shr.Data, key); err != nil {
-			if errors.Is(err, cypher.ErrAuthenticationFailed) {
-				return fmt.Errorf("share %s does not decrypt under the key: %w", shr.ID, domainErrors.ErrInvalidEncryptionPart)
-			}
+	defer rows.Close()
+
+	tried := 0
+	for rows.Next() {
+		var data string
+		if err := rows.Scan(&data); err != nil {
 			return err
 		}
+		if _, err := cypher.Decrypt(data, guard.UnverifiedKey); err == nil {
+			return nil
+		}
+		tried++
 	}
-
-	check, err := cypher.KeyCheck(key)
-	if err != nil {
+	if err := rows.Err(); err != nil {
 		return err
 	}
-	return tx.Exec(`UPDATE shld_encryption_parts SET key_check = ? WHERE id = ?`, check, partID).Error
+	if tried == 0 {
+		return nil
+	}
+	return fmt.Errorf("project %s: none of its %d oldest project shares decrypts under the key: %w",
+		guard.ProjectID, tried, domainErrors.ErrEncryptionPartUnproven)
 }
 
 func (r *repository) logError(ctx context.Context, msg string, err error) {

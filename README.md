@@ -530,10 +530,20 @@ it received it by sending it back. Both calls are safe to retry.
     rejected with `409 EC_ROTATED`; retry it with the new part.
 - **Key check:** Shield stores a check value (HMAC) of each project key and
   rejects a part that does not reconstruct it, instead of encrypting a share
-  under a key nobody holds. Keys created before this release get one on
-  their first `prepare` or project-entropy share write, once the part is
-  proven against the project's existing project shares; a write with a part
-  that does not decrypt them is rejected with `EC_INVALID`.
+  under a key nobody holds. A key created before key checks gets one on its
+  first successful `prepare`, which proves the part against every project
+  share; a `prepare` left to expire changes nothing else.
+- **Keys without a key check:** a project-entropy share write proceeds when
+  the part decrypts one of the project's 1000 oldest project shares
+  (soft-deleted ones included), or when the project has none. Otherwise it
+  is rejected with `409 EC_UNPROVEN` and nothing is stored. A share the part
+  does not decrypt, such as one written with another part, does not block
+  the write while another of those shares decrypts. If none of them was
+  written with the project's part, for example because the project's first
+  share came with a wrong part, the project's part gets `EC_UNPROVEN` until
+  those shares are removed from the database (deleting through the API
+  keeps them). Calling `prepare` once the first share written with the
+  project's part is stored rules this out.
 - **Upgrades:** rotate only after every Shield replica runs this release. An
   older replica writes shares without the rotation guard.
 - **Soft-deleted shares** are re-encrypted too, so they stay restorable.
