@@ -654,20 +654,11 @@ func (a *ProjectApplication) RegisterEncryptionKey(ctx context.Context) (string,
 	a.logger.InfoContext(ctx, "registering encryption key")
 	projectID := contexter.GetProjectID(ctx)
 
-	ep, err := a.projectRepo.GetEncryptionKey(ctx, projectID)
-	if err != nil && !errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
-		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
-		return "", fromDomainError(err)
-	}
-
-	if ep != nil {
-		a.logger.Warn("encryption part already exists", slog.String("project_id", projectID))
-		return "", ErrEncryptionPartAlreadyExists
-	}
-
 	externalPart, err := a.registerEncryptionKey(ctx, projectID)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
+		if !errors.Is(err, domainErrors.ErrEncryptionPartAlreadyExists) {
+			a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
+		}
 		return "", fromDomainError(err)
 	}
 

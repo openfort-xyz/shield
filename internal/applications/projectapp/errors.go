@@ -84,6 +84,10 @@ func fromDomainError(err error) error {
 		return ErrEncryptionNotConfigured
 	}
 
+	if errors.Is(err, domainErrors.ErrEncryptionPartAlreadyExists) {
+		return ErrEncryptionPartAlreadyExists
+	}
+
 	if errors.Is(err, domainErrors.ErrInvalidEncryptionSession) {
 		return ErrInvalidEncryptionSession
 	}
