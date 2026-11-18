@@ -201,6 +201,28 @@ func TestService_GetByAPIKey_DoesNotRecacheAcrossEviction(t *testing.T) {
 	}
 }
 
+// An expired entry whose key no longer resolves (rotated on another replica,
+// or its project deleted) must not stay in the cache.
+func TestService_GetByAPIKey_RemovesExpiredEntry(t *testing.T) {
+	repo := new(projectmockrepo.MockProjectRepository)
+	svc := New(repo, time.Minute).(*service)
+	ctx := context.Background()
+
+	repo.On("GetByAPIKey", mock.Anything, "old-key").Return(&project.Project{ID: "project"}, nil).Once()
+	if _, err := svc.GetByAPIKey(ctx, "old-key"); err != nil {
+		t.Fatalf("GetByAPIKey: %v", err)
+	}
+	svc.cache["old-key"].expiresAt = time.Now().Add(-time.Second)
+
+	repo.On("GetByAPIKey", mock.Anything, "old-key").Return(nil, domainErrors.ErrProjectNotFound).Once()
+	if _, err := svc.GetByAPIKey(ctx, "old-key"); !errors.Is(err, domainErrors.ErrProjectNotFound) {
+		t.Fatalf("GetByAPIKey after expiry: err = %v, want %v", err, domainErrors.ErrProjectNotFound)
+	}
+	if _, cached := svc.cache["old-key"]; cached {
+		t.Error("expired entry for a key that no longer resolves is still cached")
+	}
+}
+
 // secretAndHash returns a hex-encoded secret and its bcrypt hash, as stored.
 func secretAndHash(t *testing.T, seed byte) (string, string) {
 	t.Helper()
