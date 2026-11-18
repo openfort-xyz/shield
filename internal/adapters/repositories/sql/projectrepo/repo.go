@@ -244,7 +244,9 @@ func toEncryptionKey(part *EncryptionPart) *project.EncryptionKey {
 
 // SetEncryptionKey checks for an existing part and inserts under the project
 // row lock: shld_encryption_parts has no unique project_id, so the lock is
-// what keeps concurrent registrations from both inserting.
+// what keeps concurrent registrations from both inserting. The migration
+// record commits with the part: a stored part without it would be
+// reconstructed with the deprecated scheme.
 func (r *repository) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error {
 	r.logger.InfoContext(ctx, "setting encryption key")
 
@@ -258,7 +260,7 @@ func (r *repository) SetEncryptionKey(ctx context.Context, projectID string, key
 		encryptionPart.KeyCheck = &check
 	}
 
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	err := r.db.Transaction(func(tx *gorm.DB) error {
 		if _, err := lockProject(tx, projectID); err != nil {
 			return err
 		}
@@ -269,31 +271,18 @@ func (r *repository) SetEncryptionKey(ctx context.Context, projectID string, key
 		if existing > 0 {
 			return domainErrors.ErrEncryptionPartAlreadyExists
 		}
-		return tx.Create(encryptionPart).Error
+		if err := tx.Create(encryptionPart).Error; err != nil {
+			return err
+		}
+		return tx.Create(&Migration{ID: uuid.NewString(), ProjectID: projectID, Success: true}).Error
 	})
-}
-
-func (r *repository) CreateMigration(ctx context.Context, projectID string, success bool) error {
-	r.logger.InfoContext(ctx, "creating migration", slog.String("project_id", projectID), slog.Bool("success", success))
-
-	migration := &Migration{
-		ID:        uuid.NewString(),
-		ProjectID: projectID,
-		Success:   success,
-	}
-
-	err := r.db.Create(migration).Error
 	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating migration", logger.Error(err))
 		return err
 	}
 
-	if success {
-		r.migrationMu.Lock()
-		r.migrationCache[projectID] = true
-		r.migrationMu.Unlock()
-	}
-
+	r.migrationMu.Lock()
+	r.migrationCache[projectID] = true
+	r.migrationMu.Unlock()
 	return nil
 }
 

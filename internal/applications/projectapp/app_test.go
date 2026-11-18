@@ -87,7 +87,6 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
 				projectRepo.On("SetEncryptionKey", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				projectRepo.On("CreateMigration", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -1088,7 +1087,6 @@ func TestProjectApplication_RegisterEncryptionKey(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(nil, domainErrors.ErrEncryptionPartNotFound)
 				projectRepo.On("SetEncryptionKey", mock.Anything, "project_id", mock.Anything).Return(nil)
-				projectRepo.On("CreateMigration", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{

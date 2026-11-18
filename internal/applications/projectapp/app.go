@@ -700,11 +700,5 @@ func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectI
 		return "", err
 	}
 
-	err = a.projectRepo.CreateMigration(ctx, projectID, true)
-	if err != nil {
-		a.logger.Error("failed to create migration", logger.Error(err))
-		return "", ErrInternal
-	}
-
 	return string(projectPart), nil
 }

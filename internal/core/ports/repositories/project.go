@@ -29,9 +29,11 @@ type ProjectRepository interface {
 	// GetEncryptionKey returns ErrEncryptionPartNotFound when the project has
 	// no encryption key.
 	GetEncryptionKey(ctx context.Context, projectID string) (*project.EncryptionKey, error)
-	// SetEncryptionKey stores the project's encryption key. It returns
-	// ErrEncryptionPartAlreadyExists when the project already has one, and
-	// of concurrent calls for one project at most one stores a key.
+	// SetEncryptionKey stores the project's encryption key, split with the
+	// current reconstruction, and records the project as migrated in the same
+	// transaction. It returns ErrEncryptionPartAlreadyExists when the project
+	// already has one, and of concurrent calls for one project at most one
+	// stores a key.
 	SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error
 
 	// PrepareEncryptionKeyRotation runs prepare in a transaction holding
@@ -64,6 +66,5 @@ type ProjectRepository interface {
 
 	Update2FA(ctx context.Context, projectID string, enable2FA bool) error
 
-	CreateMigration(ctx context.Context, projectID string, success bool) error
 	HasSuccessfulMigration(ctx context.Context, projectID string) (bool, error)
 }
