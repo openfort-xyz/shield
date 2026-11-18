@@ -55,7 +55,7 @@ func TestOtp(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		newOtp, err := otpService.GenerateOTP(ctx, testUserID, false)
+		newOtp, err := otpService.GenerateOTP(ctx, "testProjectID", testUserID, false)
 		if err != nil {
 			panic(err)
 		}
@@ -72,7 +72,7 @@ func TestOtp(t *testing.T) {
 
 		encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
 
-		verifyResp, err := otpService.VerifyOTP(ctx, testUserID, &newOtp)
+		verifyResp, err := otpService.VerifyOTP(ctx, "testProjectID", testUserID, &newOtp)
 		if err != nil {
 			panic(err)
 		}
@@ -109,7 +109,7 @@ func TestOtp(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		newOtp, err := otpService.GenerateOTP(ctx, testUserID, false)
+		newOtp, err := otpService.GenerateOTP(ctx, "testProjectID", testUserID, false)
 		if err != nil {
 			panic(err)
 		}
@@ -126,7 +126,7 @@ func TestOtp(t *testing.T) {
 
 		encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
 
-		_, err = otpService.VerifyOTP(ctx, testUserID, &newOtp)
+		_, err = otpService.VerifyOTP(ctx, "testProjectID", testUserID, &newOtp)
 
 		ass.ErrorIs(err, errors.ErrOTPInvalid)
 	})
@@ -160,7 +160,7 @@ func TestOtp(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		newOtp, err := otpService.GenerateOTP(ctx, testUserID, false)
+		newOtp, err := otpService.GenerateOTP(ctx, "testProjectID", testUserID, false)
 		if err != nil {
 			panic(err)
 		}
@@ -177,7 +177,7 @@ func TestOtp(t *testing.T) {
 
 		encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
 
-		_, err = otpService.VerifyOTP(ctx, testUserID, &newOtp)
+		_, err = otpService.VerifyOTP(ctx, "testProjectID", testUserID, &newOtp)
 
 		ass.ErrorIs(err, errors.ErrOTPExpired)
 	})
@@ -213,7 +213,7 @@ func TestOtpBruteForce(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		newOtp, err := otpService.GenerateOTP(ctx, testUserID, false)
+		newOtp, err := otpService.GenerateOTP(ctx, "testProjectID", testUserID, false)
 		if err != nil {
 			panic(err)
 		}
@@ -231,12 +231,12 @@ func TestOtpBruteForce(t *testing.T) {
 
 			encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
 
-			_, err = otpService.VerifyOTP(ctx, testUserID, &newOtp)
+			_, err = otpService.VerifyOTP(ctx, "testProjectID", testUserID, &newOtp)
 
 			ass.ErrorIs(err, errors.ErrOTPInvalidated)
 		}
 
-		_, err = otpService.GenerateOTP(ctx, testUserID, false)
+		_, err = otpService.GenerateOTP(ctx, "testProjectID", testUserID, false)
 
 		ass.ErrorIs(err, errors.ErrOTPRateLimitExceeded)
 	})
@@ -270,7 +270,7 @@ func TestOtpBruteForce(t *testing.T) {
 
 		testUserID := "testUserID12345"
 
-		newOtp, err := otpService.GenerateOTP(ctx, testUserID, false)
+		newOtp, err := otpService.GenerateOTP(ctx, "testProjectID", testUserID, false)
 		if err != nil {
 			panic(err)
 		}
@@ -288,18 +288,18 @@ func TestOtpBruteForce(t *testing.T) {
 
 			encryptionPartsRepo.On("Get", mock.Anything, mock.Anything).Return(string(marshaledReq), nil)
 
-			_, err = otpService.VerifyOTP(ctx, testUserID, &newOtp)
+			_, err = otpService.VerifyOTP(ctx, "testProjectID", testUserID, &newOtp)
 
 			ass.ErrorIs(err, errors.ErrOTPInvalidated)
 		}
 
-		_, err = otpService.GenerateOTP(ctx, testUserID, false)
+		_, err = otpService.GenerateOTP(ctx, "testProjectID", testUserID, false)
 
 		ass.ErrorIs(err, errors.ErrOTPRateLimitExceeded)
 
 		tClock.SetNewTime(tClock.Now().Add(7 * time.Hour))
 
-		_, err = otpService.GenerateOTP(ctx, testUserID, false)
+		_, err = otpService.GenerateOTP(ctx, "testProjectID", testUserID, false)
 
 		ass.Nil(err)
 	})

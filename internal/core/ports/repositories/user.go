@@ -17,7 +17,6 @@ type UserRepository interface {
 	WithExternalUserID(externalUserID string) Option
 	WithProviderID(providerID string) Option
 
-	GetUserIDsByExternalID(ctx context.Context, externalUserID string) ([]string, error)
 	FindUserByExternalID(ctx context.Context, externalUserID, providerID string) (*user.User, error)
 }
 

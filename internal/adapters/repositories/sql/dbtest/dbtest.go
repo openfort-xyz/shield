@@ -5,6 +5,7 @@ package dbtest
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
@@ -25,6 +26,13 @@ func RequireDB(t *testing.T) *sql.Client {
 	if err != nil {
 		t.Fatalf("failed to connect to database: %v", err)
 	}
+	// Cleanups run last-registered first, so registering this before any
+	// SeedProject keeps the pool open for their deletes.
+	t.Cleanup(func() {
+		if err := client.Close(); err != nil {
+			t.Errorf("failed to close database: %v", err)
+		}
+	})
 	return client
 }
 
@@ -84,6 +92,30 @@ func ShareData(t *testing.T, client *sql.Client, shareID string) string {
 		t.Fatalf("read share %s: %v", shareID, err)
 	}
 	return data
+}
+
+// WaitForLockWait returns true once a session is waiting for a lock held by
+// backend pid, or false once finished is closed first.
+func WaitForLockWait(t *testing.T, client *sql.Client, pid int, finished <-chan struct{}) bool {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case <-finished:
+			return false
+		default:
+		}
+		var waiting int64
+		if err := client.Raw(`SELECT count(*) FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))`, pid).Scan(&waiting).Error; err != nil {
+			t.Fatalf("read lock waits: %v", err)
+		}
+		if waiting > 0 {
+			return true
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("nothing waited for backend %d within 10s", pid)
+	return false
 }
 
 func cleanup(t *testing.T, client *sql.Client, projectID string) {

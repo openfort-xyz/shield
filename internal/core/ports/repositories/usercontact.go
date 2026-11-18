@@ -9,4 +9,5 @@ import (
 type UserContactRepository interface {
 	Save(ctx context.Context, project *usercontact.UserContact) error
 	GetByUserID(ctx context.Context, userID string) (*usercontact.UserContact, error)
+	DeleteByUserID(ctx context.Context, userID string) error
 }

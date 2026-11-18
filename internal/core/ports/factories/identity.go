@@ -2,6 +2,8 @@ package factories
 
 import (
 	"context"
+
+	"github.com/openfort-xyz/shield/internal/core/domain/authentication"
 )
 
 type IdentityFactory interface {
@@ -13,5 +15,5 @@ type IdentityFactory interface {
 type Identity interface {
 	GetProviderID() string
 	GetCookieFieldName() string
-	Identify(ctx context.Context, token string) (string, error)
+	Identify(ctx context.Context, token string) (authentication.Identity, error)
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
+	"github.com/openfort-xyz/shield/pkg/cypher"
 	"github.com/openfort-xyz/shield/pkg/logger"
 	"gorm.io/gorm"
 )
@@ -39,7 +40,7 @@ func (r *repository) Create(ctx context.Context, shr *share.Share) error {
 	}
 
 	dbShr := r.parser.toDatabase(shr)
-	err := r.underGuard(shr.EncryptionGuard, func(tx *gorm.DB) error {
+	err := r.underGuard(ctx, shr.EncryptionGuard, func(tx *gorm.DB) error {
 		return tx.Create(dbShr).Error
 	})
 	if err != nil {
@@ -84,22 +85,6 @@ func (r *repository) ListByKeychainID(ctx context.Context, keychainID string) ([
 	return shares, nil
 }
 
-func (r *repository) GetByReference(ctx context.Context, reference string) (*share.Share, error) {
-	r.logger.InfoContext(ctx, "getting share", slog.String("reference", reference))
-
-	dbShr := &Share{}
-	err := r.db.Preload("PasskeyReference").Where("reference = ?", reference).First(dbShr).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domainErrors.ErrShareNotFound
-		}
-		r.logger.ErrorContext(ctx, "error getting share", logger.Error(err))
-		return nil, err
-	}
-
-	return r.parser.toDomain(dbShr), nil
-}
-
 func (r *repository) GetByReferenceAndKeychain(ctx context.Context, reference, keychainID string) (*share.Share, error) {
 	r.logger.InfoContext(ctx, "getting share", slog.String("reference", reference))
 
@@ -130,6 +115,27 @@ func (r *repository) GetByReferenceAndProjectID(ctx context.Context, reference, 
 			return nil, domainErrors.ErrShareNotFound
 		}
 		r.logger.ErrorContext(ctx, "error getting share by reference and project", logger.Error(err))
+		return nil, err
+	}
+
+	return r.parser.toDomain(dbShr), nil
+}
+
+func (r *repository) GetByReferenceForProjectAndExternalUserID(ctx context.Context, reference, projectID, externalUserID string) (*share.Share, error) {
+	r.logger.InfoContext(ctx, "getting share by reference for external user", slog.String("reference", reference), slog.String("project_id", projectID))
+
+	dbShr := &Share{}
+	err := r.db.Preload("PasskeyReference").
+		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
+		Joins("JOIN shld_external_users ON shld_external_users.user_id = shld_users.id").
+		Where("shld_shares.reference = ? AND shld_users.project_id = ? AND shld_external_users.external_user_id = ?", reference, projectID, externalUserID).
+		Where("shld_shares.deleted_at IS NULL").
+		First(dbShr).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainErrors.ErrShareNotFound
+		}
+		r.logger.ErrorContext(ctx, "error getting share by reference for external user", logger.Error(err))
 		return nil, err
 	}
 
@@ -186,11 +192,16 @@ func (r *repository) ListProjectIDAndEntropy(ctx context.Context, projectID stri
 	return shares, nil
 }
 
-func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID string, encrypted string, guard *share.EncryptionGuard) error {
+func (r *repository) UpdateProjectEncryption(ctx context.Context, shareID, plain, encrypted string, guard *share.EncryptionGuard) error {
 	r.logger.InfoContext(ctx, "updating share", slog.String("id", shareID))
 
-	err := r.underGuard(guard, func(tx *gorm.DB) error {
-		return tx.Model(&Share{}).Where("id = ?", shareID).Updates(map[string]any{"data": encrypted, "entropy": EntropyProject}).Error
+	err := r.underGuard(ctx, guard, func(tx *gorm.DB) error {
+		res := tx.Model(&Share{}).Where("id = ? AND entropy = ? AND data = ?", shareID, EntropyNone, plain).
+			Updates(map[string]any{"data": encrypted, "entropy": EntropyProject})
+		if res.Error == nil && res.RowsAffected == 0 {
+			r.logger.WarnContext(ctx, "share changed since it was read; left as is", slog.String("id", shareID))
+		}
+		return res.Error
 	})
 	if err != nil {
 		r.logError(ctx, "error updating share", err)
@@ -230,7 +241,7 @@ func (r *repository) Update(ctx context.Context, shr *share.Share) error {
 	r.logger.InfoContext(ctx, "updating share", slog.String("id", shr.ID))
 
 	dbShr := r.parser.toDatabase(shr)
-	err := r.underGuard(shr.EncryptionGuard, func(tx *gorm.DB) error {
+	err := r.underGuard(ctx, shr.EncryptionGuard, func(tx *gorm.DB) error {
 		return updateShare(tx, dbShr)
 	})
 	if err != nil {
@@ -239,39 +250,6 @@ func (r *repository) Update(ctx context.Context, shr *share.Share) error {
 	}
 
 	return nil
-}
-
-func (r *repository) BulkUpdate(ctx context.Context, shrs []*share.Share) error {
-	r.logger.InfoContext(ctx, "bulk updating shares")
-
-	var dbShares []*Share
-	for _, shr := range shrs {
-		dbShares = append(dbShares, r.parser.toDatabase(shr))
-	}
-
-	var guard *share.EncryptionGuard
-	for _, shr := range shrs {
-		if shr.EncryptionGuard != nil {
-			guard = shr.EncryptionGuard
-			break
-		}
-	}
-
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := checkGuard(tx, guard); err != nil {
-			return err
-		}
-		for _, dbShr := range dbShares {
-			err := updateShare(tx, dbShr)
-			if err != nil {
-				r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
-				return err
-			}
-		}
-
-		r.logger.InfoContext(ctx, "bulk updated shares", slog.Int("count", len(shrs)))
-		return nil
-	})
 }
 
 func (r *repository) GetShareStorageMethods(ctx context.Context) ([]*share.StorageMethod, error) {
@@ -367,11 +345,11 @@ func (r *repository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context
 
 // underGuard runs fn, and when guard is set runs it in a transaction that
 // first passes checkGuard.
-func (r *repository) underGuard(guard *share.EncryptionGuard, fn func(tx *gorm.DB) error) error {
+func (r *repository) underGuard(ctx context.Context, guard *share.EncryptionGuard, fn func(tx *gorm.DB) error) error {
 	if guard == nil {
 		return fn(r.db.DB)
 	}
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := checkGuard(tx, guard); err != nil {
 			return err
 		}
@@ -385,24 +363,52 @@ func (r *repository) underGuard(guard *share.EncryptionGuard, fn func(tx *gorm.D
 // id; a project can hold duplicates). A rotation commit holds FOR UPDATE on
 // the part rows and replaces the part in place, so a write that read the part
 // before the commit blocks here, then sees the new part and aborts; zero rows
-// also abort (TestPartRowLockSemantics). A nil guard checks nothing.
+// also abort (TestPartRowLockSemantics). A guard for a pre-migration key also
+// aborts if a successful migration row exists once the part lock is granted.
+// That keeps the write out of a migration only if the migration takes FOR
+// UPDATE on the part rows before it lists shares and inserts its success row
+// in the same transaction. The v0.4.2 migration job does neither, so this
+// does not order writes against it. A key check the row holds then must match
+// the guard's key; it is compared after the part, so a write that raced a
+// rotation reports the rotation. A nil guard checks nothing.
 func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard) error {
 	if guard == nil {
 		return nil
 	}
-	var parts []string
-	err := tx.Raw(`SELECT part FROM shld_encryption_parts WHERE project_id = ? ORDER BY id LIMIT 1 FOR SHARE`, guard.ProjectID).Scan(&parts).Error
+	var parts []struct {
+		Part     string
+		KeyCheck *string
+	}
+	err := tx.Raw(`SELECT part, key_check FROM shld_encryption_parts WHERE project_id = ? ORDER BY id LIMIT 1 FOR SHARE`, guard.ProjectID).Scan(&parts).Error
 	if err != nil {
 		return err
 	}
-	if len(parts) == 0 || parts[0] != string(guard.StoredPart) {
+	if len(parts) == 0 || parts[0].Part != string(guard.StoredPart) {
 		return domainErrors.ErrEncryptionPartChanged
+	}
+	if !guard.Migrated {
+		migrated, err := hasMigrated(tx, guard.ProjectID)
+		if err != nil {
+			return err
+		}
+		if migrated {
+			return domainErrors.ErrEncryptionPartChanged
+		}
+	}
+	if parts[0].KeyCheck != nil && !cypher.VerifyKeyCheck(guard.Key, *parts[0].KeyCheck) {
+		return domainErrors.ErrInvalidEncryptionPart
 	}
 	return nil
 }
 
+func hasMigrated(tx *gorm.DB, projectID string) (bool, error) {
+	var migrations int64
+	err := tx.Raw(`SELECT count(*) FROM shld_shamir_migrations WHERE project_id = ? AND success`, projectID).Scan(&migrations).Error
+	return migrations > 0, err
+}
+
 func (r *repository) logError(ctx context.Context, msg string, err error) {
-	if errors.Is(err, domainErrors.ErrEncryptionPartChanged) {
+	if errors.Is(err, domainErrors.ErrEncryptionPartChanged) || errors.Is(err, domainErrors.ErrInvalidEncryptionPart) {
 		r.logger.WarnContext(ctx, msg, logger.Error(err))
 		return
 	}

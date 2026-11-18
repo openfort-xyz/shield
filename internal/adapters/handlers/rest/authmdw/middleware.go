@@ -326,6 +326,7 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 		ctx := contexter.WithUserID(r.Context(), authentication.UserID)
 		ctx = contexter.WithProjectID(ctx, authentication.ProjectID)
 		ctx = contexter.WithExternalUserID(ctx, authentication.ExternalUserID)
+		ctx = contexter.WithAltExternalUserID(ctx, authentication.AltExternalUserID)
 		ctx = contexter.WithProject(ctx, proj)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

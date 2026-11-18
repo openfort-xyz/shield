@@ -11,6 +11,9 @@ import (
 
 const (
 	MaxReties = 5
+	// partLength is a coordinate byte followed by one byte per byte of the
+	// 32-byte key.
+	partLength = 33
 )
 
 type SSSReconstructionStrategy struct{}
@@ -67,7 +70,11 @@ func (s *SSSReconstructionStrategy) Reconstruct(storedPart project.StoredPart, p
 		rawProjectPart = append([]byte{2}, rawProjectPart...)
 	}
 
-	if len(rawProjectPart) < 33 {
+	// Combine panics on two parts with the same coordinate and indexes past the
+	// end of a part shorter than the first. A part on coordinate 0 is the key
+	// itself, so combining it would ignore the other part.
+	if len(rawStoredPart) != partLength || len(rawProjectPart) != partLength ||
+		rawStoredPart[0] == rawProjectPart[0] || rawStoredPart[0] == 0 || rawProjectPart[0] == 0 {
 		return "", errors.ErrInvalidEncryptionPart
 	}
 

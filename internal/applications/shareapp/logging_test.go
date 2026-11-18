@@ -13,7 +13,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/projectmockrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/sharemockrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/usermockedrepo"
-	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/domain/keychain"
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
@@ -87,7 +86,7 @@ func TestGetKeychainSharesLogsNotFoundAsWarning(t *testing.T) {
 			// when it runs.
 			app := New(
 				sharesvc.New(shareRepo, keychainRepo, encryptionFactory),
-				shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{},
+				shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory,
 			)
 
 			ctx := contexter.WithProjectID(context.Background(), projectID)
@@ -134,14 +133,14 @@ func TestGetShareByReferenceLogsNotFoundAsWarning(t *testing.T) {
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	userRepo := new(usermockedrepo.MockUserRepository)
-	shareRepo.On("GetByReference", mock.Anything, reference).Return(nil, domainErrors.ErrShareNotFound)
+	shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, projectID, externalUserID).Return(nil, domainErrors.ErrShareNotFound)
 
 	encryptionFactory := encryption.NewEncryptionFactory(
 		new(encryptionpartsmockrepo.MockEncryptionPartsRepository), projectRepo)
 
 	app := New(
 		sharesvc.New(shareRepo, keychainRepo, encryptionFactory),
-		shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{},
+		shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory,
 	)
 
 	ctx := contexter.WithProjectID(context.Background(), projectID)
@@ -195,24 +194,23 @@ func TestGetShareByReferenceLogsWrongPartAsWarning(t *testing.T) {
 	require.NoError(t, err)
 
 	ref := reference
-	shareRepo.On("GetByReference", mock.Anything, reference).Return(&share.Share{
+	shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, projectID, externalUserID).Return(&share.Share{
 		UserID:    userID,
 		Reference: &ref,
 		Secret:    encryptedSecret,
 		Entropy:   share.EntropyProject,
 	}, nil)
-	userRepo.On("GetUserIDsByExternalID", mock.Anything, externalUserID).Return([]string{userID}, nil)
 	projectRepo.On("GetEncryptionKey", mock.Anything, projectID).Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 	projectRepo.On("HasSuccessfulMigration", mock.Anything, projectID).Return(true, nil)
+	projectRepo.On("Get", mock.Anything, projectID).Return(&project.Project{ID: projectID}, nil)
 
 	app := New(
 		sharesvc.New(shareRepo, keychainRepo, encryptionFactory),
-		shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory, &shamirjob.Job{},
+		shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory,
 	)
 
 	ctx := contexter.WithProjectID(context.Background(), projectID)
 	ctx = contexter.WithExternalUserID(ctx, externalUserID)
-	ctx = contexter.WithProject(ctx, &project.Project{ID: projectID})
 
 	shr, err := app.GetShareByReference(ctx, reference, WithEncryptionPart(string(otherProjectPart)))
 	require.ErrorIs(t, err, ErrInvalidEncryptionPart)

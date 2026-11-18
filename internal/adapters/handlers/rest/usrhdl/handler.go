@@ -2,7 +2,6 @@ package usrhdl
 
 import (
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 
@@ -37,9 +36,8 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "creating user")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
