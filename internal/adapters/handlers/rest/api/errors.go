@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -94,4 +95,8 @@ var (
 
 func ErrBadRequestWithMessage(message string) *Error {
 	return &Error{message, "BAD_REQUEST", http.StatusBadRequest}
+}
+
+func ErrBodyTooLarge(limit int64) *Error {
+	return &Error{fmt.Sprintf("Request body exceeds %d bytes", limit), "BODY_TOO_LARGE", http.StatusRequestEntityTooLarge}
 }
