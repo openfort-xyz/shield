@@ -183,6 +183,45 @@ func TestEncryptionSession_UnverifiedIsRejectedOn2FAProject(t *testing.T) {
 	}
 }
 
+func TestEncryptionPart_IsRejectedOnReadsOf2FAProject(t *testing.T) {
+	apps := New(t)
+	p, part := apps.Seed2FAProject(t)
+	alice := apps.NewUser(t, p)
+	apps.StoreShare(t, alice, part, "alice-share")
+	withPart := shareapp.WithEncryptionPart(part)
+
+	reads := map[string]func() error{
+		"GetShare": func() error {
+			_, err := apps.Share.GetShare(alice.Context(), withPart)
+			return err
+		},
+		"GetKeychainShares": func() error {
+			_, err := apps.Share.GetKeychainShares(alice.Context(), nil, withPart)
+			return err
+		},
+	}
+	for name, read := range reads {
+		if err := read(); !errors.Is(err, shareapp.ErrOTPVerificationRequired) {
+			t.Errorf("%s with a raw part: err = %v, want %v", name, err, shareapp.ErrOTPVerificationRequired)
+		}
+	}
+}
+
+func TestEncryptionPart_WorksOnReadsWithout2FA(t *testing.T) {
+	apps := New(t)
+	p, part := apps.SeedEncryptedProject(t)
+	alice := apps.NewUser(t, p)
+	apps.StoreShare(t, alice, part, "alice-share")
+
+	got, err := apps.Share.GetShare(alice.Context(), shareapp.WithEncryptionPart(part))
+	if err != nil {
+		t.Fatalf("GetShare with a raw part: %v", err)
+	}
+	if got.Secret != "alice-share" {
+		t.Errorf("share secret = %q, want %q", got.Secret, "alice-share")
+	}
+}
+
 func TestEncryptionSession_WithoutUserWorksWithout2FA(t *testing.T) {
 	apps := New(t)
 	p, part := apps.SeedEncryptedProject(t)

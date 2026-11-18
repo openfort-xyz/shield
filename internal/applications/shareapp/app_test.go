@@ -157,9 +157,9 @@ func TestShareApplication_GetShare(t *testing.T) {
 		},
 		{
 			// this case is successful because OTP is required only for encrypted sessions
-			name:    "encrypted in OTP required project success",
-			wantErr: nil,
-			want:    decryptedShare,
+			name:    "raw part rejected in OTP required project",
+			wantErr: ErrOTPVerificationRequired,
+			want:    nil,
 			project: projectWithRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare
@@ -511,9 +511,9 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 			},
 		},
 		{
-			name:    "encrypted success with OTP required",
-			wantErr: nil,
-			want:    decryptedShare,
+			name:    "raw part rejected with OTP required",
+			wantErr: ErrOTPVerificationRequired,
+			want:    nil,
 			project: projectWithRequiredOTP,
 			mock: func() {
 				tmpEncryptedShare := *encryptedShare

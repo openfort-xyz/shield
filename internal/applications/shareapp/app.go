@@ -487,6 +487,9 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 	otpCheckRequired := false
 	switch {
 	case opt.encryptionPart != nil && *opt.encryptionPart != "":
+		if opt.requireOTPCheck {
+			return "", nil, ErrOTPVerificationRequired
+		}
 		builderType = factories.Plain
 		identifier = *opt.encryptionPart
 	case opt.encryptionSession != nil && *opt.encryptionSession != "":
