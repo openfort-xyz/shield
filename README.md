@@ -531,7 +531,9 @@ it received it by sending it back. Both calls are safe to retry.
 - **Key check:** Shield stores a check value (HMAC) of each project key and
   rejects a part that does not reconstruct it, instead of encrypting a share
   under a key nobody holds. Keys created before this release get one on
-  their first `prepare`.
+  their first `prepare` or project-entropy share write, once the part is
+  proven against the project's existing project shares; a write with a part
+  that does not decrypt them is rejected with `EC_INVALID`.
 - **Upgrades:** rotate only after every Shield replica runs this release. An
   older replica writes shares without the rotation guard.
 - **Soft-deleted shares** are re-encrypted too, so they stay restorable.
