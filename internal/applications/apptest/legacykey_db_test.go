@@ -617,8 +617,9 @@ func TestProjectKey_ReadsAndWritesKeepMigrationStatus(t *testing.T) {
 }
 
 // A write that reconstructed an unmigrated project's key and persists after a
-// migration (such as one a replica of an earlier release starts) would leave
-// its share under a key no request rebuilds any more.
+// migration would leave its share under a key no request rebuilds any more.
+// The migration here is migrateOutOfBand, the only kind the guard orders
+// writes against.
 func TestLegacyKey_WriteRacingMigrationIsNotPersisted(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -665,10 +666,13 @@ func TestLegacyKey_WriteRacingMigrationIsNotPersisted(t *testing.T) {
 	}
 }
 
-// migrateOutOfBand migrates the project in one transaction holding FOR UPDATE
-// on its part row: every project share, soft-deleted ones included, moves
-// from the pre-migration key to the current one, and the migration is
-// recorded.
+// migrateOutOfBand migrates the project in one transaction that takes FOR
+// UPDATE on its part row before it lists shares: every project share,
+// soft-deleted ones included, moves from the pre-migration key to the current
+// one, and the success row is inserted in the same transaction. The guard
+// stops a racing write only for a migration shaped like this; the v0.4.2
+// migration job takes FOR SHARE and records its success after commit, so a
+// write can still interleave with it.
 func migrateOutOfBand(t *testing.T, apps Apps, p dbtest.Project, projectPart string) {
 	t.Helper()
 	err := apps.DB.Transaction(func(tx *gorm.DB) error {

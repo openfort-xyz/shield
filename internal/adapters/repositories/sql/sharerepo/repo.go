@@ -376,13 +376,14 @@ func (r *repository) underGuard(ctx context.Context, guard *share.EncryptionGuar
 // the part rows and replaces the part in place, so a write that read the part
 // before the commit blocks here, then sees the new part and aborts; zero rows
 // also abort (TestPartRowLockSemantics). A guard for a pre-migration key also
-// aborts once the project has a successful migration; the read runs after the
-// part lock is granted, so a migration that records itself under FOR UPDATE
-// on the part rows cannot interleave with the write. For a guard with an
-// UnverifiedKey, a key check stored since the key was rebuilt decides, else
-// proof, proveKey's result, does; both come after the part comparison, so a
-// write that raced a rotation reports the rotation. A nil guard checks
-// nothing.
+// aborts if a successful migration row exists once the part lock is granted.
+// That keeps the write out of a migration only if the migration takes FOR
+// UPDATE on the part rows before it lists shares and inserts its success row
+// in the same transaction. The v0.4.2 migration job does neither, so this
+// does not order writes against it. For a guard with an UnverifiedKey, a key
+// check stored since the key was rebuilt decides, else proof, proveKey's
+// result, does; both come after the part comparison, so a write that raced a
+// rotation reports the rotation. A nil guard checks nothing.
 func checkGuard(tx *gorm.DB, guard *share.EncryptionGuard, proof error) error {
 	if guard == nil {
 		return nil

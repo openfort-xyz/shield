@@ -24,7 +24,8 @@ type EncryptionGuard struct {
 	StoredPart project.StoredPart
 	// Migrated is whether the key came from the current reconstruction. A
 	// migration changes the key without changing the stored part, so a write
-	// under a pre-migration key also aborts once the project is migrated. The
+	// under a pre-migration key also aborts if the project has a successful
+	// migration row when the write takes its part-row lock. The
 	// zero value is the pre-migration case, so a guard built without it for a
 	// migrated project aborts rather than persists.
 	Migrated bool
