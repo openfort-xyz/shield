@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"errors"
+	"maps"
 	"testing"
 	"time"
 
@@ -68,6 +69,71 @@ func storedKeyCheck(t *testing.T, apps Apps, p dbtest.Project) *string {
 		t.Fatalf("read key check: %v", err)
 	}
 	return check
+}
+
+func storedPart(t *testing.T, apps Apps, p dbtest.Project) project.StoredPart {
+	t.Helper()
+	var part string
+	if err := apps.DB.Raw(`SELECT part FROM shld_encryption_parts WHERE project_id = ? ORDER BY id LIMIT 1`, p.ID).Scan(&part).Error; err != nil {
+		t.Fatalf("read stored part: %v", err)
+	}
+	return project.StoredPart(part)
+}
+
+func isMigrated(t *testing.T, apps Apps, p dbtest.Project) bool {
+	t.Helper()
+	var n int64
+	if err := apps.DB.Raw(`SELECT count(*) FROM shld_shamir_migrations WHERE project_id = ? AND success`, p.ID).Scan(&n).Error; err != nil {
+		t.Fatalf("read migrations: %v", err)
+	}
+	return n > 0
+}
+
+// projectShareData maps each share of the project's user, soft-deleted ones
+// included, to its stored data.
+func projectShareData(t *testing.T, apps Apps, p dbtest.Project) map[string]string {
+	t.Helper()
+	var rows []struct{ ID, Data string }
+	if err := apps.DB.Raw(`SELECT id, data FROM shld_shares WHERE user_id = ?`, p.UserID).Scan(&rows).Error; err != nil {
+		t.Fatalf("read shares: %v", err)
+	}
+	data := make(map[string]string, len(rows))
+	for _, row := range rows {
+		data[row.ID] = row.Data
+	}
+	return data
+}
+
+// assertSharesDecrypt fails unless the project has want project-entropy
+// shares, soft-deleted ones included, and each decrypts under the key that
+// the project's recorded migration status makes of its parts: the key every
+// later request reconstructs.
+func assertSharesDecrypt(t *testing.T, apps Apps, p dbtest.Project, projectPart string, want int) {
+	t.Helper()
+	migrated := isMigrated(t, apps, p)
+	reconstruct := depsssrec.NewSSSReconstructionStrategy().Reconstruct
+	if migrated {
+		reconstruct = sssrec.NewSSSReconstructionStrategy().Reconstruct
+	}
+	key, err := reconstruct(storedPart(t, apps, p), project.ProjectPart(projectPart))
+	if err != nil {
+		t.Fatalf("reconstruct: %v", err)
+	}
+
+	var rows []struct{ ID, Data string }
+	err = apps.DB.Raw(`SELECT s.id, s.data FROM shld_shares s JOIN shld_users u ON s.user_id = u.id
+		WHERE u.project_id = ? AND s.entropy = 'project'`, p.ID).Scan(&rows).Error
+	if err != nil {
+		t.Fatalf("read shares: %v", err)
+	}
+	if len(rows) != want {
+		t.Errorf("project shares = %d, want %d", len(rows), want)
+	}
+	for _, row := range rows {
+		if _, err := cypher.Decrypt(row.Data, key); err != nil {
+			t.Errorf("share %s does not decrypt under the project's key (migrated = %v): %v", row.ID, migrated, err)
+		}
+	}
 }
 
 func shareReference(t *testing.T, apps Apps, shareID string) string {
@@ -211,6 +277,30 @@ func TestLegacyKey_UnmigratedWriteStoresNoKeyCheck(t *testing.T) {
 
 	if check := storedKeyCheck(t, apps, p); check != nil {
 		t.Errorf("key check stored for an unmigrated key: %q", *check)
+	}
+}
+
+// The deprecated combine puts the stored part at x = 0 and interpolates at 0,
+// so an unmigrated project's key is its stored part and a read succeeds with
+// any project part. A migration started from such a read re-encrypts every
+// share under a key derived from a part nobody proved, and the project's own
+// part stops working.
+func TestLegacyKey_WrongPartReadLeavesSharesUnchanged(t *testing.T) {
+	apps := New(t)
+	p, part, key := seedLegacyProject(t, apps, false)
+	reference := shareReference(t, apps, insertProjectShare(t, apps, p, key, "wallet"))
+	before := projectShareData(t, apps, p)
+
+	_, _ = apps.Share.GetKeychainShares(UserContext(p), &reference, shareapp.WithEncryptionPart(randomPart(t)))
+	waitForShamirJob(t, apps, p)
+
+	if after := projectShareData(t, apps, p); !maps.Equal(after, before) {
+		t.Error("a read with a wrong part rewrote the project's shares")
+	}
+	assertSharesDecrypt(t, apps, p, part, 1)
+	shrs, err := apps.Share.GetKeychainShares(UserContext(p), &reference, shareapp.WithEncryptionPart(part))
+	if err != nil || len(shrs) != 1 || shrs[0].Secret != "wallet" {
+		t.Errorf("read with the project's part after a wrong-part read = %v, %v; want %q", shrs, err, "wallet")
 	}
 }
 
