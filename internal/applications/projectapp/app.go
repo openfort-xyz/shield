@@ -501,9 +501,12 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 		}
 	}
 
-	if cfg.cookieFieldName != nil {
-		if prov.Type != provider.TypeCustom {
-			return ErrProviderMismatch
+	// The JWK and PEM updates above already carry the cookie field name.
+	if cfg.cookieFieldName != nil && cfg.jwkURL == nil && cfg.pem == nil {
+		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, CookieFieldName: cfg.cookieFieldName})
+		if err != nil {
+			a.logger.ErrorContext(ctx, "failed to update custom provider", logger.Error(err))
+			return fromDomainError(err)
 		}
 	}
 	return nil
