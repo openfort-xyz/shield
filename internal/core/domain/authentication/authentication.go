@@ -1,11 +1,9 @@
 package authentication
 
 type Authentication struct {
-	UserID         string
-	ProjectID      string
-	ExternalUserID string
-	// AltExternalUserID is Identity.AltExternalUserID.
-	AltExternalUserID string
+	UserID    string
+	ProjectID string
+	Identity
 }
 
 // Identity is a user as the auth provider names it.

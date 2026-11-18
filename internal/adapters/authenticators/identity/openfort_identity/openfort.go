@@ -196,20 +196,7 @@ type authenticateOauthResponse struct {
 	ID string `json:"id"`
 	// UserID is the ID the Openfort API gives SDKs for this user; ID is the
 	// player ID that shares are stored under.
-	UserID         string          `json:"userId"`
-	Object         string          `json:"object"`
-	CreatedAt      int64           `json:"created_at"`
-	LinkedAccounts []linkedAccount `json:"linked_accounts"`
-}
-
-type linkedAccount struct {
-	Provider       string `json:"provider"`
-	Email          string `json:"email,omitempty"`
-	ExternalUserID string `json:"external_user_id,omitempty"`
-	Disabled       bool   `json:"disabled"`
-	UpdatedAt      int64  `json:"updated_at,omitempty"`
-	Address        string `json:"address,omitempty"`
-	Metadata       string `json:"metadata,omitempty"`
+	UserID string `json:"userId"`
 }
 
 type AuthSession struct {
