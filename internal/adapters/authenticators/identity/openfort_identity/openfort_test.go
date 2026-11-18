@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/authentication"
 	"github.com/openfort-xyz/shield/internal/core/domain/provider"
 )
 
@@ -32,8 +33,46 @@ func identify(t *testing.T, sessionCookie, token string, status int) (string, er
 		&provider.OpenfortConfig{PublishableKey: "pk_test_1"},
 		nil, nil, sessionCookie,
 	)
-	userID, err := identity.Identify(context.Background(), token)
-	return userID, err, got
+	user, err := identity.Identify(context.Background(), token)
+	return user.ExternalUserID, err, got
+}
+
+func identifyThirdParty(t *testing.T, response string) authentication.Identity {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/iam/v1/oauth/third_party" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		fmt.Fprint(w, response)
+	}))
+	t.Cleanup(srv.Close)
+
+	authProvider, tokenType := "firebase", "idToken"
+	user, err := NewOpenfortIdentityFactory(
+		&Config{OpenfortBaseURL: srv.URL},
+		&provider.OpenfortConfig{PublishableKey: "pk_test_1"},
+		&authProvider, &tokenType, "",
+	).Identify(context.Background(), "third.party.token")
+	if err != nil {
+		t.Fatalf("Identify: %v", err)
+	}
+	return user
+}
+
+func TestIdentifyThirdPartyReturnsBothIDs(t *testing.T) {
+	got := identifyThirdParty(t, `{"id":"pla_1","userId":"usr_1"}`)
+	want := authentication.Identity{ExternalUserID: "pla_1", AltExternalUserID: "usr_1"}
+	if got != want {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestIdentifyThirdPartyWithoutUserID(t *testing.T) {
+	got := identifyThirdParty(t, `{"id":"pla_1"}`)
+	want := authentication.Identity{ExternalUserID: "pla_1"}
+	if got != want {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
 }
 
 func TestIdentifyForwardsSessionCookie(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/openfort-xyz/shield/pkg/contexter"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/authentication"
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 	"github.com/openfort-xyz/shield/pkg/jwk"
@@ -57,23 +58,27 @@ func (o *OpenfortIdentityFactory) GetProviderID() string {
 	return o.providerID
 }
 
-func (o *OpenfortIdentityFactory) Identify(ctx context.Context, token string) (string, error) {
+func (o *OpenfortIdentityFactory) Identify(ctx context.Context, token string) (authentication.Identity, error) {
 	o.logger.InfoContext(ctx, "identifying user")
 
-	if o.sessionCookie != "" {
-		return o.session(ctx, "Cookie", o.sessionCookie)
-	}
-
-	if o.authenticationProvider != nil && o.tokenType != nil {
+	if o.sessionCookie == "" && o.authenticationProvider != nil && o.tokenType != nil {
 		return o.thirdParty(ctx, token, *o.authenticationProvider, *o.tokenType)
 	}
 
-	isJwt := jwk.IsJWT(token)
-
-	if !isJwt {
-		return o.session(ctx, "Authorization", fmt.Sprintf("Bearer %s", token))
+	var externalUserID string
+	var err error
+	switch {
+	case o.sessionCookie != "":
+		externalUserID, err = o.session(ctx, "Cookie", o.sessionCookie)
+	case !jwk.IsJWT(token):
+		externalUserID, err = o.session(ctx, "Authorization", fmt.Sprintf("Bearer %s", token))
+	default:
+		externalUserID, err = o.jwtToken(ctx, token)
 	}
-	return o.jwtToken(ctx, token)
+	if err != nil {
+		return authentication.Identity{}, err
+	}
+	return authentication.Identity{ExternalUserID: externalUserID}, nil
 }
 
 func (o *OpenfortIdentityFactory) GetCookieFieldName() string {
@@ -134,7 +139,7 @@ func (o *OpenfortIdentityFactory) jwtToken(_ context.Context, token string) (str
 	return jwk.Validate(token, jwksUrls)
 }
 
-func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authenticationProvider, tokenType string) (string, error) {
+func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authenticationProvider, tokenType string) (authentication.Identity, error) {
 	url := fmt.Sprintf("%s/iam/v1/oauth/third_party", o.baseURL)
 
 	reqBody := authenticateOauthRequest{
@@ -145,11 +150,11 @@ func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authent
 
 	rawReqBody, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", err
+		return authentication.Identity{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(rawReqBody))
 	if err != nil {
-		return "", err
+		return authentication.Identity{}, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -158,27 +163,27 @@ func (o *OpenfortIdentityFactory) thirdParty(ctx context.Context, token, authent
 	client := http.Client{Timeout: time.Minute, Transport: httpTransport}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return authentication.Identity{}, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode/100 != 2 {
 		o.logger.ErrorContext(ctx, "unexpected status code", slog.Int("status_code", resp.StatusCode))
-		return "", domainErrors.ErrUnexpectedStatusCode
+		return authentication.Identity{}, domainErrors.ErrUnexpectedStatusCode
 	}
 
 	rawResponse, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return authentication.Identity{}, err
 	}
 
 	var response authenticateOauthResponse
 	if err := json.Unmarshal(rawResponse, &response); err != nil {
-		return "", err
+		return authentication.Identity{}, err
 	}
 
-	return response.ID, nil
+	return authentication.Identity{ExternalUserID: response.ID, AltExternalUserID: response.UserID}, nil
 }
 
 type authenticateOauthRequest struct {
@@ -188,7 +193,10 @@ type authenticateOauthRequest struct {
 }
 
 type authenticateOauthResponse struct {
-	ID             string          `json:"id"`
+	ID string `json:"id"`
+	// UserID is the ID the Openfort API gives SDKs for this user; ID is the
+	// player ID that shares are stored under.
+	UserID         string          `json:"userId"`
 	Object         string          `json:"object"`
 	CreatedAt      int64           `json:"created_at"`
 	LinkedAccounts []linkedAccount `json:"linked_accounts"`

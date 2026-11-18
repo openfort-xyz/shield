@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/authentication"
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 	"github.com/openfort-xyz/shield/pkg/jwk"
@@ -32,7 +33,7 @@ func (c *CustomIdentityFactory) GetProviderID() string {
 	return c.config.ProviderID
 }
 
-func (c *CustomIdentityFactory) Identify(ctx context.Context, token string) (string, error) {
+func (c *CustomIdentityFactory) Identify(ctx context.Context, token string) (authentication.Identity, error) {
 	c.logger.InfoContext(ctx, "identifying user")
 
 	var externalUserID string
@@ -43,14 +44,14 @@ func (c *CustomIdentityFactory) Identify(ctx context.Context, token string) (str
 	case c.config.JWK != "":
 		externalUserID, err = jwk.ValidateTenant(token, c.config.JWK)
 	default:
-		return "", domainErrors.ErrProviderMisconfigured
+		return authentication.Identity{}, domainErrors.ErrProviderMisconfigured
 	}
 	if err != nil {
 		c.logger.ErrorContext(ctx, "failed to validate jwt", logger.Error(err))
-		return "", err
+		return authentication.Identity{}, err
 	}
 
-	return externalUserID, nil
+	return authentication.Identity{ExternalUserID: externalUserID}, nil
 }
 
 func (c *CustomIdentityFactory) GetCookieFieldName() string {

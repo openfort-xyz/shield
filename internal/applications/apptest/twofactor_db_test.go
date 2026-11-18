@@ -9,6 +9,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/applications/projectapp"
 	"github.com/openfort-xyz/shield/internal/applications/shareapp"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/pkg/contexter"
 	"github.com/openfort-xyz/shield/pkg/otp"
 )
 
@@ -161,6 +162,42 @@ func TestEncryptionSession_FromAnotherProjectIsRejectedOnPreregister(t *testing.
 	}
 	if n := apps.ShareCount(t, p); n != 0 {
 		t.Errorf("share stored with another project's session: %d share rows, want 0", n)
+	}
+}
+
+// The Openfort API names a third-party user by two IDs: the one shares are
+// stored under, and the one SDKs hand the project backend for OTP sessions.
+func TestEncryptionSession_MintedForAltUserIDIsAccepted(t *testing.T) {
+	apps := New(t)
+	p, part := apps.Seed2FAProject(t)
+	alice, bob := apps.NewUser(t, p), apps.NewUser(t, p)
+	apps.StoreShare(t, alice, part, "alice-share")
+	apps.StoreShare(t, bob, part, "bob-share")
+	alicesAltID := "usr_" + alice.ExternalID
+	t.Cleanup(func() {
+		if err := apps.DB.Exec(`DELETE FROM shld_user_contacts WHERE external_user_id = ?`, alicesAltID).Error; err != nil {
+			t.Errorf("cleanup user contacts: %v", err)
+		}
+	})
+	session := apps.OTPSession(t, p, part, alicesAltID, "alice@example.com")
+
+	bobWithOwnAltID := contexter.WithAltExternalUserID(bob.Context(), "usr_"+bob.ExternalID)
+	_, err := apps.Share.GetShare(bobWithOwnAltID, shareapp.WithEncryptionSession(session))
+	if !errors.Is(err, shareapp.ErrInvalidEncryptionSession) {
+		t.Errorf("bob using alice's session: err = %v, want %v", err, shareapp.ErrInvalidEncryptionSession)
+	}
+	_, err = apps.Share.GetShare(alice.Context(), shareapp.WithEncryptionSession(session))
+	if !errors.Is(err, shareapp.ErrInvalidEncryptionSession) {
+		t.Errorf("alice without her alt ID: err = %v, want %v", err, shareapp.ErrInvalidEncryptionSession)
+	}
+
+	aliceWithAltID := contexter.WithAltExternalUserID(alice.Context(), alicesAltID)
+	got, err := apps.Share.GetShare(aliceWithAltID, shareapp.WithEncryptionSession(session))
+	if err != nil {
+		t.Fatalf("alice using the session minted for her alt ID: %v", err)
+	}
+	if got.Secret != "alice-share" {
+		t.Errorf("share secret = %q, want %q", got.Secret, "alice-share")
 	}
 }
 

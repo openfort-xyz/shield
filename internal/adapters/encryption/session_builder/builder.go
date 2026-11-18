@@ -55,7 +55,9 @@ func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) 
 		return domainErrors.ErrInvalidEncryptionSession
 	}
 	if b.requireOTPCheck {
-		if part.UserID == "" || part.UserID != contexter.GetExternalUserID(ctx) {
+		// The project backend may name the user by either ID its auth provider issues.
+		if part.UserID == "" ||
+			(part.UserID != contexter.GetExternalUserID(ctx) && part.UserID != contexter.GetAltExternalUserID(ctx)) {
 			return domainErrors.ErrInvalidEncryptionSession
 		}
 		if !part.OTPVerified {
