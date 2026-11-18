@@ -13,8 +13,10 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/dbtest"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/keychainrepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/notificationsrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/projectrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/sharerepo"
+	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/usercontactrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"github.com/openfort-xyz/shield/internal/applications/projectapp"
 	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
@@ -24,6 +26,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/services/projectsvc"
 	"github.com/openfort-xyz/shield/internal/core/services/sharesvc"
 	"github.com/openfort-xyz/shield/pkg/contexter"
+	"github.com/openfort-xyz/shield/pkg/otp"
 )
 
 // Apps holds real applications and the repositories behind them.
@@ -34,6 +37,7 @@ type Apps struct {
 	ProjectSvc  services.ProjectService
 	ProjectRepo repositories.ProjectRepository
 	ShareRepo   repositories.ShareRepository
+	Notifier    *Notifier
 }
 
 // New wires the applications to the database configured by DB_* variables,
@@ -63,13 +67,28 @@ func NewWithShareRepo(t *testing.T, wrap func(repositories.ShareRepository) repo
 	projectSvc := projectsvc.New(projectRepo, time.Minute)
 	shareSvc := sharesvc.New(shareRepo, keychainRepo, factory)
 
+	otpClock := &otp.RealClock{}
+	onboarding := otp.NewOnboardingTracker(otp.OnboardingTrackerConfig{
+		WindowMS:              otp.DefaultSecurityConfig.UserOnboardingWindowMS,
+		OTPGenerationWindowMS: otp.DefaultSecurityConfig.OTPGenerationWindowMS,
+		MaxAttempts:           otp.DefaultSecurityConfig.MaxUserOnboardAttempts,
+	}, otpClock)
+	otpSvc, err := otp.NewInMemoryOTPService(encryptionPartsRepo, onboarding, otp.DefaultSecurityConfig, otpClock)
+	if err != nil {
+		t.Fatalf("otp service: %v", err)
+	}
+	notifier := &Notifier{sent: map[string][]string{}}
+
 	return Apps{
-		DB:          client,
-		Share:       shareapp.New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, factory, shamirjob.New(projectRepo, shareRepo)),
-		Project:     projectapp.New(projectSvc, projectRepo, nil, nil, shareRepo, nil, nil, factory, encryptionPartsRepo, nil, nil, nil),
+		DB:    client,
+		Share: shareapp.New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, factory, shamirjob.New(projectRepo, shareRepo)),
+		Project: projectapp.New(projectSvc, projectRepo, nil, nil, shareRepo, notificationsrepo.New(client),
+			usercontactrepo.New(client), factory, encryptionPartsRepo, otpSvc, notifier,
+			projectapp.NewRequestTracker(&projectapp.RealClock{})),
 		ProjectSvc:  projectSvc,
 		ProjectRepo: projectRepo,
 		ShareRepo:   shareRepo,
+		Notifier:    notifier,
 	}
 }
 
