@@ -140,6 +140,65 @@ func TestGuardedWrites_UnverifiedKey(t *testing.T) {
 	}
 }
 
+// The proof's database work follows its sample, not the project: on a project
+// with five times the sample, a key that decrypts the first shares read stops
+// after a few rows, and one that decrypts none reads about the sample.
+func TestGuardedWrites_UnverifiedKeyProofReadsBounded(t *testing.T) {
+	client := dbtest.RequireDB(t)
+	repo := New(client)
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	otherKey, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	ciphertext, err := cypher.Encrypt("wallet", key)
+	if err != nil {
+		t.Fatalf("encrypt: %v", err)
+	}
+	p := dbtest.SeedProject(t, client, "P1", true)
+	projectShares := 5 * proofSampleSize
+	dbtest.Exec(t, client, `INSERT INTO shld_shares (id, data, user_id, keychain_id, reference, entropy, storage_method_id)
+		SELECT gen_random_uuid(), ?, ?, ?, 'bulk-' || gen_random_uuid(), 'project', 0 FROM generate_series(1, ?)`,
+		ciphertext, p.UserID, p.KeychainID, projectShares)
+	dbtest.Exec(t, client, `ANALYZE shld_users`)
+	dbtest.Exec(t, client, `ANALYZE shld_shares`)
+
+	tests := []struct {
+		name             string
+		key              string
+		minRows, maxRows int
+		wantErr          error
+	}{
+		{"key decrypts the first shares read", key, 1, 100, nil},
+		{"key decrypts none", otherKey, proofSampleSize, 2 * proofSampleSize, domainErrors.ErrEncryptionPartUnproven},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var err error
+			reads := dbtest.ShareReads(t, client, func() {
+				err = repo.Create(context.Background(), &share.Share{Secret: "c", UserID: p.UserID, KeychainID: &p.KeychainID,
+					Entropy: share.EntropyProject, Reference: ptr("new-" + tt.key[:8]),
+					EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: "P1", Migrated: true, UnverifiedKey: tt.key}})
+			})
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("Create: err = %v, want %v", err, tt.wantErr)
+			}
+			rows := 0
+			for _, n := range reads {
+				rows += n
+			}
+			if rows < tt.minRows || rows > tt.maxRows {
+				t.Errorf("proof read %d share rows (%v) of a project with %d, want %d to %d",
+					rows, reads, projectShares, tt.minRows, tt.maxRows)
+			}
+		})
+	}
+}
+
 func ptr(s string) *string { return &s }
 
 // assertGuarded checks the write's error and that the share's data changed

@@ -7,7 +7,6 @@ import (
 	"maps"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -206,7 +205,7 @@ func TestLegacyKey_WrongPartWritesRejected(t *testing.T) {
 	}
 }
 
-// A refused write can be a wrong part or a project whose oldest shares were
+// A refused write can be a wrong part or a project whose sampled shares were
 // all written with one; the operator needs to see which project.
 func TestLegacyKey_UnprovenWriteLogsProjectAtErrorLevel(t *testing.T) {
 	rec := logtest.Start(slog.LevelInfo)
@@ -276,12 +275,6 @@ func sharesUnderKey(t *testing.T, apps Apps, p dbtest.Project, key string) int {
 		}
 	}
 	return n
-}
-
-// backdate sets when a share was created: the proof tries the oldest first.
-func backdate(t *testing.T, apps Apps, shareID string, age time.Duration) {
-	t.Helper()
-	dbtest.Exec(t, apps.DB, `UPDATE shld_shares SET created_at = ? WHERE id = ?`, time.Now().Add(-age), shareID)
 }
 
 // strayCiphertext encrypts secret under a key the project's part does not
@@ -390,7 +383,7 @@ func TestLegacyKey_UndecryptableShareDoesNotBlockRightPart(t *testing.T) {
 		for name, data := range undecryptable {
 			t.Run(w.name+"/"+name, func(t *testing.T) {
 				p, part, key := seedLegacyProject(t, apps, true)
-				backdate(t, apps, dbtest.InsertShare(t, apps.DB, p, "project", data), time.Hour)
+				dbtest.InsertShare(t, apps.DB, p, "project", data)
 				insertProjectShare(t, apps, p, key, "wallet")
 
 				if err := w.write(apps, p, part, plainShareRef(t, apps, p)); err != nil {
@@ -432,40 +425,85 @@ func TestLegacyKey_OnlyUndecryptableSharesRefuseWrite(t *testing.T) {
 	}
 }
 
-// The proof tries at most the project's 1000 oldest project shares, so a
-// write costs at most that many decryptions however many shares there are.
-func TestLegacyKey_ProofTriesOldestShares(t *testing.T) {
+// proofSample is how many project shares the proof tries at most.
+const proofSample = 1000
+
+// insertProjectShares inserts n project shares for the project's user, in
+// order, all under a key the project's part does not rebuild except the one
+// at position under (1-based; 0 for none), which is under key.
+func insertProjectShares(t *testing.T, apps Apps, p dbtest.Project, n, under int, key string) {
+	t.Helper()
+	ciphertext, err := cypher.Encrypt("wallet", key)
+	if err != nil {
+		t.Fatalf("encrypt: %v", err)
+	}
+	dbtest.Exec(t, apps.DB, `INSERT INTO shld_shares (id, data, user_id, keychain_id, reference, entropy, storage_method_id)
+		SELECT gen_random_uuid(), CASE WHEN g = ? THEN ? ELSE ? END, ?, ?, 'bulk-' || g, 'project', 0
+		FROM generate_series(1, ?) g ORDER BY g`, under, ciphertext, strayCiphertext(t, "stray"), p.UserID, p.KeychainID, n)
+}
+
+// The proof tries up to 1000 of the project's project shares, in no set
+// order: one that decrypts proves the part wherever it sits among them, and
+// more than 1000 that do not refuse it.
+func TestLegacyKey_ProofSample(t *testing.T) {
 	apps := New(t)
 	tests := []struct {
-		name     string
-		position int
-		want     error
+		name          string
+		shares, under int
+		want          error
 	}{
-		{"decrypting share is the 1000th oldest", 1000, nil},
-		{"decrypting share is the 1001st oldest", 1001, shareapp.ErrEncryptionPartUnproven},
+		{"decrypting share inserted first of 1000", proofSample, 1, nil},
+		{"decrypting share inserted last of 1000", proofSample, proofSample, nil},
+		{"none of 1001 decrypts", proofSample + 1, 0, shareapp.ErrEncryptionPartUnproven},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p, part, key := seedLegacyProject(t, apps, true)
-			dbtest.Exec(t, apps.DB, `INSERT INTO shld_shares (id, data, user_id, keychain_id, reference, entropy, storage_method_id, created_at)
-				SELECT gen_random_uuid(), ?, ?, ?, 'bulk-' || g, 'project', 0, timestamp '2020-01-01' + g * interval '1 second'
-				FROM generate_series(1, 1001) g`, strayCiphertext(t, "stray"), p.UserID, p.KeychainID)
-			ciphertext, err := cypher.Encrypt("wallet", key)
-			if err != nil {
-				t.Fatalf("encrypt: %v", err)
-			}
-			dbtest.Exec(t, apps.DB, `UPDATE shld_shares SET data = ? WHERE user_id = ? AND reference = ?`,
-				ciphertext, p.UserID, fmt.Sprintf("bulk-%d", tt.position))
+			insertProjectShares(t, apps, p, tt.shares, tt.under, key)
 
-			err = apps.Share.RegisterShare(UserContext(p),
+			err := apps.Share.RegisterShare(UserContext(p),
 				&share.Share{Secret: "new", Entropy: share.EntropyProject, Reference: ptr("new-" + p.ID[:8])},
 				shareapp.WithEncryptionPart(part))
 
 			if !errors.Is(err, tt.want) {
 				t.Errorf("RegisterShare: err = %v, want %v", err, tt.want)
 			}
+			want := int64(tt.shares + 1)
+			if tt.want != nil {
+				want = int64(tt.shares)
+			}
+			if n := apps.ShareCount(t, p); n != want {
+				t.Errorf("share rows = %d, want %d", n, want)
+			}
 		})
+	}
+}
+
+// EncryptProjectShares proves the part once per call, not once per share it
+// converts. The share under the key comes last, so a proof reads the sample.
+func TestLegacyKey_EncryptProjectSharesProvesOnce(t *testing.T) {
+	apps := New(t)
+	p, part, key := seedLegacyProject(t, apps, true)
+	insertProjectShares(t, apps, p, proofSample, proofSample, key)
+	const plain = 20
+	for range plain {
+		dbtest.InsertShare(t, apps.DB, p, "none", "plain-share")
+	}
+
+	var err error
+	reads := dbtest.ShareReads(t, apps.DB, func() {
+		err = apps.Project.EncryptProjectShares(ProjectContext(p), part)
+	})
+
+	if err != nil {
+		t.Fatalf("EncryptProjectShares: %v", err)
+	}
+	if n := sharesUnderKey(t, apps, p, key); n != 1+plain {
+		t.Errorf("project shares under the project's key = %d, want %d", n, 1+plain)
+	}
+	if len(reads) > 2 {
+		t.Errorf("share queries for %d conversions = %d (%v rows), want those of one proof", plain, len(reads), reads)
 	}
 }
 

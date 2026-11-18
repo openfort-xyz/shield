@@ -3,12 +3,14 @@
 package dbtest
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
+	"gorm.io/gorm"
 )
 
 // RequireDB returns a SQL client or skips the test when no database is
@@ -95,6 +97,65 @@ func ShareData(t *testing.T, client *sql.Client, shareID string) string {
 		t.Fatalf("read share %s: %v", shareID, err)
 	}
 	return data
+}
+
+// ShareReads runs fn and returns, for each raw query it ran on client that
+// scans shld_shares, how many of its rows the query read, counted by rerunning
+// the query under EXPLAIN ANALYZE.
+func ShareReads(t *testing.T, client *sql.Client, fn func()) []int {
+	t.Helper()
+	var queries []string
+	recording := true
+	err := client.Callback().Row().After("gorm:row").Register("dbtest:record:"+uuid.NewString(), func(db *gorm.DB) {
+		if recording {
+			queries = append(queries, db.Explain(db.Statement.SQL.String(), db.Statement.Vars...))
+		}
+	})
+	if err != nil {
+		t.Fatalf("record queries: %v", err)
+	}
+	fn()
+	recording = false
+
+	var reads []int
+	for _, query := range queries {
+		var plan string
+		if err := client.Raw("EXPLAIN (ANALYZE, FORMAT JSON) " + query).Scan(&plan).Error; err != nil {
+			t.Fatalf("explain %s: %v", query, err)
+		}
+		var explained []struct{ Plan planNode }
+		if err := json.Unmarshal([]byte(plan), &explained); err != nil || len(explained) != 1 {
+			t.Fatalf("parse plan of %s: %v", query, err)
+		}
+		if rows, scans := explained[0].Plan.shareRows(); scans {
+			reads = append(reads, int(rows))
+		}
+	}
+	return reads
+}
+
+type planNode struct {
+	Relation string     `json:"Relation Name"`
+	Rows     float64    `json:"Actual Rows"`
+	Loops    float64    `json:"Actual Loops"`
+	Filtered float64    `json:"Rows Removed by Filter"`
+	Plans    []planNode `json:"Plans"`
+}
+
+// shareRows sums the shld_shares rows the node and its children read, and
+// reports whether any of them scans the table. EXPLAIN gives rows per loop.
+func (n planNode) shareRows() (float64, bool) {
+	var rows float64
+	scans := n.Relation == "shld_shares"
+	if scans {
+		rows = (n.Rows + n.Filtered) * n.Loops
+	}
+	for _, child := range n.Plans {
+		childRows, childScans := child.shareRows()
+		rows += childRows
+		scans = scans || childScans
+	}
+	return rows, scans
 }
 
 // WaitForLockWait returns true once a session is waiting for a lock held by
