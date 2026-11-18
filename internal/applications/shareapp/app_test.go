@@ -28,6 +28,7 @@ import (
 func TestShareApplication_GetShare(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
+	ctx = contexter.WithExternalUserID(ctx, "userID")
 	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
@@ -58,6 +59,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 
 	storedProjectPart := share.EncryptionPart{
 		EncPart:     string(projectPart),
+		ProjectID:   "project_id",
 		UserID:      "userID",
 		OTPVerified: false,
 	}
@@ -68,6 +70,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 
 	storedProjectPart = share.EncryptionPart{
 		EncPart:     string(projectPart),
+		ProjectID:   "project_id",
 		UserID:      "userID",
 		OTPVerified: true,
 	}
@@ -381,6 +384,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 func TestShareApplication_GetShareByReference(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
+	ctx = contexter.WithExternalUserID(ctx, "userID")
 	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
@@ -411,6 +415,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 
 	storedProjectPart := share.EncryptionPart{
 		EncPart:     string(projectPart),
+		ProjectID:   "project_id",
 		UserID:      "userID",
 		OTPVerified: false,
 	}
@@ -421,6 +426,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 
 	storedProjectPart = share.EncryptionPart{
 		EncPart:     string(projectPart),
+		ProjectID:   "project_id",
 		UserID:      "userID",
 		OTPVerified: true,
 	}

@@ -632,6 +632,7 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 
 	encPartData := share.EncryptionPart{
 		EncPart:     encryptionPart,
+		ProjectID:   projectID,
 		UserID:      userID,
 		OTPVerified: otpVerified,
 	}

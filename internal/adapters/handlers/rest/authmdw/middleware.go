@@ -197,6 +197,7 @@ func (m *Middleware) PreRegisterUser(next http.Handler) http.Handler {
 		}
 
 		ctx := contexter.WithUserID(r.Context(), usr.ID)
+		ctx = contexter.WithExternalUserID(ctx, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
