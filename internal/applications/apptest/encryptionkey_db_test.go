@@ -1,10 +1,13 @@
 package apptest
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/dbtest"
+	"github.com/openfort-xyz/shield/internal/applications/projectapp"
 	"github.com/openfort-xyz/shield/internal/applications/shareapp"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 )
@@ -43,6 +46,43 @@ func TestRegisterEncryptionKey_FailedStatusWriteStoresNoKey(t *testing.T) {
 	shrs, err := apps.Share.GetKeychainShares(UserContext(p), &reference, shareapp.WithEncryptionPart(part))
 	if err != nil || len(shrs) != 1 || shrs[0].Secret != "wallet" {
 		t.Errorf("read with the registered part = %v, %v; want %q", shrs, err, "wallet")
+	}
+}
+
+// A registration racing another that has inserted its part but not yet
+// committed stores nothing; its caller must learn the project already has a
+// key, not get an internal error.
+func TestRegisterEncryptionKey_RacingRegistrationLoserGetsAlreadyExists(t *testing.T) {
+	apps := New(t)
+	p := dbtest.SeedProject(t, apps.DB, "", false)
+	ctx := context.Background()
+
+	db, err := apps.DB.DB.DB()
+	if err != nil {
+		t.Fatalf("sql.DB: %v", err)
+	}
+	inflight, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer func() { _ = inflight.Rollback() }()
+	if _, err := inflight.ExecContext(ctx, `INSERT INTO shld_encryption_parts (id, project_id, part) VALUES (gen_random_uuid(), $1, 'part-a')`, p.ID); err != nil {
+		t.Fatalf("insert in-flight part: %v", err)
+	}
+	var inflightPID int
+	if err := inflight.QueryRowContext(ctx, `SELECT pg_backend_pid()`).Scan(&inflightPID); err != nil {
+		t.Fatalf("backend pid: %v", err)
+	}
+
+	errc := make(chan error, 1)
+	go func() {
+		_, err := apps.Project.RegisterEncryptionKey(ProjectContext(p))
+		errc <- err
+	}()
+	err = commitWhenBlockedOrDone(t, apps, inflight.Commit, inflightPID, errc)
+
+	if !errors.Is(err, projectapp.ErrEncryptionPartAlreadyExists) {
+		t.Errorf("racing registration: err = %v, want %v", err, projectapp.ErrEncryptionPartAlreadyExists)
 	}
 }
 
