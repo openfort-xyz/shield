@@ -77,6 +77,28 @@ func encryptionType(t *testing.T, step string, got reply, key string) (string, s
 	return status, entropy
 }
 
+func TestUpdateProvider_CookieFieldOnly_HTTP(t *testing.T) {
+	p := newUserProject(t)
+	path := "/project/providers/" + p.providerID
+
+	expect(t, "update cookie field only", p.do(http.MethodPut, path, p.apiKey, map[string]any{"cookie_field_name": "session"}),
+		http.StatusOK, "")
+
+	reloaded := p.do(http.MethodGet, path, p.apiKey, nil)
+	expect(t, "reload provider", reloaded, http.StatusOK, "")
+	if reloaded.str("cookie_field_name") != "session" {
+		t.Fatalf("cookie_field_name after update = %q, want %q", reloaded.str("cookie_field_name"), "session")
+	}
+	if reloaded.str("pem") == "" || reloaded.str("key_type") != "rsa" {
+		t.Fatalf("provider after cookie-only update = %v, want the PEM and key type kept", reloaded.Body)
+	}
+
+	user := "user-" + uuid.NewString()
+	viaCookie := p.do(http.MethodGet, "/shares", "", nil,
+		"X-API-Key", p.apiKey, "X-Auth-Provider", "custom", "Cookie", "session="+p.token(t, user))
+	expect(t, "authenticate with the new cookie", viaCookie, http.StatusNotFound, "SH_NOT_FOUND")
+}
+
 func TestShareEncryptionRoutes_HTTP(t *testing.T) {
 	p := newUserProject(t)
 	user := "user-" + uuid.NewString()
