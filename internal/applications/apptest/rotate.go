@@ -71,7 +71,7 @@ func (a Apps) RotateOutOfBand(t *testing.T, p dbtest.Project, oldProjectPart str
 	return string(newProjectPart)
 }
 
-// ParkingShareRepo pauses Create, Update and BulkUpdate once armed: each
+// ParkingShareRepo pauses Create and Update once armed: each
 // signals Parked and waits for Release before reaching the database.
 // ListProjectIDAndEntropy parks after its read, before returning it.
 type ParkingShareRepo struct {
@@ -107,11 +107,6 @@ func (r *ParkingShareRepo) Create(ctx context.Context, shr *share.Share) error {
 func (r *ParkingShareRepo) Update(ctx context.Context, shr *share.Share) error {
 	r.park()
 	return r.ShareRepository.Update(ctx, shr)
-}
-
-func (r *ParkingShareRepo) BulkUpdate(ctx context.Context, shrs []*share.Share) error {
-	r.park()
-	return r.ShareRepository.BulkUpdate(ctx, shrs)
 }
 
 func (r *ParkingShareRepo) ListProjectIDAndEntropy(ctx context.Context, projectID string, entropy share.Entropy) ([]*share.Share, error) {

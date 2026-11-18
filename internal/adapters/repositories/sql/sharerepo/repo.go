@@ -248,39 +248,6 @@ func (r *repository) Update(ctx context.Context, shr *share.Share) error {
 	return nil
 }
 
-func (r *repository) BulkUpdate(ctx context.Context, shrs []*share.Share) error {
-	r.logger.InfoContext(ctx, "bulk updating shares")
-
-	var dbShares []*Share
-	for _, shr := range shrs {
-		dbShares = append(dbShares, r.parser.toDatabase(shr))
-	}
-
-	var guard *share.EncryptionGuard
-	for _, shr := range shrs {
-		if shr.EncryptionGuard != nil {
-			guard = shr.EncryptionGuard
-			break
-		}
-	}
-
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := checkGuard(tx, guard); err != nil {
-			return err
-		}
-		for _, dbShr := range dbShares {
-			err := updateShare(tx, dbShr)
-			if err != nil {
-				r.logger.ErrorContext(ctx, "error updating share", logger.Error(err))
-				return err
-			}
-		}
-
-		r.logger.InfoContext(ctx, "bulk updated shares", slog.Int("count", len(shrs)))
-		return nil
-	})
-}
-
 func (r *repository) GetShareStorageMethods(ctx context.Context) ([]*share.StorageMethod, error) {
 	r.logger.InfoContext(ctx, "getting share storage methods")
 

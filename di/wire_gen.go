@@ -24,7 +24,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/applications/healthzapp"
 	"github.com/openfort-xyz/shield/internal/applications/notificationsapp"
 	"github.com/openfort-xyz/shield/internal/applications/projectapp"
-	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
 	"github.com/openfort-xyz/shield/internal/applications/shareapp"
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
@@ -164,19 +163,6 @@ func ProvideShareService() (services.ShareService, error) {
 	}
 	shareService := sharesvc.New(shareRepository, keychainRepository, encryptionFactory)
 	return shareService, nil
-}
-
-func ProvideShamirJob() (*shamirjob.Job, error) {
-	projectRepository, err := ProvideSQLProjectRepository()
-	if err != nil {
-		return nil, err
-	}
-	shareRepository, err := ProvideSQLShareRepository()
-	if err != nil {
-		return nil, err
-	}
-	job := shamirjob.New(projectRepository, shareRepository)
-	return job, nil
 }
 
 func ProvideShareApplication() (*shareapp.ShareApplication, error) {

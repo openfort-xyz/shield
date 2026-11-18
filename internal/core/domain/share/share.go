@@ -25,9 +25,9 @@ type EncryptionGuard struct {
 	// UnverifiedKey is the key the write encrypted under when the project
 	// had no key check to verify it against. The write then persists only if
 	// the key is proven in the same transaction (sharerepo.proveKey). Left
-	// empty for unmigrated projects: the shamir job changes their key without
-	// changing the stored part, so a check stored now would reject the right
-	// part after the migration.
+	// empty for unmigrated projects: their key is the stored part whatever
+	// part the caller sent, and a migration changes it without changing the
+	// stored part, so a check stored now would reject the right part after it.
 	UnverifiedKey string
 }
 

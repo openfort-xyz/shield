@@ -17,7 +17,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/sharerepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"github.com/openfort-xyz/shield/internal/applications/projectapp"
-	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
 	"github.com/openfort-xyz/shield/internal/applications/shareapp"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
@@ -34,7 +33,6 @@ type Apps struct {
 	ProjectSvc  services.ProjectService
 	ProjectRepo repositories.ProjectRepository
 	ShareRepo   repositories.ShareRepository
-	Job         *shamirjob.Job
 }
 
 // New wires the applications to the database configured by DB_* variables,
@@ -56,10 +54,7 @@ func NewWithShareRepo(t *testing.T, wrap func(repositories.ShareRepository) repo
 	}
 
 	projectRepo := projectrepo.New(client)
-	unwrappedShareRepo := sharerepo.New(client)
-	shareRepo := wrap(unwrappedShareRepo)
-	// The job bypasses wrap so that parking a share write does not park it.
-	job := shamirjob.New(projectRepo, unwrappedShareRepo)
+	shareRepo := wrap(sharerepo.New(client))
 	keychainRepo := keychainrepo.New(client)
 	userRepo := userrepo.New(client)
 	encryptionPartsRepo := encryptionpartsrepo.New(buntClient)
@@ -74,7 +69,6 @@ func NewWithShareRepo(t *testing.T, wrap func(repositories.ShareRepository) repo
 		ProjectSvc:  projectSvc,
 		ProjectRepo: projectRepo,
 		ShareRepo:   shareRepo,
-		Job:         job,
 	}
 }
 

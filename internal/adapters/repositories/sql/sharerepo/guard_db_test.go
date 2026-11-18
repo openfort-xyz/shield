@@ -54,16 +54,6 @@ func TestGuardedWrites(t *testing.T) {
 			assertGuarded(t, client, id, err, tt.wantErr)
 		})
 
-		t.Run("BulkUpdate/"+tt.name, func(t *testing.T) {
-			p := dbtest.SeedProject(t, client, "P1", true)
-			id := dbtest.InsertShare(t, client, p, "project", "old")
-
-			err := repo.BulkUpdate(ctx, []*share.Share{{ID: id, Secret: "new", UserID: p.UserID, Entropy: share.EntropyProject,
-				EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: tt.storedPart}}})
-
-			assertGuarded(t, client, id, err, tt.wantErr)
-		})
-
 		t.Run("UpdateProjectEncryption/"+tt.name, func(t *testing.T) {
 			p := dbtest.SeedProject(t, client, "P1", true)
 			id := dbtest.InsertShare(t, client, p, "none", "old")

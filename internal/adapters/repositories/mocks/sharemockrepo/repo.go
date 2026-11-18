@@ -90,11 +90,6 @@ func (m *MockShareRepository) Update(ctx context.Context, shr *share.Share) erro
 	return args.Error(0)
 }
 
-func (m *MockShareRepository) BulkUpdate(ctx context.Context, shrs []*share.Share) error {
-	args := m.Mock.Called(ctx, shrs)
-	return args.Error(0)
-}
-
 func (m *MockShareRepository) GetShareStorageMethods(ctx context.Context) ([]*share.StorageMethod, error) {
 	args := m.Mock.Called(ctx)
 	return args.Get(0).([]*share.StorageMethod), args.Error(1)
