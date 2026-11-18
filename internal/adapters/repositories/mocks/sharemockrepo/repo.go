@@ -35,14 +35,6 @@ func (m *MockShareRepository) Get(ctx context.Context, shareID string) (*share.S
 	return args.Get(0).(*share.Share), args.Error(1)
 }
 
-func (m *MockShareRepository) GetByReference(ctx context.Context, reference string) (*share.Share, error) {
-	args := m.Mock.Called(ctx, reference)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*share.Share), args.Error(1)
-}
-
 func (m *MockShareRepository) GetByReferenceAndKeychain(ctx context.Context, reference, keychainID string) (*share.Share, error) {
 	args := m.Mock.Called(ctx, reference, keychainID)
 	if args.Get(0) == nil {
@@ -53,6 +45,14 @@ func (m *MockShareRepository) GetByReferenceAndKeychain(ctx context.Context, ref
 
 func (m *MockShareRepository) GetByReferenceAndProjectID(ctx context.Context, reference, projectID string) (*share.Share, error) {
 	args := m.Mock.Called(ctx, reference, projectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*share.Share), args.Error(1)
+}
+
+func (m *MockShareRepository) GetByReferenceForProjectAndExternalUserID(ctx context.Context, reference, projectID, externalUserID string) (*share.Share, error) {
+	args := m.Mock.Called(ctx, reference, projectID, externalUserID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -101,11 +101,11 @@ func (m *MockShareRepository) GetShareStorageMethods(ctx context.Context) ([]*sh
 }
 
 func (m *MockShareRepository) GetSharesEncryptionForProjectAndReferences(ctx context.Context, projectID string, references []string) (map[string]share.RecoveryInfo, error) {
-	args := m.Mock.Called(ctx)
+	args := m.Mock.Called(ctx, projectID, references)
 	return args.Get(0).(map[string]share.RecoveryInfo), args.Error(1)
 }
 
 func (m *MockShareRepository) GetSharesEncryptionForProjectAndExternalUserIDs(ctx context.Context, projectID string, userIDs []string, reference *string) (map[string]share.RecoveryInfo, error) {
-	args := m.Mock.Called(ctx)
+	args := m.Mock.Called(ctx, projectID, userIDs, reference)
 	return args.Get(0).(map[string]share.RecoveryInfo), args.Error(1)
 }

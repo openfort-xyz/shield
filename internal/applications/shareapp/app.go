@@ -349,6 +349,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 
 func (a *ShareApplication) GetShareByReference(ctx context.Context, reference string, opts ...Option) (*share.Share, error) {
 	a.logger.InfoContext(ctx, "getting share by reference")
+	projID := contexter.GetProjectID(ctx)
 	externalUserID := contexter.GetExternalUserID(ctx)
 
 	var opt options
@@ -356,7 +357,9 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 		o(&opt)
 	}
 
-	shr, err := a.shareRepo.GetByReference(ctx, reference)
+	// Matched on the external user ID rather than the internal user: signing in
+	// through another of the project's providers is a different internal user.
+	shr, err := a.shareRepo.GetByReferenceForProjectAndExternalUserID(ctx, reference, projID, externalUserID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrShareNotFound) {
 			// Not a failure: surfaced to the caller as a 404.
@@ -368,26 +371,7 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 		return nil, fromDomainError(err)
 	}
 
-	userIDs, err := a.userRepo.GetUserIDsByExternalID(ctx, externalUserID)
-	if err != nil {
-		return nil, fromDomainError(err)
-	}
-
-	found := false
-
-	for _, usrID := range userIDs {
-		if usrID == shr.UserID {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return nil, ErrShareNotFound
-	}
-
 	if shr.RequiresEncryption() {
-		projID := contexter.GetProjectID(ctx)
 		project, err := a.getProject(ctx, projID)
 		if err != nil {
 			return nil, fromDomainError(err)

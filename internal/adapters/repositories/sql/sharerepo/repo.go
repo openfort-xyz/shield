@@ -84,22 +84,6 @@ func (r *repository) ListByKeychainID(ctx context.Context, keychainID string) ([
 	return shares, nil
 }
 
-func (r *repository) GetByReference(ctx context.Context, reference string) (*share.Share, error) {
-	r.logger.InfoContext(ctx, "getting share", slog.String("reference", reference))
-
-	dbShr := &Share{}
-	err := r.db.Preload("PasskeyReference").Where("reference = ?", reference).First(dbShr).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domainErrors.ErrShareNotFound
-		}
-		r.logger.ErrorContext(ctx, "error getting share", logger.Error(err))
-		return nil, err
-	}
-
-	return r.parser.toDomain(dbShr), nil
-}
-
 func (r *repository) GetByReferenceAndKeychain(ctx context.Context, reference, keychainID string) (*share.Share, error) {
 	r.logger.InfoContext(ctx, "getting share", slog.String("reference", reference))
 
@@ -130,6 +114,27 @@ func (r *repository) GetByReferenceAndProjectID(ctx context.Context, reference, 
 			return nil, domainErrors.ErrShareNotFound
 		}
 		r.logger.ErrorContext(ctx, "error getting share by reference and project", logger.Error(err))
+		return nil, err
+	}
+
+	return r.parser.toDomain(dbShr), nil
+}
+
+func (r *repository) GetByReferenceForProjectAndExternalUserID(ctx context.Context, reference, projectID, externalUserID string) (*share.Share, error) {
+	r.logger.InfoContext(ctx, "getting share by reference for external user", slog.String("reference", reference), slog.String("project_id", projectID))
+
+	dbShr := &Share{}
+	err := r.db.Preload("PasskeyReference").
+		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
+		Joins("JOIN shld_external_users ON shld_external_users.user_id = shld_users.id").
+		Where("shld_shares.reference = ? AND shld_users.project_id = ? AND shld_external_users.external_user_id = ?", reference, projectID, externalUserID).
+		Where("shld_shares.deleted_at IS NULL").
+		First(dbShr).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainErrors.ErrShareNotFound
+		}
+		r.logger.ErrorContext(ctx, "error getting share by reference for external user", logger.Error(err))
 		return nil, err
 	}
 
