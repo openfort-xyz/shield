@@ -272,7 +272,10 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 	return providers, nil
 }
 
-func (a *ProjectApplication) verifyAndSaveUserContacts(ctx context.Context, userID string, email *string, phone *string) error {
+// verifyAndSaveUserContacts checks the contact against the one bound to the
+// user, binding it when there is none. The bool reports whether this call
+// bound it.
+func (a *ProjectApplication) verifyAndSaveUserContacts(ctx context.Context, userID string, email *string, phone *string) (bool, error) {
 	if email != nil {
 		emailHash := sha512.Sum512([]byte(*email))
 		emailHashStr := fmt.Sprintf("%x", emailHash)
@@ -280,13 +283,14 @@ func (a *ProjectApplication) verifyAndSaveUserContacts(ctx context.Context, user
 		userContactInfo, err := a.userContactRepo.GetByUserID(ctx, userID)
 		switch {
 		case err != nil && !errors.Is(err, domainErrors.ErrUserContactNotFound):
-			return err
+			return false, err
 		case errors.Is(err, domainErrors.ErrUserContactNotFound):
 			if err := a.userContactRepo.Save(ctx, &usercontact.UserContact{ExternalUserID: userID, Email: emailHashStr}); err != nil {
-				return err
+				return false, err
 			}
+			return true, nil
 		case emailHashStr != userContactInfo.Email:
-			return ErrUserContactInformationMismatch
+			return false, ErrUserContactInformationMismatch
 		}
 	} else if phone != nil {
 		phoneHash := sha512.Sum512([]byte(*phone))
@@ -295,17 +299,18 @@ func (a *ProjectApplication) verifyAndSaveUserContacts(ctx context.Context, user
 		userContactInfo, err := a.userContactRepo.GetByUserID(ctx, userID)
 		switch {
 		case err != nil && !errors.Is(err, domainErrors.ErrUserContactNotFound):
-			return err
+			return false, err
 		case errors.Is(err, domainErrors.ErrUserContactNotFound):
 			if err := a.userContactRepo.Save(ctx, &usercontact.UserContact{ExternalUserID: userID, Phone: phoneHashStr}); err != nil {
-				return err
+				return false, err
 			}
+			return true, nil
 		case phoneHashStr != userContactInfo.Phone:
-			return ErrUserContactInformationMismatch
+			return false, ErrUserContactInformationMismatch
 		}
 	}
 
-	return nil
+	return false, nil
 }
 
 func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, skipVerification bool, email *string, phone *string) error {
@@ -324,74 +329,85 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, ski
 		return ErrProjectDoesntHave2FA
 	}
 
+	// usually this flag will be used at sign up phase,
+	// if someone tries to use it during sign in verifications in other endpoints will fail.
 	// we do not rate limit requests where we skip verification
 	// because in this case we don't send OTP anyway,
 	// and after such requests users can only create new accounts but not recover existing ones
-	if !skipVerification {
-		var allow bool
-		switch {
-		case email != nil:
-			if !validation.IsValidEmail(*email) {
-				return ErrEmailIsInvalid
-			}
-			allow = a.rateLimiter.TrackRequest(projectID, project.EmailRateLimit)
-		case phone != nil:
-			if !validation.IsValidPhoneNumber(*phone) {
-				return ErrPhoneNumberIsInvalid
-			}
-			allow = a.rateLimiter.TrackRequest(projectID, project.SMSRateLimit)
-		default:
-			return ErrNoUserContactInformationProvided
-		}
-
-		if !allow {
-			return ErrOTPRateLimitExceeded
-		}
-
-		// Before an OTP exists, so a contact other than the bound one never
-		// receives or replaces one.
-		if err := a.verifyAndSaveUserContacts(ctx, userID, email, phone); err != nil {
-			return err
-		}
-	}
-
-	otpCode, err := a.otpService.GenerateOTP(ctx, projectID, userID, skipVerification)
-	if err != nil {
+	if skipVerification {
+		_, err := a.otpService.GenerateOTP(ctx, projectID, userID, true)
 		return fromDomainError(err)
 	}
 
-	// usually this flag will be used at sign up phase,
-	// if someone tries to use it during sign in verifications in other endpoints will fail
-	if skipVerification {
-		return nil
-	}
-
+	var allow bool
 	switch {
 	case email != nil:
-		price, err := a.notificationService.SendEmail(ctx, *email, OTPEmailSubject, otpCode, userID)
-		if err != nil {
-			return err
+		if !validation.IsValidEmail(*email) {
+			return ErrEmailIsInvalid
 		}
-
-		err = a.notificationsRepo.Save(ctx, &notifications.Notification{ProjectID: projectID, ExternalUserID: userID, NotifType: notifications.EmailNotificationType, Price: price})
-		if err != nil {
-			return err
-		}
+		allow = a.rateLimiter.TrackRequest(projectID, project.EmailRateLimit)
 	case phone != nil:
-		price, err := a.notificationService.SendSMS(ctx, *phone, otpCode)
-		if err != nil {
-			return err
+		if !validation.IsValidPhoneNumber(*phone) {
+			return ErrPhoneNumberIsInvalid
 		}
-
-		err = a.notificationsRepo.Save(ctx, &notifications.Notification{ProjectID: projectID, ExternalUserID: userID, NotifType: notifications.SMSNotificationType, Price: price})
-		if err != nil {
-			return err
-		}
+		allow = a.rateLimiter.TrackRequest(projectID, project.SMSRateLimit)
 	default:
-		return ErrOTPUserInfoMissing
+		return ErrNoUserContactInformationProvided
 	}
 
-	return nil
+	if !allow {
+		return ErrOTPRateLimitExceeded
+	}
+
+	// Before an OTP exists, so a contact other than the bound one never
+	// receives or replaces one.
+	contactCreated, err := a.verifyAndSaveUserContacts(ctx, userID, email, phone)
+	if err != nil {
+		return err
+	}
+
+	notif, err := a.sendOTP(ctx, projectID, userID, email, phone)
+	if err != nil {
+		// The contact got no OTP, so it has not earned the binding, and
+		// keeping it would lock the user out of correcting a mistyped one.
+		if contactCreated {
+			if delErr := a.userContactRepo.DeleteByUserID(ctx, userID); delErr != nil {
+				err = errors.Join(err, delErr)
+			}
+		}
+		return err
+	}
+
+	return a.notificationsRepo.Save(ctx, notif)
+}
+
+// sendOTP issues an OTP and delivers it to the contact. An OTP whose delivery
+// failed is discarded, so a failed request leaves none pending.
+func (a *ProjectApplication) sendOTP(ctx context.Context, projectID, userID string, email, phone *string) (*notifications.Notification, error) {
+	otpCode, err := a.otpService.GenerateOTP(ctx, projectID, userID, false)
+	if err != nil {
+		return nil, fromDomainError(err)
+	}
+
+	notif := &notifications.Notification{ProjectID: projectID, ExternalUserID: userID}
+	switch {
+	case email != nil:
+		notif.NotifType = notifications.EmailNotificationType
+		notif.Price, err = a.notificationService.SendEmail(ctx, *email, OTPEmailSubject, otpCode, userID)
+	case phone != nil:
+		notif.NotifType = notifications.SMSNotificationType
+		notif.Price, err = a.notificationService.SendSMS(ctx, *phone, otpCode)
+	default:
+		err = ErrOTPUserInfoMissing
+	}
+	if err != nil {
+		if delErr := a.otpService.DeleteOTP(ctx, projectID, userID); delErr != nil {
+			err = errors.Join(err, delErr)
+		}
+		return nil, err
+	}
+
+	return notif, nil
 }
 
 func (a *ProjectApplication) GetProviders(ctx context.Context) ([]*provider.Provider, error) {

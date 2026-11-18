@@ -57,3 +57,15 @@ func (r *repository) GetByUserID(ctx context.Context, userID string) (*userconta
 
 	return r.parser.toDomain(dbContact), nil
 }
+
+func (r *repository) DeleteByUserID(ctx context.Context, userID string) error {
+	r.logger.InfoContext(ctx, "deleting user contact information by user ID", slog.String("external user ID", userID))
+
+	err := r.db.Where("external_user_id = ?", userID).Delete(&UserContact{}).Error
+	if err != nil {
+		r.logger.ErrorContext(ctx, "error deleting user contact information by user ID", logger.Error(err))
+		return err
+	}
+
+	return nil
+}

@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -298,6 +299,15 @@ func (s *InMemoryOTPService) VerifyOTP(ctx context.Context, projectID, userID st
 	}
 
 	return &request, nil
+}
+
+// DeleteOTP removes the user's pending OTP, if there is one.
+func (s *InMemoryOTPService) DeleteOTP(ctx context.Context, projectID, userID string) error {
+	err := s.partsRepo.Delete(ctx, recordKey(projectID, userID))
+	if stderrors.Is(err, errors.ErrEncryptionPartNotFound) {
+		return nil
+	}
+	return err
 }
 
 // Cleanup removes old tracking records
