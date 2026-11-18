@@ -36,6 +36,10 @@ type EncryptionGuard struct {
 	// the stored part whatever part the caller sent, so there is no part to
 	// prove.
 	UnverifiedKey string
+	// KeyProven is set by the share repository once UnverifiedKey passed that
+	// proof, so later writes under the same guard skip it. Their part, migration
+	// and key check comparisons still run.
+	KeyProven bool
 }
 
 func (s *Share) RequiresEncryption() bool {

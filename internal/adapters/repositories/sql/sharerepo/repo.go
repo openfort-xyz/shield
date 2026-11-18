@@ -349,15 +349,17 @@ const proofSampleSize = 1000
 const proofFirstBatch = 10
 
 // underGuard runs fn, and when guard is set runs it in a transaction that
-// first passes checkGuard. A key without a key check is proven before the
-// transaction, holding no lock; checkGuard applies the result.
+// first passes checkGuard. A key without a key check is proven once per
+// guard, before the transaction and holding no lock; checkGuard applies the
+// result.
 func (r *repository) underGuard(ctx context.Context, guard *share.EncryptionGuard, fn func(tx *gorm.DB) error) error {
 	if guard == nil {
 		return fn(r.db.DB)
 	}
 	var proof error
-	if guard.UnverifiedKey != "" {
+	if guard.UnverifiedKey != "" && !guard.KeyProven {
 		proof = r.proveKey(ctx, guard)
+		guard.KeyProven = proof == nil
 	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := checkGuard(tx, guard, proof); err != nil {
