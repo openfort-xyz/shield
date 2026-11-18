@@ -198,10 +198,10 @@ func (a *ShareApplication) GetSharesEncryptionForUsers(ctx context.Context, user
 	return returnValue, nil
 }
 
+// getProject reads the project for its 2FA flag from the database, not from
+// the request context: authmdw puts the API-key cache's copy there, which
+// can predate enabling 2FA.
 func (a *ShareApplication) getProject(ctx context.Context, projID string) (*project.Project, error) {
-	if proj := contexter.GetProject(ctx); proj != nil {
-		return proj, nil
-	}
 	return a.projectRepo.Get(ctx, projID)
 }
 

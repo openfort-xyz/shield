@@ -366,12 +366,11 @@ func TestShareApplication_GetShare(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			testCtx := ctx
 			if tt.project != nil {
-				testCtx = contexter.WithProject(testCtx, tt.project)
+				projectRepo.On("Get", mock.Anything, "project_id").Return(tt.project, nil)
 			}
 			ass := assert.New(t)
-			s, err := app.GetShare(testCtx, tt.opts...)
+			s, err := app.GetShare(ctx, tt.opts...)
 			ass.ErrorIs(err, tt.wantErr)
 			ass.Equal(tt.want, s)
 		})
@@ -752,12 +751,11 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			testCtx := ctx
 			if tt.project != nil {
-				testCtx = contexter.WithProject(testCtx, tt.project)
+				projectRepo.On("Get", mock.Anything, "project_id").Return(tt.project, nil)
 			}
 			ass := assert.New(t)
-			s, err := app.GetShareByReference(testCtx, reference, tt.opts...)
+			s, err := app.GetShareByReference(ctx, reference, tt.opts...)
 			ass.ErrorIs(err, tt.wantErr)
 			ass.Equal(tt.want, s)
 		})
