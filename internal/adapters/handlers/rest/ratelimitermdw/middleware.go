@@ -10,7 +10,11 @@ type Middleware struct {
 	limiter ratelimit.Limiter
 }
 
+// New limits requests to limit per second. Zero disables rate limiting.
 func New(limit int) *Middleware {
+	if limit == 0 {
+		return &Middleware{limiter: ratelimit.NewUnlimited()}
+	}
 	return &Middleware{
 		limiter: ratelimit.New(limit),
 	}
