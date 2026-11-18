@@ -55,6 +55,8 @@ A **project** serves as a container for a group of users and its shares and auth
   - **Register/Update Share:** Use the `encryption_session` field in the request body.
   - **Get Share:** Use the `X-Encryption-Session` header.
 
+**Projects with 2FA enabled:** reading a share requires an encryption session created with the user's OTP code. A read that sends `X-Encryption-Part` returns `428 Precondition Required` with code `OTP_MISSING`. Registering and updating shares still accept either form.
+
 #### **4. User Authentication and Providers**
 
 Users are automatically associated with a project based on the provided API key. To authenticate users (using access tokens), the project must register a provider. There are two types of providers:
@@ -191,6 +193,7 @@ Users are automatically associated with a project based on the provided API key.
   - Mandatory header `Authorization` with access token and `X-API-Key` with project's api key
   - Mandatory header `X-Auth-Provider` and optional `X-Openfort-Provider` and `X-Openfort-Token-Type` for user authentication
   - Optional headers `X-Encryption-Part` and `X-Encryption-Session` to specify encryption details.
+  - On a project with 2FA enabled, `X-Encryption-Part` is refused with `428 Precondition Required` (`OTP_MISSING`); use `X-Encryption-Session`.
 - **Response:**
   - **Type:** `GetShareResponse`
   - **Example:**
