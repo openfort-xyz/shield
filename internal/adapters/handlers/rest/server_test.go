@@ -1,7 +1,9 @@
 package rest
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -44,6 +46,44 @@ func TestHandler_ZeroRPSDisablesRateLimit(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > time.Second {
 		t.Fatalf("%d requests took %s with REQUESTS_PER_SECOND=0, want no rate limiting", burst, elapsed)
+	}
+}
+
+func TestHandler_LimitsRequestBodySize(t *testing.T) {
+	const limit = 256 << 10
+	h := newTestHandler(t, &Config{RPS: 0})
+
+	tests := []struct {
+		name        string
+		path        string
+		size        int
+		hideLength  bool
+		wantStatus  int
+		wantMessage string
+	}{
+		{"public route over the limit", "/register", limit + 1, false, http.StatusRequestEntityTooLarge, ""},
+		{"public route over the limit, no Content-Length", "/register", limit + 1, true, http.StatusRequestEntityTooLarge, ""},
+		{"authenticated route over the limit", "/shares/encryption/user/bulk", limit + 1, false, http.StatusRequestEntityTooLarge, ""},
+		{"body at the limit reaches the handler", "/register", limit, false, http.StatusBadRequest, "failed to parse request body"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var body io.Reader = bytes.NewReader(bytes.Repeat([]byte("a"), tt.size))
+			if tt.hideLength {
+				body = io.MultiReader(body)
+			}
+			req := httptest.NewRequest(http.MethodPost, tt.path, body)
+			status, got := serve(h, req)
+			if status != tt.wantStatus {
+				t.Fatalf("got %d %v, want %d", status, got, tt.wantStatus)
+			}
+			if tt.wantStatus == http.StatusRequestEntityTooLarge && (got["code"] != "BODY_TOO_LARGE" || got["message"] == "") {
+				t.Fatalf("body = %v, want code BODY_TOO_LARGE and a message", got)
+			}
+			if tt.wantMessage != "" && got["message"] != tt.wantMessage {
+				t.Fatalf("message = %v, want %q", got["message"], tt.wantMessage)
+			}
+		})
 	}
 }
 
