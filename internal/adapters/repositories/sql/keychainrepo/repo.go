@@ -30,11 +30,28 @@ func New(db *sql.Client) repositories.KeychainRepository {
 	}
 }
 
+// Create checks for the user's keychain and inserts under FOR UPDATE on the
+// user row: shld_keychains has no unique user_id, and FOR UPDATE also waits
+// for any uncommitted keychain insert, whose foreign-key check holds FOR KEY
+// SHARE on that row.
 func (r *repository) Create(ctx context.Context, keychain *keychain.Keychain) error {
 	r.logger.InfoContext(ctx, "creating keychain")
 
-	dbKeychain := r.parser.toDatabase(keychain)
-	err := r.db.Create(dbKeychain).Error
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT 1 FROM shld_users WHERE id = ? FOR UPDATE`, keychain.UserID).Error; err != nil {
+			return err
+		}
+		existing := &Keychain{}
+		err := tx.Where("user_id = ?", keychain.UserID).First(existing).Error
+		if err == nil {
+			keychain.ID = existing.ID
+			return nil
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		return tx.Create(r.parser.toDatabase(keychain)).Error
+	})
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error creating keychain", logger.Error(err))
 		return err
