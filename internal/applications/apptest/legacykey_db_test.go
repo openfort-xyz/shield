@@ -3,7 +3,9 @@ package apptest
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/pkg/cypher"
+	"github.com/openfort-xyz/shield/pkg/logger/logtest"
 	"github.com/openfort-xyz/shield/pkg/random"
 )
 
@@ -201,6 +204,32 @@ func TestLegacyKey_WrongPartWritesRejected(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A refused write can be a wrong part or a project whose oldest shares were
+// all written with one; the operator needs to see which project.
+func TestLegacyKey_UnprovenWriteLogsProjectAtErrorLevel(t *testing.T) {
+	rec := logtest.Start(slog.LevelInfo)
+	defer rec.Stop()
+	apps := New(t)
+	_, otherPart := apps.SeedEncryptedProject(t)
+	p, _, key := seedLegacyProject(t, apps, true)
+	insertProjectShare(t, apps, p, key, "wallet")
+	rec.Reset()
+
+	err := apps.Share.RegisterShare(UserContext(p),
+		&share.Share{Secret: "new", Entropy: share.EntropyProject, Reference: ptr("new-" + p.ID[:8])},
+		shareapp.WithEncryptionPart(otherPart))
+	if !isUnproven(err) {
+		t.Fatalf("write with a wrong part: err = %v, want encryption part unproven", err)
+	}
+
+	for _, r := range rec.Records() {
+		if r.Logger == "share_repository" && r.Severity == "ERROR" && strings.Contains(r.Attr("error"), p.ID) {
+			return
+		}
+	}
+	t.Errorf("no share repository error record names project %s: %v", p.ID, rec.Records())
 }
 
 func isUnproven(err error) bool {

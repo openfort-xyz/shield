@@ -10,6 +10,8 @@ import (
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
+	"github.com/openfort-xyz/shield/pkg/cypher"
+	"github.com/openfort-xyz/shield/pkg/random"
 )
 
 func TestGuardedWrites(t *testing.T) {
@@ -74,6 +76,71 @@ func TestGuardedWrites(t *testing.T) {
 		}
 	})
 }
+
+// The sample proof of a key without a key check runs before the write's
+// transaction, so the transaction decides with the part row locked: a part
+// replaced since reports the rotation, and a key check stored since decides
+// over the sample.
+func TestGuardedWrites_UnverifiedKey(t *testing.T) {
+	client := dbtest.RequireDB(t)
+	repo := New(client)
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	otherKey, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	stray, err := cypher.Encrypt("stray", otherKey)
+	if err != nil {
+		t.Fatalf("encrypt: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		storedPart project.StoredPart
+		checkOf    string
+		strayShare bool
+		wantErr    error
+	}{
+		{"no share and no check persists", "P1", "", false, nil},
+		{"no decrypting share is unproven", "P1", "", true, domainErrors.ErrEncryptionPartUnproven},
+		{"replaced part reports the rotation first", "P0", "", true, domainErrors.ErrEncryptionPartChanged},
+		{"check stored since rejects another key", "P1", otherKey, false, domainErrors.ErrInvalidEncryptionPart},
+		{"check stored since accepts the key over the sample", "P1", key, true, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := dbtest.SeedProject(t, client, "P1", true)
+			if tt.checkOf != "" {
+				check, err := cypher.KeyCheck(tt.checkOf)
+				if err != nil {
+					t.Fatalf("key check: %v", err)
+				}
+				dbtest.Exec(t, client, `UPDATE shld_encryption_parts SET key_check = ? WHERE project_id = ?`, check, p.ID)
+			}
+			if tt.strayShare {
+				dbtest.InsertShare(t, client, p, "project", stray)
+			}
+
+			err := repo.Create(context.Background(), &share.Share{Secret: "c", UserID: p.UserID, KeychainID: &p.KeychainID,
+				Entropy: share.EntropyProject, Reference: ptr("new"),
+				EncryptionGuard: &share.EncryptionGuard{ProjectID: p.ID, StoredPart: tt.storedPart, Migrated: true, UnverifiedKey: key}})
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("Create: err = %v, want %v", err, tt.wantErr)
+			}
+			var n int64
+			client.Raw(`SELECT count(*) FROM shld_shares WHERE user_id = ? AND reference = 'new'`, p.UserID).Scan(&n)
+			if want := map[bool]int64{true: 0, false: 1}[tt.wantErr != nil]; n != want {
+				t.Errorf("written share rows = %d, want %d", n, want)
+			}
+		})
+	}
+}
+
+func ptr(s string) *string { return &s }
 
 // assertGuarded checks the write's error and that the share's data changed
 // only when the write was allowed.
