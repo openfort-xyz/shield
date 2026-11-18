@@ -19,7 +19,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/usercontactrepo"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/userrepo"
 	"github.com/openfort-xyz/shield/internal/applications/projectapp"
-	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
 	"github.com/openfort-xyz/shield/internal/applications/shareapp"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
@@ -81,7 +80,7 @@ func NewWithShareRepo(t *testing.T, wrap func(repositories.ShareRepository) repo
 
 	return Apps{
 		DB:    client,
-		Share: shareapp.New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, factory, shamirjob.New(projectRepo, shareRepo)),
+		Share: shareapp.New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, factory),
 		Project: projectapp.New(projectSvc, projectRepo, nil, nil, shareRepo, notificationsrepo.New(client),
 			usercontactrepo.New(client), factory, encryptionPartsRepo, otpSvc, notifier,
 			projectapp.NewRequestTracker(&projectapp.RealClock{})),

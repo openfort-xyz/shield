@@ -43,12 +43,12 @@ func (b *plainBuilder) SetDatabasePart(ctx context.Context, identifier string) e
 	return nil
 }
 
-func (b *plainBuilder) GetProjectPart(_ context.Context) project.ProjectPart {
-	return b.projectPart
-}
-
 func (b *plainBuilder) GetDatabasePart(_ context.Context) project.StoredPart {
 	return b.databasePart
+}
+
+func (b *plainBuilder) GetKeyCheck(_ context.Context) *project.KeyCheck {
+	return b.keyCheck
 }
 
 func (b *plainBuilder) Build(_ context.Context) (string, error) {

@@ -52,6 +52,7 @@ var (
 	ErrInvalidEncryptionSession    = &Error{"Invalid encryption session", "EC_INVALID", http.StatusBadRequest}
 	ErrProjectEntropyImport        = &Error{"Project-entropy shares cannot be imported", "SH_INVALID", http.StatusBadRequest}
 	ErrEncryptionPartChanged       = &Error{"Encryption key was rotated during the request, retry with the current encryption part", "EC_ROTATED", http.StatusConflict}
+	ErrEncryptionPartUnproven      = &Error{"Encryption part does not decrypt any of the project's sampled project shares", "EC_UNPROVEN", http.StatusConflict}
 	ErrNoPendingRotation           = &Error{"No pending encryption key rotation; call prepare first", "EC_NO_PENDING", http.StatusConflict}
 	ErrRotationExpired             = &Error{"Pending encryption key rotation expired; call prepare again", "EC_ROTATION_EXPIRED", http.StatusConflict}
 	ErrPendingAPIKeyNotProven      = &Error{"Commit the API key rotation with the pending key from prepare", "A_PENDING_NOT_PROVEN", http.StatusConflict}
@@ -61,7 +62,7 @@ var (
 	ErrAPISecretRotationExpired    = &Error{"Pending API secret rotation expired; call prepare again", "A_ROTATION_EXPIRED", http.StatusConflict}
 	ErrNoPendingAPISecretRotation  = &Error{"No pending API secret rotation for this secret; call prepare again", "A_NO_PENDING", http.StatusConflict}
 	ErrUnverifiableEncryptionKey   = &Error{"Encryption part cannot be verified: the project has no key check and no project share", "EC_UNVERIFIABLE", http.StatusConflict}
-	ErrProjectNotMigrated          = &Error{"Encryption key is not migrated yet; read any share with the current part, then retry", "EC_NOT_MIGRATED", http.StatusConflict}
+	ErrProjectNotMigrated          = &Error{"Encryption key predates the current key-split scheme and cannot be rotated", "EC_NOT_MIGRATED", http.StatusConflict}
 	ErrEncryptionPartAlreadyExists = &Error{"Encryption part already exists", "EC_EXISTS", http.StatusConflict}
 
 	ErrMissingAPIKey         = &Error{"Missing API key", "A_MISSING", http.StatusUnauthorized}

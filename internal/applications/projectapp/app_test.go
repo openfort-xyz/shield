@@ -86,9 +86,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
-				projectRepo.On("GetEncryptionKey", mock.Anything, mock.Anything).Return(nil, nil)
 				projectRepo.On("SetEncryptionKey", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				projectRepo.On("CreateMigration", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -112,7 +110,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
-				projectRepo.On("GetEncryptionKey", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+				projectRepo.On("SetEncryptionKey", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("repository error"))
 				projectRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 			},
 		},
@@ -127,7 +125,7 @@ func TestProjectApplication_CreateProject(t *testing.T) {
 				projectRepo.ExpectedCalls = nil
 				projectRepo.On("Create", mock.Anything, mock.AnythingOfType("*project.Project")).Return(nil)
 				projectRepo.On("SaveProjectRateLimits", mock.Anything, mock.Anything).Return(nil)
-				projectRepo.On("GetEncryptionKey", mock.Anything, mock.Anything).Return(nil, errors.New("repository error"))
+				projectRepo.On("SetEncryptionKey", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("repository error"))
 				projectRepo.On("Delete", mock.Anything, mock.Anything).Return(errors.New("repository error"))
 			},
 		},
@@ -991,7 +989,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 				shareRepo.On("ListProjectIDAndEntropy", mock.Anything, mock.Anything, mock.Anything).Return([]*share.Share{plainShare, encryptedShare}, nil)
 				shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, mock.Anything).Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
-				shareRepo.On("UpdateProjectEncryption", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				shareRepo.On("UpdateProjectEncryption", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, mock.Anything).Return(true, nil)
 			},
 		},
@@ -1045,7 +1043,7 @@ func TestProjectApplication_EncryptProjectShares(t *testing.T) {
 				projectRepo.On("GetEncryptionKey", mock.Anything, mock.Anything).Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				shareRepo.ExpectedCalls = nil
 				shareRepo.On("ListProjectIDAndEntropy", mock.Anything, mock.Anything, mock.Anything).Return([]*share.Share{plainShare2}, nil)
-				shareRepo.On("UpdateProjectEncryption", mock.Anything, "share_id", mock.Anything, mock.Anything).Return(errors.New("repository error"))
+				shareRepo.On("UpdateProjectEncryption", mock.Anything, "share_id", "secret", mock.Anything, mock.Anything).Return(errors.New("repository error"))
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, mock.Anything).Return(true, nil)
 			},
 			wantErr: ErrInternal,
@@ -1087,33 +1085,22 @@ func TestProjectApplication_RegisterEncryptionKey(t *testing.T) {
 			wantErr: nil,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
-				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(nil, domainErrors.ErrEncryptionPartNotFound)
 				projectRepo.On("SetEncryptionKey", mock.Anything, "project_id", mock.Anything).Return(nil)
-				projectRepo.On("CreateMigration", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 		},
 		{
 			name: "encryption part already exists",
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
-				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart("encryption_part")}, nil)
+				projectRepo.On("SetEncryptionKey", mock.Anything, "project_id", mock.Anything).Return(domainErrors.ErrEncryptionPartAlreadyExists)
 			},
 			wantErr: ErrEncryptionPartAlreadyExists,
-		},
-		{
-			name:    "error getting encryption part",
-			wantErr: ErrInternal,
-			mock: func() {
-				projectRepo.ExpectedCalls = nil
-				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(nil, errors.New("repository error"))
-			},
 		},
 		{
 			name:    "error setting encryption part",
 			wantErr: ErrInternal,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
-				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(nil, domainErrors.ErrEncryptionPartNotFound)
 				projectRepo.On("SetEncryptionKey", mock.Anything, "project_id", mock.Anything).Return(errors.New("repository error"))
 			},
 		},

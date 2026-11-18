@@ -591,27 +591,23 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 		return fromDomainError(err)
 	}
 
-	var encryptedShares []*share.Share
+	guard := &share.EncryptionGuard{ProjectID: projectID, StoredPart: builder.GetDatabasePart(ctx), Migrated: isMigrated}
+	if isMigrated && builder.GetKeyCheck(ctx) == nil {
+		guard.UnverifiedKey = encryptionKey
+	}
+	cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
 	for _, shr := range shares {
 		if shr.EncryptionParameters != nil || shr.Entropy != share.EntropyNone {
 			continue
 		}
 
-		cypher := a.encryptionFactory.CreateEncryptionStrategy(encryptionKey)
-		shr.Secret, err = cypher.Encrypt(shr.Secret)
+		encrypted, err := cypher.Encrypt(shr.Secret)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to encrypt share", logger.Error(err))
 			return fromDomainError(err)
 		}
 
-		shr.Entropy = share.EntropyProject
-
-		encryptedShares = append(encryptedShares, shr)
-	}
-
-	guard := &share.EncryptionGuard{ProjectID: projectID, StoredPart: builder.GetDatabasePart(ctx)}
-	for _, encryptedShare := range encryptedShares {
-		err = a.sharesRepo.UpdateProjectEncryption(ctx, encryptedShare.ID, encryptedShare.Secret, guard)
+		err = a.sharesRepo.UpdateProjectEncryption(ctx, shr.ID, shr.Secret, encrypted, guard)
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to update share", logger.Error(err))
 			return fromDomainError(err)
@@ -677,20 +673,11 @@ func (a *ProjectApplication) RegisterEncryptionKey(ctx context.Context) (string,
 	a.logger.InfoContext(ctx, "registering encryption key")
 	projectID := contexter.GetProjectID(ctx)
 
-	ep, err := a.projectRepo.GetEncryptionKey(ctx, projectID)
-	if err != nil && !errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
-		a.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
-		return "", fromDomainError(err)
-	}
-
-	if ep != nil {
-		a.logger.Warn("encryption part already exists", slog.String("project_id", projectID))
-		return "", ErrEncryptionPartAlreadyExists
-	}
-
 	externalPart, err := a.registerEncryptionKey(ctx, projectID)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
+		if !errors.Is(err, domainErrors.ErrEncryptionPartAlreadyExists) {
+			a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
+		}
 		return "", fromDomainError(err)
 	}
 
@@ -721,12 +708,6 @@ func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectI
 	err = a.projectSvc.SetEncryptionKey(ctx, projectID, &project.EncryptionKey{Part: storedPart, KeyCheck: &check})
 	if err != nil {
 		return "", err
-	}
-
-	err = a.projectRepo.CreateMigration(ctx, projectID, true)
-	if err != nil {
-		a.logger.Error("failed to create migration", logger.Error(err))
-		return "", ErrInternal
 	}
 
 	return string(projectPart), nil

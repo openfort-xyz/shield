@@ -17,6 +17,7 @@ var (
 	ErrInvalidEncryptionPart     = errors.New("invalid encryption part")
 	ErrInvalidEncryptionSession  = errors.New("invalid encryption session")
 	ErrEncryptionPartChanged     = errors.New("encryption part changed during request")
+	ErrEncryptionPartUnproven    = errors.New("encryption part decrypts none of the project's sampled shares")
 	ErrProjectEntropyImport      = errors.New("project-entropy shares cannot be imported")
 	ErrOTPVerificationRequired   = errors.New("otp verification required")
 	ErrInternal                  = errors.New("internal error")
@@ -49,6 +50,10 @@ func fromDomainError(err error) error {
 
 	if errors.Is(err, domainErrors.ErrEncryptionPartChanged) {
 		return ErrEncryptionPartChanged
+	}
+
+	if errors.Is(err, domainErrors.ErrEncryptionPartUnproven) {
+		return ErrEncryptionPartUnproven
 	}
 
 	if errors.Is(err, domainErrors.ErrOTPVerificationRequired) {

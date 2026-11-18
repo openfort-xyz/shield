@@ -1,6 +1,6 @@
 ---
 name: verify-key-rotation
-description: Model-check and database-test Shield's project key rotation (encryption key, API key and API secret). Use after any change to the encryption key builders, reconstruction strategies, share persistence (sharerepo Create/Update/BulkUpdate/UpdateProjectEncryption), shamirjob, projectapp/projectrepo rotation code, projectsvc API-key or API-secret rotation or cache, the project authenticator, or the rotate-* routes and middleware.
+description: Model-check and database-test Shield's project key rotation (encryption key, API key and API secret). Use after any change to the encryption key builders, reconstruction strategies, share persistence (sharerepo Create/Update/UpdateProjectEncryption), projectapp/projectrepo rotation code, projectsvc API-key or API-secret rotation or cache, the project authenticator, or the rotate-* routes and middleware.
 ---
 
 # Verify key rotation
@@ -14,8 +14,7 @@ Two promises protect wallets here:
    and API secret, even when responses are lost. Breaking it locks a project out.
 
 `formal/rotation/Rotation.tla` checks both over every interleaving of share
-writers, the shamir job, stale parts and sessions, rotations, expiry and lost
-responses. The database tests check the Go code against real Postgres.
+writers, stale parts and sessions, rotations, expiry and lost responses. The database tests check the Go code against real Postgres.
 
 ## Does my change touch the verified code?
 
@@ -60,7 +59,6 @@ state count and `0 states left on queue`, and eight `PASS Mut... violates ...` l
 | `KeyAccepted` (key check) | `plain_builder.Build`, `session_builder.Build`, `cypher.VerifyKeyCheck` |
 | `WriterRead` | `shareapp.reconstructEncryptionKey` (callers `RegisterShare`, `UpdateShare`) |
 | `WriterPersist`, `GuardPasses` | `sharerepo.underGuard`, `sharerepo.checkGuard`; `Create`, `Update`, `UpdateProjectEncryption` |
-| `ShamirRead` / `ShamirPersist` | `shamirjob.Execute`, `sharerepo.BulkUpdate` |
 | `RotPrepare` (incl. legacy backfill) | `projectapp.PrepareEncryptionKeyRotation`, `projectapp.verifiedCurrentKey` (refuses legacy keys with no share), `projectrepo.PrepareEncryptionKeyRotation` |
 | `RotCommit` | `projectapp.CommitEncryptionKeyRotation`, `projectrepo.CommitEncryptionKeyRotation`, `projectrepo.lockRotationState` |
 | `PendingExpires` | `rotationPendingTTL`, `pending_expires_at` |
@@ -70,16 +68,16 @@ state count and `0 states left on queue`, and eight `PASS Mut... violates ...` l
 | `SecCommit` | `authmdw.AuthenticateAPISecretRotationCommit`, `projauth.NewPendingSecretProjectAuthenticator`, `projectsvc.CommitAPISecretRotation`, `projectrepo.CommitAPISecretRotation`, `projectrepo.lockProject` |
 | `SecPendingExpires` | `rotationPendingTTL`, `pending_api_secret_expires_at` |
 | Client `ck`/`cpend`, `cs`/`cpendSec` | A caller that keeps its current credential until a commit is confirmed, holds the pending one alongside it, and drops the pending one only when Shield refuses its commit |
-| Not modeled (DB tests instead) | share entropy changes racing a commit (`projectrepo.listProjectShares` FOR UPDATE OF s; `TestCommitEncryptionKeyRotation_UnguardedWriterNotOverwritten`); duplicate part rows (`TestGuardedWrites_DuplicatePartRows`); `ImportShare` refusing project entropy; `shareapp.migrateToKeychainIfRequired` (`TestKeychainMigration_DuringRotation_KeepsRotatedCiphertext`); cache re-population across an eviction (`TestService_GetByAPIKey_DoesNotRecacheAcrossEviction`); prepare with a revoked key (`TestAPIKeyRotation_PrepareWithRevokedKeyRefused`, `TestAPISecretRotation_PrepareWithRevokedKeyRefused`); the pending secret refused off the commit route and both rotations interleaved over HTTP (`TestAPISecretRotation_HTTP`, `TestAPISecretRotation_HTTP_InterleavedWithAPIKey`); secrets never logged (`TestAPISecretRotation_SecretsNeverLogged`); a disabled project (`disabled_at`): every route but `DELETE /project` refuses it with `403 PJ_DISABLED`, the rotation commits included, and a refused commit changes no credential, so a caller that keeps its pending value while disabled finishes the rotation after re-enable (`TestProjectDisable_HTTP`, `TestProjectDisable_HTTP_PendingRotationSurvives`) |
+| Not modeled (DB tests instead) | share entropy changes racing a commit (`projectrepo.listProjectShares` FOR UPDATE OF s; `TestCommitEncryptionKeyRotation_UnguardedWriterNotOverwritten`); duplicate part rows (`TestGuardedWrites_DuplicatePartRows`); a write under a migrated key without a check persists only if the key decrypts one of up to 1000 of the project's project shares or the project has none, a check stored since decides instead, the proof reads rows in proportion to its sample and runs once per guard, and no share write stores a check (`sharerepo.proveKey`, `sharerepo.checkGuard`; `TestLegacyKey_WrongPartWritesRejected`, `TestLegacyKey_ShareWritesStoreNoKeyCheck`, `TestLegacyKey_ProofSample`, `TestGuardedWrites_UnverifiedKeyProofReadsBounded`, `TestLegacyKey_EncryptProjectSharesProvesOnce`, `TestGuardedWrites_UnverifiedKey`, `TestLegacyKey_UnmigratedWriteStoresNoKeyCheck`); key registration inserting no second part row (`projectrepo.SetEncryptionKey` under the project row lock; `TestService_SetEncryptionKey_RacingRegistrationStoresNoSecondKey`); bulk project encryption writing only shares unchanged since read (`sharerepo.UpdateProjectEncryption`; `TestEncryptProjectShares_ConcurrentUpdateNotOverwritten`); a write under a pre-migration key aborting once the project is migrated (`sharerepo.checkGuard`; `TestGuardedWrites_PreMigrationKey`, `TestGuardedWrites_PreMigrationKeyWaitsForMigration`, `TestLegacyKey_WriteRacingMigrationIsNotPersisted`); share reads and writes never migrating a project (`TestLegacyKey_WrongPartReadLeavesSharesUnchanged`, `TestProjectKey_ReadsAndWritesKeepMigrationStatus`); key registration recording the migration in its own transaction (`projectrepo.SetEncryptionKey`; `TestRegisterEncryptionKey_FailedStatusWriteStoresNoKey`); `ImportShare` refusing project entropy; `shareapp.migrateToKeychainIfRequired` (`TestKeychainMigration_DuringRotation_KeepsRotatedCiphertext`); cache re-population across an eviction (`TestService_GetByAPIKey_DoesNotRecacheAcrossEviction`); prepare with a revoked key (`TestAPIKeyRotation_PrepareWithRevokedKeyRefused`, `TestAPISecretRotation_PrepareWithRevokedKeyRefused`); the pending secret refused off the commit route and both rotations interleaved over HTTP (`TestAPISecretRotation_HTTP`, `TestAPISecretRotation_HTTP_InterleavedWithAPIKey`); secrets never logged (`TestAPISecretRotation_SecretsNeverLogged`); a disabled project (`disabled_at`): every route but `DELETE /project` refuses it with `403 PJ_DISABLED`, the rotation commits included, and a refused commit changes no credential, so a caller that keeps its pending value while disabled finishes the rotation after re-enable (`TestProjectDisable_HTTP`, `TestProjectDisable_HTTP_PendingRotationSurvives`) |
 | Not covered | the 60 s API-key cache on other replicas (documented) |
 
 Bounds: 2 writers, 4 keys of each kind, 3 API secrets. Projects whose key is not migrated
-are refused by prepare and commit (`EC_NOT_MIGRATED`) and are outside the
-model.
+are refused by prepare and commit (`EC_NOT_MIGRATED`), Shield does not
+migrate them, and they are outside the model.
 
 ## Sync
 
-Model confirmed against the code at: `0f2c3b38a17c054065e8ac29b39d9b1df5b09c77`
+Model confirmed against the code at: `99ddc73194b939fad83bb3c2cd7b9f243166386c`
 
 Move this commit forward only after you confirm that the model still
 describes the code at the new commit: read the diff of every covered

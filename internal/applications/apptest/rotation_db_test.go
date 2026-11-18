@@ -169,17 +169,9 @@ func TestEncryptionKeyRotation_WrongCurrentPartChangesNothing(t *testing.T) {
 // the server before commit cannot be misused (formal/rotation MutNoBackfill).
 func TestEncryptionKeyRotation_LegacyKeyWithoutCheck(t *testing.T) {
 	apps := New(t)
-	key, err := random.GenerateRandomString(32)
-	if err != nil {
-		t.Fatalf("generate key: %v", err)
-	}
-	storedPart, projectPart, err := sssrec.NewSSSReconstructionStrategy().Split(key)
-	if err != nil {
-		t.Fatalf("split: %v", err)
-	}
-	p := dbtest.SeedProject(t, apps.DB, string(storedPart), true)
-	part := string(projectPart)
-	apps.register(t, p, part, "wallet", "")
+	p, part, key := seedLegacyProject(t, apps, true)
+	id := insertProjectShare(t, apps, p, key, "wallet")
+	dbtest.Exec(t, apps.DB, `UPDATE shld_shares SET reference = ? WHERE id = ?`, share.DefaultReference, id)
 	_, otherPart := apps.SeedEncryptedProject(t)
 
 	if _, err := apps.Project.PrepareEncryptionKeyRotation(ProjectContext(p), otherPart); !errors.Is(err, projectapp.ErrInvalidEncryptionPart) {
