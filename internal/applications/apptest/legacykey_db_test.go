@@ -6,6 +6,9 @@ import (
 	"maps"
 	"testing"
 
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
 	depsssrec "github.com/openfort-xyz/shield/internal/adapters/encryption/deprecated_sss_reconstruction_strategy"
 	sssrec "github.com/openfort-xyz/shield/internal/adapters/encryption/sss_reconstruction_strategy"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql/dbtest"
@@ -344,6 +347,99 @@ func TestProjectKey_ReadsAndWritesKeepMigrationStatus(t *testing.T) {
 			}
 			assertSharesDecrypt(t, apps, p, part, 2)
 		})
+	}
+}
+
+// A write that reconstructed an unmigrated project's key and persists after a
+// migration (such as one a replica of an earlier release starts) would leave
+// its share under a key no request rebuilds any more.
+func TestLegacyKey_WriteRacingMigrationIsNotPersisted(t *testing.T) {
+	tests := []struct {
+		name  string
+		write func(apps Apps, p dbtest.Project, part, existing string) error
+	}{
+		{"RegisterShare", func(apps Apps, p dbtest.Project, part, _ string) error {
+			return apps.Share.RegisterShare(UserContext(p),
+				&share.Share{Secret: "new", Entropy: share.EntropyProject, Reference: ptr("new-" + p.ID[:8])},
+				shareapp.WithEncryptionPart(part))
+		}},
+		{"UpdateShare", func(apps Apps, p dbtest.Project, part, existing string) error {
+			_, err := apps.Share.UpdateShare(UserContext(p), &share.Share{Secret: "new"}, existing, shareapp.WithEncryptionPart(part))
+			return err
+		}},
+		{"EncryptProjectShares", func(apps Apps, p dbtest.Project, part, _ string) error {
+			return apps.Project.EncryptProjectShares(ProjectContext(p), part)
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parking := NewParkingShareRepo()
+			apps := NewWithShareRepo(t, parking.Wrap)
+			p, part, key := seedLegacyProject(t, apps, false)
+			existing := shareReference(t, apps, insertProjectShare(t, apps, p, key, "existing"))
+			plainID := dbtest.InsertShare(t, apps.DB, p, "none", "plain-share")
+
+			parking.Armed.Store(true)
+			errc := make(chan error, 1)
+			go func() { errc <- tt.write(apps, p, part, existing) }()
+			<-parking.Parked
+			parking.Armed.Store(false)
+			migrateOutOfBand(t, apps, p, part)
+			close(parking.Release)
+
+			if err := <-errc; !errors.Is(err, shareapp.ErrEncryptionPartChanged) && !errors.Is(err, projectapp.ErrEncryptionPartChanged) {
+				t.Errorf("write racing a migration: err = %v, want encryption part changed", err)
+			}
+			assertSharesDecrypt(t, apps, p, part, 1)
+			if got := dbtest.ShareData(t, apps.DB, plainID); got != "plain-share" {
+				t.Errorf("plain share = %q, want it untouched", got)
+			}
+		})
+	}
+}
+
+// migrateOutOfBand migrates the project in one transaction holding FOR UPDATE
+// on its part row: every project share, soft-deleted ones included, moves
+// from the pre-migration key to the current one, and the migration is
+// recorded.
+func migrateOutOfBand(t *testing.T, apps Apps, p dbtest.Project, projectPart string) {
+	t.Helper()
+	err := apps.DB.Transaction(func(tx *gorm.DB) error {
+		var stored string
+		if err := tx.Raw(`SELECT part FROM shld_encryption_parts WHERE project_id = ? ORDER BY id LIMIT 1 FOR UPDATE`, p.ID).Scan(&stored).Error; err != nil {
+			return err
+		}
+		oldKey, err := depsssrec.NewSSSReconstructionStrategy().Reconstruct(project.StoredPart(stored), project.ProjectPart(projectPart))
+		if err != nil {
+			return err
+		}
+		newKey, err := sssrec.NewSSSReconstructionStrategy().Reconstruct(project.StoredPart(stored), project.ProjectPart(projectPart))
+		if err != nil {
+			return err
+		}
+		var rows []struct{ ID, Data string }
+		if err := tx.Raw(`SELECT s.id, s.data FROM shld_shares s JOIN shld_users u ON s.user_id = u.id
+			WHERE u.project_id = ? AND s.entropy = 'project' FOR UPDATE OF s`, p.ID).Scan(&rows).Error; err != nil {
+			return err
+		}
+		for _, row := range rows {
+			plain, err := cypher.Decrypt(row.Data, oldKey)
+			if err != nil {
+				return err
+			}
+			data, err := cypher.Encrypt(plain, newKey)
+			if err != nil {
+				return err
+			}
+			if err := tx.Exec(`UPDATE shld_shares SET data = ? WHERE id = ?`, data, row.ID).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Exec(`INSERT INTO shld_shamir_migrations (id, project_id, success) VALUES (?, ?, true)`, uuid.NewString(), p.ID).Error
+	})
+	if err != nil {
+		t.Fatalf("out-of-band migration: %v", err)
 	}
 }
 
