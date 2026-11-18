@@ -6,6 +6,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.5.0]
+### Security
+- Accept an encryption session only in the project that created it and, on 2FA projects, only for the user it was created for by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+- Store OTPs per project and user, check the bound contact before generating an OTP, and leave no OTP or contact binding after a failed delivery by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+- On 2FA projects, require an OTP-verified encryption session for share reads. **Breaking:** a share read with `X-Encryption-Part` on a 2FA project returns `428 OTP_MISSING` by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+- Scope share lookup by reference to the caller's project and user by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+- Validate encryption parts before reconstructing a key and return `400` for malformed ones by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+- Limit request bodies to 256 KiB (`413 BODY_TOO_LARGE`), checked after authentication by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+
+### Changed
+- Share reads and writes no longer migrate pre-migration project keys; the background Shamir migration job is removed. See README 2.15 and 2.16 by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+- Register encryption keys under a project row lock (`409 EC_EXISTS` for a lost race), create keychains under a user row lock, and skip shares changed since read in bulk project encryption by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+- Read a project's 2FA setting from the database for share reads by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+- `REQUESTS_PER_SECOND=0` disables rate limiting. **Breaking:** a negative value stops startup by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+- Index `shld_shares(user_id)` and `shld_users(project_id)` by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+
+### Fixed
+- Route `GET /shares/encryption` ahead of `GET /shares/{reference}` by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+- Save a provider update that only changes the cookie field name, and reject over-long cookie field names by @jamalavedra in https://github.com/openfort-xyz/shield/pull/156
+
 ## [v0.4.2]
 ### Added
 - Disable and re-enable a project (`POST /internal/projects/disable` and `/enable`, authenticated with `SHIELD_SERVICE_TOKEN`); a disabled project gets `403 PJ_DISABLED` on every project route except `DELETE /project` by @jamalavedra in https://github.com/openfort-xyz/shield/pull/154
