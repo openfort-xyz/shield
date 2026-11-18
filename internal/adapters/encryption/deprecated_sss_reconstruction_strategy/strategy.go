@@ -1,6 +1,8 @@
 package depsssrec
 
 import (
+	"encoding/base64"
+
 	"github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
@@ -36,6 +38,18 @@ func (s *SSSReconstructionStrategy) Split(data string) (storedPart project.Store
 }
 
 func (s *SSSReconstructionStrategy) Reconstruct(storedPart project.StoredPart, projectPart project.ProjectPart) (string, error) {
+	rawStoredPart, err := base64.StdEncoding.DecodeString(string(storedPart))
+	if err != nil {
+		return "", err
+	}
+	rawProjectPart, err := base64.StdEncoding.DecodeString(string(projectPart))
+	if err != nil {
+		return "", err
+	}
+	// Combine indexes past the end of a part shorter than the other.
+	if len(rawStoredPart) != len(rawProjectPart) {
+		return "", errors.ErrInvalidEncryptionPart
+	}
 	return cypher.ReconstructEncryptionKey(string(storedPart), string(projectPart))
 }
 
