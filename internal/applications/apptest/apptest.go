@@ -34,6 +34,7 @@ type Apps struct {
 	ProjectSvc  services.ProjectService
 	ProjectRepo repositories.ProjectRepository
 	ShareRepo   repositories.ShareRepository
+	Job         *shamirjob.Job
 }
 
 // New wires the applications to the database configured by DB_* variables,
@@ -55,7 +56,10 @@ func NewWithShareRepo(t *testing.T, wrap func(repositories.ShareRepository) repo
 	}
 
 	projectRepo := projectrepo.New(client)
-	shareRepo := wrap(sharerepo.New(client))
+	unwrappedShareRepo := sharerepo.New(client)
+	shareRepo := wrap(unwrappedShareRepo)
+	// The job bypasses wrap so that parking a share write does not park it.
+	job := shamirjob.New(projectRepo, unwrappedShareRepo)
 	keychainRepo := keychainrepo.New(client)
 	userRepo := userrepo.New(client)
 	encryptionPartsRepo := encryptionpartsrepo.New(buntClient)
@@ -65,11 +69,12 @@ func NewWithShareRepo(t *testing.T, wrap func(repositories.ShareRepository) repo
 
 	return Apps{
 		DB:          client,
-		Share:       shareapp.New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, factory, shamirjob.New(projectRepo, shareRepo)),
+		Share:       shareapp.New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, factory, job),
 		Project:     projectapp.New(projectSvc, projectRepo, nil, nil, shareRepo, nil, nil, factory, encryptionPartsRepo, nil, nil, nil),
 		ProjectSvc:  projectSvc,
 		ProjectRepo: projectRepo,
 		ShareRepo:   shareRepo,
+		Job:         job,
 	}
 }
 
