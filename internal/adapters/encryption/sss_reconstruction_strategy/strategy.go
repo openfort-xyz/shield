@@ -71,8 +71,10 @@ func (s *SSSReconstructionStrategy) Reconstruct(storedPart project.StoredPart, p
 	}
 
 	// Combine panics on two parts with the same coordinate and indexes past the
-	// end of a part shorter than the first.
-	if len(rawStoredPart) != partLength || len(rawProjectPart) != partLength || rawStoredPart[0] == rawProjectPart[0] {
+	// end of a part shorter than the first. A part on coordinate 0 is the key
+	// itself, so combining it would ignore the other part.
+	if len(rawStoredPart) != partLength || len(rawProjectPart) != partLength ||
+		rawStoredPart[0] == rawProjectPart[0] || rawStoredPart[0] == 0 || rawProjectPart[0] == 0 {
 		return "", errors.ErrInvalidEncryptionPart
 	}
 
