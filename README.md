@@ -519,7 +519,7 @@ it received it by sending it back. Both calls are safe to retry.
   - `409 EC_NO_PENDING`: commit without a pending rotation.
   - `409 EC_ROTATION_EXPIRED`: the pending rotation expired; prepare again.
   - `409 EC_NOT_MIGRATED`: the project's key predates the current key-split
-    scheme. Shield does not rotate such keys.
+    scheme. Shield does not rotate such keys (see 2.15).
   - `409 EC_MISSING`: the project has no encryption key.
   - `409 EC_UNVERIFIABLE`: the key predates key checks and the project has no
     project share to verify the part against; register one share first.
@@ -618,3 +618,18 @@ it received it by sending it back. Both calls are safe to retry.
 - **Replicas:** `/project/*` and the other API-secret routes refuse a disabled
   project immediately. Share routes cache API-key lookups for 60 seconds per
   Shield instance, so other replicas can serve it for up to 60 seconds.
+
+#### **2.15 Pre-migration Keys**
+
+A project whose encryption key predates the current key-split scheme, and
+has no successful row in `shld_shamir_migrations`, is unmigrated.
+
+- Share requests no longer migrate these projects. Until a project is
+  migrated, its encryption part is not checked: any well-formed part of the
+  right length reads and writes its shares. Its key cannot be rotated
+  (`409 EC_NOT_MIGRATED`).
+- **Upgrades from v0.4.2:** a v0.4.2 replica still migrates an unmigrated
+  project on a share request, and this release does not coordinate with that
+  migration. While both releases serve traffic, make sure no unmigrated
+  project is live, for example by disabling those projects (2.14) and
+  enabling them after the rollout, or switch all traffic at once.
