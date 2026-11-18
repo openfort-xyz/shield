@@ -217,3 +217,27 @@ func TestShareEncryptionRoutes_HTTP(t *testing.T) {
 		t.Fatalf("reference bulk with a user token only: %v, want Missing API secret", bulkAsUser.Body)
 	}
 }
+
+func TestEncryptionPart_RejectedOnReadsWith2FA_HTTP(t *testing.T) {
+	p := newUserProject(t)
+	user := "user-" + uuid.NewString()
+	readPaths := []string{"/shares", "/keychain", "/shares/default"}
+
+	expect(t, "register project-entropy share", p.asUser(t, http.MethodPost, "/shares", user, map[string]any{
+		"secret": "project-secret", "entropy": "project", "encryption_part": p.part,
+	}), http.StatusCreated, "")
+	for _, path := range readPaths {
+		expect(t, "GET "+path+" with the raw part before 2FA",
+			p.asUser(t, http.MethodGet, path, user, nil, "X-Encryption-Part", p.part), http.StatusOK, "")
+	}
+
+	expect(t, "enable 2FA", p.do(http.MethodPost, "/project/enable-2fa", p.apiKey, nil), http.StatusOK, "")
+
+	for _, path := range readPaths {
+		expect(t, "GET "+path+" with the raw part on a 2FA project",
+			p.asUser(t, http.MethodGet, path, user, nil, "X-Encryption-Part", p.part),
+			http.StatusPreconditionRequired, "OTP_MISSING")
+	}
+	expect(t, "session without an OTP code", p.do(http.MethodPost, "/project/encryption-session", p.apiKey,
+		map[string]any{"encryption_part": p.part, "user_id": user}), http.StatusPreconditionRequired, "OTP_MISSING")
+}
