@@ -2,6 +2,7 @@ package shamirjob
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 
@@ -49,11 +50,7 @@ func (j *Job) Execute(ctx context.Context, projectID string, storedPart project.
 	}
 
 	defer func() {
-		success := err == nil
-		err = j.projectRepo.CreateMigration(ctx, projectID, success)
-		if err != nil {
-			j.logger.ErrorContext(ctx, "error creating migration", logger.Error(err))
-		}
+		err = errors.Join(err, j.projectRepo.CreateMigration(ctx, projectID, err == nil))
 	}()
 
 	j.logger.InfoContext(ctx, "reconstructing key")
