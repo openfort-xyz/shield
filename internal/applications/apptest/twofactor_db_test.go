@@ -197,3 +197,36 @@ func TestEncryptionSession_LookupByUserIDLeavesPendingOTPUsable(t *testing.T) {
 		t.Errorf("pending OTP afterwards: %v", err)
 	}
 }
+
+// The first contact an OTP goes to binds the user. A request naming any other
+// contact must get no OTP: none delivered, and none replacing the pending one.
+func TestOTP_MismatchedContactGetsNoOTP(t *testing.T) {
+	email, phone := "attacker@example.com", "+346000000000"
+	cases := []struct {
+		name         string
+		email, phone *string
+		to           string
+	}{
+		{"another email", &email, nil, email},
+		{"a phone instead of the bound email", nil, &phone, phone},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			apps := New(t)
+			p, part := apps.Seed2FAProject(t)
+			alice := apps.NewUser(t, p)
+			code := apps.RequestEmailOTP(t, p, alice.ExternalID, "alice@example.com")
+
+			err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, tc.email, tc.phone)
+			if !errors.Is(err, projectapp.ErrUserContactInformationMismatch) {
+				t.Errorf("GenerateOTP to %s: err = %v, want %v", tc.to, err, projectapp.ErrUserContactInformationMismatch)
+			}
+			if sent := apps.Notifier.Sent(tc.to); len(sent) != 0 {
+				t.Errorf("%d messages delivered to %s, want 0", len(sent), tc.to)
+			}
+			if _, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, alice.ExternalID, &code); err != nil {
+				t.Errorf("alice's pending OTP after the rejected request: %v", err)
+			}
+		})
+	}
+}
