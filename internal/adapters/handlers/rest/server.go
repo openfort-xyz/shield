@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/healthzhdl"
 	"github.com/openfort-xyz/shield/internal/applications/healthzapp"
@@ -15,6 +16,7 @@ import (
 	metrics "github.com/openfort-xyz/metrics"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/authmdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/bodylimitmdw"
+	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/deadlinemdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/projecthdl"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/ratelimitermdw"
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/requestmdw"
@@ -29,6 +31,15 @@ import (
 	"github.com/openfort-xyz/shield/pkg/logger"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
+)
+
+const (
+	// routeDeleteProject names DELETE /project, whose hard delete can outlive
+	// the server-wide WriteTimeout.
+	routeDeleteProject = "delete-project"
+	// deleteProjectWriteMargin leaves time to write the response, including
+	// the error response when the delete hits projecthdl.DeleteProjectTimeout.
+	deleteProjectWriteMargin = 15 * time.Second
 )
 
 // Server is the REST server for the shield API
@@ -86,6 +97,11 @@ func (s *Server) Handler() http.Handler {
 	// so the rename lands on the otelmux-created span.
 	r.Use(otelmux.Middleware("shield"))
 	r.Use(tracingmdw.FlowNameMiddleware)
+	// Before metrics.HTTPMiddleware: its ResponseWriter wrapper has no
+	// Unwrap, which would hide the connection from the deadline override.
+	r.Use(deadlinemdw.ExtendWriteDeadline(map[string]time.Duration{
+		routeDeleteProject: projecthdl.DeleteProjectTimeout + deleteProjectWriteMargin,
+	}))
 	r.Use(rateLimiterMdw.RateLimitMiddleware)
 
 	r.Use(metrics.HTTPMiddleware)
@@ -107,7 +123,8 @@ func (s *Server) Handler() http.Handler {
 	// Outside the /project subrouter: a disabled project can still be
 	// deleted, so the Openfort API can purge it.
 	r.Handle("/project",
-		authMdw.AuthenticateAPISecretAllowingDisabled(http.HandlerFunc(projectHdl.DeleteProject))).Methods(http.MethodDelete)
+		authMdw.AuthenticateAPISecretAllowingDisabled(http.HandlerFunc(projectHdl.DeleteProject))).Methods(http.MethodDelete).
+		Name(routeDeleteProject)
 	p := r.PathPrefix("/project").Subrouter()
 	p.Use(authMdw.AuthenticateAPISecret)
 	p.HandleFunc("", projectHdl.GetProject).Methods(http.MethodGet)

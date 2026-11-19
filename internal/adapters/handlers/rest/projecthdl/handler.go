@@ -1,9 +1,11 @@
 package projecthdl
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gorilla/mux"
@@ -11,6 +13,10 @@ import (
 	"github.com/openfort-xyz/shield/internal/applications/projectapp"
 	"github.com/openfort-xyz/shield/pkg/logger"
 )
+
+// DeleteProjectTimeout bounds the project hard delete. It is kept under the
+// Openfort API's 5 min purge call timeout so shield finishes first.
+const DeleteProjectTimeout = 4 * time.Minute
 
 // Handler is the REST handler for project operations
 type Handler struct {
@@ -131,7 +137,12 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} api.Error "Internal Server Error"
 // @Router /project [delete]
 func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	// Detached from the client connection: a caller that gives up must not
+	// roll back a half-done cascade, or every retry would start over. The
+	// delete commits or rolls back on its own and a retry then finds the
+	// project gone.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), DeleteProjectTimeout)
+	defer cancel()
 	h.logger.InfoContext(ctx, "deleting project")
 
 	err := h.app.DeleteProject(ctx)
