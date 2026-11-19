@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/mocks/providermockrepo"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/domain/provider"
 	"github.com/stretchr/testify/mock"
 )
@@ -65,9 +66,7 @@ func TestConfigureProvider(t *testing.T) {
 			provider: customProvider,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeCustom).Return(nil, domainErrors.ErrProviderNotFound)
-				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(nil)
-				mockRepo.On("CreateCustom", mock.Anything, mock.AnythingOfType("*provider.CustomConfig")).Return(nil)
+				mockRepo.On("Create", mock.Anything, projectID, []*provider.Provider{customProvider}, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -75,9 +74,7 @@ func TestConfigureProvider(t *testing.T) {
 			provider: openfortProvider,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeOpenfort).Return(nil, domainErrors.ErrProviderNotFound)
-				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(nil)
-				mockRepo.On("CreateOpenfort", mock.Anything, mock.AnythingOfType("*provider.OpenfortConfig")).Return(nil)
+				mockRepo.On("Create", mock.Anything, projectID, []*provider.Provider{openfortProvider}, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -102,79 +99,21 @@ func TestConfigureProvider(t *testing.T) {
 			err:      domainErrors.ErrInvalidProviderConfig,
 		},
 		{
-			name:     "failed to create custom provider",
+			name:     "failed to create provider",
 			provider: customProvider,
 			wantErr:  true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeCustom).Return(nil, domainErrors.ErrProviderNotFound)
-				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(errors.New("repository error"))
+				mockRepo.On("Create", mock.Anything, projectID, []*provider.Provider{customProvider}, mock.Anything).Return(domainErrors.ErrAPISecretRevoked)
 			},
-		},
-		{
-			name:     "failed to create custom provider config and provider is deleted successfully",
-			provider: customProvider,
-			wantErr:  true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeCustom).Return(nil, domainErrors.ErrProviderNotFound)
-				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(nil)
-				mockRepo.On("CreateCustom", mock.Anything, mock.AnythingOfType("*provider.CustomConfig")).Return(errors.New("repository error"))
-				mockRepo.On("Delete", mock.Anything, mock.AnythingOfType("string")).Return(nil)
-			},
-		},
-		{
-			name:     "failed to create custom provider config and provider is not deleted",
-			provider: customProvider,
-			wantErr:  true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeCustom).Return(nil, domainErrors.ErrProviderNotFound)
-				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(nil)
-				mockRepo.On("CreateCustom", mock.Anything, mock.AnythingOfType("*provider.CustomConfig")).Return(errors.New("repository error"))
-				mockRepo.On("Delete", mock.Anything, mock.AnythingOfType("string")).Return(errors.New("repository error"))
-			},
-		},
-		{
-			name:     "failed to create openfort provider",
-			provider: openfortProvider,
-			wantErr:  true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeOpenfort).Return(nil, domainErrors.ErrProviderNotFound)
-				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(errors.New("repository error"))
-			},
-		},
-		{
-			name:     "failed to create openfort provider config and provider is deleted successfully",
-			provider: openfortProvider,
-			wantErr:  true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeOpenfort).Return(nil, domainErrors.ErrProviderNotFound)
-				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(nil)
-				mockRepo.On("CreateOpenfort", mock.Anything, mock.AnythingOfType("*provider.OpenfortConfig")).Return(errors.New("repository error"))
-				mockRepo.On("Delete", mock.Anything, mock.AnythingOfType("string")).Return(nil)
-			},
-		},
-		{
-			name:     "failed to create openfort provider config and provider is not deleted",
-			provider: openfortProvider,
-			wantErr:  true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetByProjectAndType", mock.Anything, projectID, provider.TypeOpenfort).Return(nil, domainErrors.ErrProviderNotFound)
-				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*provider.Provider")).Return(nil)
-				mockRepo.On("CreateOpenfort", mock.Anything, mock.AnythingOfType("*provider.OpenfortConfig")).Return(errors.New("repository error"))
-				mockRepo.On("Delete", mock.Anything, mock.AnythingOfType("string")).Return(errors.New("repository error"))
-			},
+			err: domainErrors.ErrAPISecretRevoked,
 		},
 	}
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			err := svc.Configure(ctx, tt.provider)
+			err := svc.Configure(ctx, projectID, []*provider.Provider{tt.provider}, project.StillCurrent("key", "secret"))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Configure() error = %v, wantErr %v", err, tt.wantErr)
 			}

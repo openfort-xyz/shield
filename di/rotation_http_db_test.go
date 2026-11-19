@@ -3,6 +3,7 @@ package di
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,12 +27,15 @@ type reply struct {
 func (c httpClient) do(method, path, apiKey string, body any, headers ...string) reply {
 	c.t.Helper()
 	var buf bytes.Buffer
-	if body != nil {
+	var reader io.Reader = &buf
+	if r, ok := body.(io.Reader); ok {
+		reader = r
+	} else if body != nil {
 		if err := json.NewEncoder(&buf).Encode(body); err != nil {
 			c.t.Fatalf("encode body: %v", err)
 		}
 	}
-	req := httptest.NewRequest(method, path, &buf)
+	req := httptest.NewRequest(method, path, reader)
 	req.Header.Set("Content-Type", "application/json")
 	if apiKey != "" {
 		req.Header.Set("X-API-Key", apiKey)
@@ -59,13 +63,24 @@ func (r reply) str(key string) string {
 // its API key and encryption part. The project is hard-deleted afterwards.
 func newProject(t *testing.T) (httpClient, string, string) {
 	t.Helper()
+	return registerProject(t, newClient(t))
+}
+
+func newClient(t *testing.T) httpClient {
+	t.Helper()
 	dbtest.RequireDB(t)
 	srv, err := ProvideRESTServer()
 	if err != nil {
 		t.Fatalf("ProvideRESTServer: %v", err)
 	}
-	c := httpClient{t: t, handler: srv.Handler()}
+	return httpClient{t: t, handler: srv.Handler()}
+}
 
+// registerProject is newProject on an existing server, so parallel subtests
+// can share one.
+func registerProject(t *testing.T, c httpClient) (httpClient, string, string) {
+	t.Helper()
+	c.t = t
 	res := c.do(http.MethodPost, "/register", "", map[string]any{"name": "rotation-" + uuid.NewString()[:8], "generate_encryption_key": true})
 	if res.Status != http.StatusCreated {
 		t.Fatalf("register: %d %v", res.Status, res.Body)

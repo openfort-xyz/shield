@@ -41,8 +41,8 @@ func (m *MockProjectRepository) GetWithRateLimit(ctx context.Context, projectID 
 	return args.Get(0).(*project.WithRateLimit), args.Error(1)
 }
 
-func (m *MockProjectRepository) Update2FA(ctx context.Context, projectID string, enable2FA bool) error {
-	args := m.Mock.Called(ctx, projectID, enable2FA)
+func (m *MockProjectRepository) Update2FA(ctx context.Context, projectID string, enable2FA bool, check project.CheckAPISecretFunc) error {
+	args := m.Mock.Called(ctx, projectID, enable2FA, check)
 	return args.Error(0)
 }
 
@@ -64,8 +64,8 @@ func (m *MockProjectRepository) Delete(ctx context.Context, projectID string) er
 	return args.Error(0)
 }
 
-func (m *MockProjectRepository) HardDelete(ctx context.Context, projectID string) error {
-	args := m.Mock.Called(ctx, projectID)
+func (m *MockProjectRepository) HardDelete(ctx context.Context, projectID string, check project.CheckAPISecretFunc) error {
+	args := m.Mock.Called(ctx, projectID, check)
 	return args.Error(0)
 }
 
@@ -77,8 +77,8 @@ func (m *MockProjectRepository) GetEncryptionKey(ctx context.Context, projectID 
 	return args.Get(0).(*project.EncryptionKey), args.Error(1)
 }
 
-func (m *MockProjectRepository) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error {
-	args := m.Mock.Called(ctx, projectID, key)
+func (m *MockProjectRepository) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey, check project.CheckAPISecretFunc) error {
+	args := m.Mock.Called(ctx, projectID, key, check)
 	return args.Error(0)
 }
 
@@ -87,18 +87,18 @@ func (m *MockProjectRepository) HasSuccessfulMigration(ctx context.Context, proj
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockProjectRepository) PrepareEncryptionKeyRotation(ctx context.Context, projectID string, prepare project.PrepareRotationFunc) error {
-	args := m.Mock.Called(ctx, projectID, prepare)
+func (m *MockProjectRepository) PrepareEncryptionKeyRotation(ctx context.Context, projectID string, check project.CheckAPISecretFunc, prepare project.PrepareRotationFunc) error {
+	args := m.Mock.Called(ctx, projectID, check, prepare)
 	return args.Error(0)
 }
 
-func (m *MockProjectRepository) CommitEncryptionKeyRotation(ctx context.Context, projectID string, commit project.CommitRotationFunc) error {
-	args := m.Mock.Called(ctx, projectID, commit)
+func (m *MockProjectRepository) CommitEncryptionKeyRotation(ctx context.Context, projectID string, check project.CheckAPISecretFunc, commit project.CommitRotationFunc) error {
+	args := m.Mock.Called(ctx, projectID, check, commit)
 	return args.Error(0)
 }
 
-func (m *MockProjectRepository) SetPendingAPIKey(ctx context.Context, projectID, currentKey, apiKey string, expiresAt time.Time) error {
-	args := m.Mock.Called(ctx, projectID, currentKey, apiKey, expiresAt)
+func (m *MockProjectRepository) SetPendingAPIKey(ctx context.Context, projectID, apiKey string, expiresAt time.Time, check project.CheckAPISecretFunc) error {
+	args := m.Mock.Called(ctx, projectID, apiKey, expiresAt, check)
 	return args.Error(0)
 }
 

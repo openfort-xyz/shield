@@ -121,9 +121,9 @@ func TestGetKeychainSharesLogsNotFoundAsWarning(t *testing.T) {
 // The sibling site, which has no keychain in play.
 func TestGetShareByReferenceLogsNotFoundAsWarning(t *testing.T) {
 	const (
-		externalUserID = "external_user_id"
-		projectID      = "project_id"
-		reference      = "test-reference"
+		userID    = "user_id"
+		projectID = "project_id"
+		reference = "test-reference"
 	)
 
 	rec := logtest.Start(slog.LevelInfo)
@@ -133,7 +133,7 @@ func TestGetShareByReferenceLogsNotFoundAsWarning(t *testing.T) {
 	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
 	userRepo := new(usermockedrepo.MockUserRepository)
-	shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, projectID, externalUserID).Return(nil, domainErrors.ErrShareNotFound)
+	shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, projectID, userID).Return(nil, domainErrors.ErrShareNotFound)
 
 	encryptionFactory := encryption.NewEncryptionFactory(
 		new(encryptionpartsmockrepo.MockEncryptionPartsRepository), projectRepo)
@@ -144,7 +144,7 @@ func TestGetShareByReferenceLogsNotFoundAsWarning(t *testing.T) {
 	)
 
 	ctx := contexter.WithProjectID(context.Background(), projectID)
-	ctx = contexter.WithExternalUserID(ctx, externalUserID)
+	ctx = contexter.WithUserID(ctx, userID)
 
 	shr, err := app.GetShareByReference(ctx, reference)
 	require.ErrorIs(t, err, ErrShareNotFound)
@@ -165,10 +165,9 @@ func TestGetShareByReferenceLogsNotFoundAsWarning(t *testing.T) {
 // and the input that carried the part, so the cause is readable from logs.
 func TestGetShareByReferenceLogsWrongPartAsWarning(t *testing.T) {
 	const (
-		externalUserID = "external_user_id"
-		userID         = "user_id"
-		projectID      = "project_id"
-		reference      = "test-reference"
+		userID    = "user_id"
+		projectID = "project_id"
+		reference = "test-reference"
 	)
 
 	rec := logtest.Start(slog.LevelInfo)
@@ -194,7 +193,7 @@ func TestGetShareByReferenceLogsWrongPartAsWarning(t *testing.T) {
 	require.NoError(t, err)
 
 	ref := reference
-	shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, projectID, externalUserID).Return(&share.Share{
+	shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, projectID, userID).Return(&share.Share{
 		UserID:    userID,
 		Reference: &ref,
 		Secret:    encryptedSecret,
@@ -210,7 +209,7 @@ func TestGetShareByReferenceLogsWrongPartAsWarning(t *testing.T) {
 	)
 
 	ctx := contexter.WithProjectID(context.Background(), projectID)
-	ctx = contexter.WithExternalUserID(ctx, externalUserID)
+	ctx = contexter.WithUserID(ctx, userID)
 
 	shr, err := app.GetShareByReference(ctx, reference, WithEncryptionPart(string(otherProjectPart)))
 	require.ErrorIs(t, err, ErrInvalidEncryptionPart)

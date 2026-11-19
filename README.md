@@ -526,6 +526,9 @@ it received it by sending it back. Both calls are safe to retry.
   - `409 EC_MISSING`: the project has no encryption key.
   - `409 EC_UNVERIFIABLE`: the key predates key checks and the project has no
     project share to verify the part against; register one share first.
+  - `401 A_INVALID`: the API key or secret the request authenticated with was
+    replaced by a concurrent API key or secret commit. Nothing changed; retry
+    with the current credentials.
 - **After a commit:**
   - The old part, and every encryption session registered with it, is
     rejected with `400 EC_INVALID`.
@@ -565,8 +568,9 @@ it received it by sending it back. Both calls are safe to retry.
   - `409 A_PENDING_NOT_PROVEN`: commit sent with the current key while a rotation is pending.
   - `409 A_ROTATION_EXPIRED`: commit sent with the current key after the pending key expired.
   - `409 A_NO_PENDING`: the pending key was replaced by another prepare.
-  - A prepare authenticated with a key that a concurrent commit replaced
-    returns `401 A_INVALID`.
+  - A prepare or commit authenticated with a key or secret that a concurrent
+    API key or secret commit replaced returns `401 A_INVALID` and changes
+    nothing.
 - **Replicas:** `/project/*` rejects the old key immediately. Share routes
   cache API-key lookups for 60 seconds per Shield instance, so other replicas
   can accept the old key on those routes for up to 60 seconds.
@@ -594,8 +598,13 @@ it received it by sending it back. Both calls are safe to retry.
   - `409 A_NO_PENDING`: another prepare replaced the pending secret while this
     commit was in flight. A secret replaced before the commit fails with
     `401 A_INVALID`.
-- **Replicas:** the old secret is rejected immediately on every route and every
-  replica: the secret check does not use the API-key cache.
+- **Replicas:** once the commit returns, every route on every replica rejects
+  the old secret: the secret check does not use the API-key cache.
+- **Requests in flight:** requests are checked against the current
+  credentials and project state after their body is read, and credential,
+  provider and key writes re-check them under the project row lock, in the
+  same transaction as the write. A request refused this way returns
+  `401 A_INVALID` and changes nothing.
 - **With an API key rotation:** both commits lock the project row and each
   changes only its own credential, so key and secret rotations can be in
   flight at once. Commit the secret with whichever key is current.
@@ -604,6 +613,8 @@ it received it by sending it back. Both calls are safe to retry.
 
 - A disabled project gets `403 PJ_DISABLED` on every route that authenticates
   the project, the rotation commits included. `DELETE /project` still works.
+  The checks in 2.13 also refuse a project disabled after a request
+  authenticated, with `403 PJ_DISABLED`.
 - **Disable:** `POST /internal/projects/disable`
 - **Enable:** `POST /internal/projects/enable`
   - Mandatory header `X-Openfort-Service-Token`, matching `SHIELD_SERVICE_TOKEN`

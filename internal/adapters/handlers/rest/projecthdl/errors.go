@@ -14,6 +14,7 @@ var applicationErrorMapping = []struct {
 	api *api.Error
 }{
 	{projectapp.ErrProjectNotFound, api.ErrProjectNotFound},
+	{projectapp.ErrProjectDisabled, api.ErrProjectDisabled},
 	{projectapp.ErrNoProviderSpecified, api.ErrMissingProvider},
 	{projectapp.ErrProviderMismatch, api.ErrInvalidProviderConfig},
 	{projectapp.ErrKeyTypeNotSpecified, api.ErrMissingKeyType},

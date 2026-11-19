@@ -9,6 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // RequireDB returns a SQL client or skips the test when no database is
@@ -48,6 +50,7 @@ func Exec(t *testing.T, client *sql.Client, query string, args ...any) {
 type Project struct {
 	ID         string
 	APIKey     string
+	APISecret  string
 	UserID     string
 	KeychainID string
 }
@@ -59,9 +62,13 @@ type Project struct {
 func SeedProject(t *testing.T, client *sql.Client, storedPart string, migrated bool) Project {
 	t.Helper()
 
-	p := Project{ID: uuid.NewString(), APIKey: uuid.NewString(), UserID: uuid.NewString(), KeychainID: uuid.NewString()}
+	p := Project{ID: uuid.NewString(), APIKey: uuid.NewString(), APISecret: uuid.NewString(), UserID: uuid.NewString(), KeychainID: uuid.NewString()}
+	hash, err := bcrypt.GenerateFromPassword(project.APISecretBytes(p.APISecret), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("hash API secret: %v", err)
+	}
 	Exec(t, client, `INSERT INTO shld_projects (id, name, api_key, api_secret, enable_2fa) VALUES (?, ?, ?, ?, false)`,
-		p.ID, "proj-"+p.ID[:8], p.APIKey, uuid.NewString())
+		p.ID, "proj-"+p.ID[:8], p.APIKey, string(hash))
 	Exec(t, client, `INSERT INTO shld_users (id, project_id) VALUES (?, ?)`, p.UserID, p.ID)
 	Exec(t, client, `INSERT INTO shld_keychains (id, user_id) VALUES (?, ?)`, p.KeychainID, p.UserID)
 	if storedPart != "" {

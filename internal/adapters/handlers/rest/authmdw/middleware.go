@@ -1,11 +1,14 @@
 package authmdw
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
 
@@ -78,9 +81,23 @@ func (m *Middleware) authenticateAPISecret(next http.Handler, newAuthenticator f
 			return
 		}
 
-		authentication, err := newAuthenticator(apiKey, apiSecret).Authenticate(r.Context())
+		authenticator := newAuthenticator(apiKey, apiSecret)
+		authentication, err := authenticator.Authenticate(r.Context())
 		if err != nil {
 			api.RespondWithError(w, projectAuthError(err))
+			return
+		}
+		recheck := func() *api.Error {
+			again, err := authenticator.Authenticate(r.Context())
+			if err != nil {
+				return projectAuthError(err)
+			}
+			if again.ProjectID != authentication.ProjectID {
+				return api.ErrInvalidAPICredentials
+			}
+			return nil
+		}
+		if !readBodyThenRecheck(w, r, recheck) {
 			return
 		}
 
@@ -89,6 +106,35 @@ func (m *Middleware) authenticateAPISecret(next http.Handler, newAuthenticator f
 		ctx = contexter.WithAPISecret(ctx, apiSecret)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// readBodyThenRecheck reads the whole (capped) body and then runs recheck, so
+// a request that held its body back while credentials were rotated or the
+// project was disabled or deleted is judged by the state after it arrived.
+// The handler gets the buffered body. It answers and returns false on failure.
+func readBodyThenRecheck(w http.ResponseWriter, r *http.Request, recheck func() *api.Error) bool {
+	body, ok := api.ReadBody(w, r)
+	if !ok {
+		return false
+	}
+	if apiErr := recheck(); apiErr != nil {
+		api.RespondWithError(w, apiErr)
+		return false
+	}
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	return true
+}
+
+// liveProject returns the enabled project with apiKey.
+func (m *Middleware) liveProject(r *http.Request, apiKey string) (*project.Project, *api.Error) {
+	proj, err := m.projectService.GetByAPIKey(r.Context(), apiKey)
+	if err != nil {
+		return nil, api.ErrInvalidAPICredentials
+	}
+	if proj.DisabledAt != nil {
+		return nil, api.ErrProjectDisabled
+	}
+	return proj, nil
 }
 
 // AuthenticateAPIKeyRotationCommit accepts a project's pending API key (from
@@ -120,6 +166,7 @@ func (m *Middleware) AuthenticateAPIKeyRotationCommit(next http.Handler) http.Ha
 
 		ctx := contexter.WithProjectID(r.Context(), authentication.ProjectID)
 		ctx = contexter.WithAPIKey(ctx, apiKey)
+		ctx = contexter.WithAPISecret(ctx, apiSecret)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -249,18 +296,15 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 			return
 		}
 
-		proj, err := m.projectService.GetByAPIKey(r.Context(), apiKey)
-		if err != nil {
-			api.RespondWithError(w, api.ErrInvalidAPICredentials)
-			return
-		}
-		if proj.DisabledAt != nil {
-			api.RespondWithError(w, api.ErrProjectDisabled)
+		proj, apiErr := m.liveProject(r, apiKey)
+		if apiErr != nil {
+			api.RespondWithError(w, apiErr)
 			return
 		}
 
 		var identity factories.Identity
 		var sessionCookie string
+		var err error
 
 		switch providerStr {
 		case AuthenticationTypeCustom:
@@ -320,6 +364,16 @@ func (m *Middleware) AuthenticateUser(next http.Handler) http.Handler {
 		authentication, err := authenticator.Authenticate(r.Context())
 		if err != nil {
 			api.RespondWithError(w, api.ErrInvalidToken)
+			return
+		}
+		recheck := func() *api.Error {
+			again, apiErr := m.liveProject(r, apiKey)
+			if apiErr == nil && again.ID != proj.ID {
+				apiErr = api.ErrInvalidAPICredentials
+			}
+			return apiErr
+		}
+		if !readBodyThenRecheck(w, r, recheck) {
 			return
 		}
 

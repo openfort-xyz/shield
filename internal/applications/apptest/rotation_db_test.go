@@ -1,7 +1,6 @@
 package apptest
 
 import (
-	"encoding/hex"
 	"errors"
 	"sync"
 	"testing"
@@ -394,18 +393,19 @@ func TestEncryptionKeyRotation_ReencryptsSoftDeletedShares(t *testing.T) {
 func TestAPIKeyRotation_PrepareWithRevokedKeyRefused(t *testing.T) {
 	apps := New(t)
 	p := dbtest.SeedProject(t, apps.DB, "", true)
+	secret := p.APISecret
 	ctx := ProjectContext(p)
 	exp := time.Now().Add(time.Minute)
 
-	pending, err := apps.ProjectSvc.PrepareAPIKeyRotation(ctx, p.ID, p.APIKey, exp)
+	pending, err := apps.ProjectSvc.PrepareAPIKeyRotation(ctx, p.ID, p.APIKey, secret, exp)
 	if err != nil {
 		t.Fatalf("prepare: %v", err)
 	}
-	if _, committed, err := apps.ProjectSvc.CommitAPIKeyRotation(ctx, p.ID, pending); err != nil || !committed {
+	if _, committed, err := apps.ProjectSvc.CommitAPIKeyRotation(ctx, p.ID, pending, secret); err != nil || !committed {
 		t.Fatalf("commit: committed=%v err=%v", committed, err)
 	}
 
-	if _, err := apps.ProjectSvc.PrepareAPIKeyRotation(ctx, p.ID, p.APIKey, exp); !errors.Is(err, domainErrors.ErrAPIKeyRevoked) {
+	if _, err := apps.ProjectSvc.PrepareAPIKeyRotation(ctx, p.ID, p.APIKey, secret, exp); !errors.Is(err, domainErrors.ErrAPIKeyRevoked) {
 		t.Errorf("prepare with the revoked key: err = %v, want %v", err, domainErrors.ErrAPIKeyRevoked)
 	}
 	var stillPending *string
@@ -413,23 +413,6 @@ func TestAPIKeyRotation_PrepareWithRevokedKeyRefused(t *testing.T) {
 	if stillPending != nil {
 		t.Errorf("revoked key minted a pending key %q", *stillPending)
 	}
-}
-
-// withSecret gives a seeded project a real API secret (stored as its bcrypt
-// hash, like Create) and returns the secret.
-func withSecret(t *testing.T, apps Apps, p dbtest.Project) string {
-	t.Helper()
-	raw, err := random.GenerateRandomString(32)
-	if err != nil {
-		t.Fatal(err)
-	}
-	secret := hex.EncodeToString([]byte(raw))[:64]
-	hash, err := bcrypt.GenerateFromPassword(project.APISecretBytes(secret), bcrypt.MinCost)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dbtest.Exec(t, apps.DB, `UPDATE shld_projects SET api_secret = ? WHERE id = ?`, string(hash), p.ID)
-	return secret
 }
 
 func pendingSecretStored(apps Apps, p dbtest.Project) bool {
@@ -443,15 +426,15 @@ func pendingSecretStored(apps Apps, p dbtest.Project) bool {
 func TestAPISecretRotation_PrepareWithRevokedKeyRefused(t *testing.T) {
 	apps := New(t)
 	p := dbtest.SeedProject(t, apps.DB, "", true)
-	secret := withSecret(t, apps, p)
+	secret := p.APISecret
 	ctx := ProjectContext(p)
 	exp := time.Now().Add(time.Minute)
 
-	pending, err := apps.ProjectSvc.PrepareAPIKeyRotation(ctx, p.ID, p.APIKey, exp)
+	pending, err := apps.ProjectSvc.PrepareAPIKeyRotation(ctx, p.ID, p.APIKey, secret, exp)
 	if err != nil {
 		t.Fatalf("prepare key: %v", err)
 	}
-	if _, committed, err := apps.ProjectSvc.CommitAPIKeyRotation(ctx, p.ID, pending); err != nil || !committed {
+	if _, committed, err := apps.ProjectSvc.CommitAPIKeyRotation(ctx, p.ID, pending, secret); err != nil || !committed {
 		t.Fatalf("commit key: committed=%v err=%v", committed, err)
 	}
 
@@ -468,7 +451,7 @@ func TestAPISecretRotation_PrepareWithRevokedKeyRefused(t *testing.T) {
 func TestAPISecretRotation_PrepareWithRevokedSecretRefused(t *testing.T) {
 	apps := New(t)
 	p := dbtest.SeedProject(t, apps.DB, "", true)
-	oldSecret := withSecret(t, apps, p)
+	oldSecret := p.APISecret
 	ctx := ProjectContext(p)
 	exp := time.Now().Add(time.Minute)
 
@@ -496,7 +479,7 @@ func TestAPISecretRotation_PrepareWithRevokedSecretRefused(t *testing.T) {
 func TestAPISecretRotation_ConcurrentCommitsSerialize(t *testing.T) {
 	apps := New(t)
 	p := dbtest.SeedProject(t, apps.DB, "", true)
-	secret := withSecret(t, apps, p)
+	secret := p.APISecret
 	ctx := ProjectContext(p)
 
 	pending, err := apps.ProjectSvc.PrepareAPISecretRotation(ctx, p.ID, p.APIKey, secret, time.Now().Add(time.Minute))

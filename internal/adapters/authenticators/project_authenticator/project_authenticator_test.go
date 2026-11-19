@@ -83,3 +83,12 @@ func TestProjectAuthenticators_DisabledProject(t *testing.T) {
 		t.Errorf("allowing disabled: auth = %v, err = %v, want project", auth, err)
 	}
 }
+
+func TestProjectAuthenticator_EmptyStoredSecretRefusesAnySecret(t *testing.T) {
+	repo := new(projectmockrepo.MockProjectRepository)
+	repo.On("GetByAPIKey", mock.Anything, "key").Return(&project.Project{ID: "project", APIKey: "key", APISecret: ""}, nil)
+
+	if _, err := NewProjectAuthenticator(repo, "key", "anything").Authenticate(context.Background()); err == nil {
+		t.Fatal("an empty stored secret hash accepted an arbitrary secret")
+	}
+}

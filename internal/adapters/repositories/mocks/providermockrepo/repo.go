@@ -3,6 +3,7 @@ package providermockrepo
 import (
 	"context"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/domain/provider"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/stretchr/testify/mock"
@@ -14,8 +15,8 @@ type MockProviderRepository struct {
 
 var _ repositories.ProviderRepository = (*MockProviderRepository)(nil)
 
-func (m *MockProviderRepository) Create(ctx context.Context, prov *provider.Provider) error {
-	args := m.Mock.Called(ctx, prov)
+func (m *MockProviderRepository) Create(ctx context.Context, projectID string, provs []*provider.Provider, check project.CheckAPISecretFunc) error {
+	args := m.Mock.Called(ctx, projectID, provs, check)
 	return args.Error(0)
 }
 
@@ -43,13 +44,8 @@ func (m *MockProviderRepository) List(ctx context.Context, projectID string) ([]
 	return args.Get(0).([]*provider.Provider), args.Error(1)
 }
 
-func (m *MockProviderRepository) Delete(ctx context.Context, providerID string) error {
-	args := m.Mock.Called(ctx, providerID)
-	return args.Error(0)
-}
-
-func (m *MockProviderRepository) CreateCustom(ctx context.Context, prov *provider.CustomConfig) error {
-	args := m.Mock.Called(ctx, prov)
+func (m *MockProviderRepository) Delete(ctx context.Context, projectID, providerID string, check project.CheckAPISecretFunc) error {
+	args := m.Mock.Called(ctx, projectID, providerID, check)
 	return args.Error(0)
 }
 
@@ -61,13 +57,8 @@ func (m *MockProviderRepository) GetCustom(ctx context.Context, providerID strin
 	return args.Get(0).(*provider.CustomConfig), args.Error(1)
 }
 
-func (m *MockProviderRepository) UpdateCustom(ctx context.Context, prov *provider.CustomConfig) error {
-	args := m.Mock.Called(ctx, prov)
-	return args.Error(0)
-}
-
-func (m *MockProviderRepository) CreateOpenfort(ctx context.Context, prov *provider.OpenfortConfig) error {
-	args := m.Mock.Called(ctx, prov)
+func (m *MockProviderRepository) UpdateCustom(ctx context.Context, projectID string, prov *provider.CustomConfig, check project.CheckAPISecretFunc) error {
+	args := m.Mock.Called(ctx, projectID, prov, check)
 	return args.Error(0)
 }
 
@@ -79,7 +70,7 @@ func (m *MockProviderRepository) GetOpenfort(ctx context.Context, providerID str
 	return args.Get(0).(*provider.OpenfortConfig), args.Error(1)
 }
 
-func (m *MockProviderRepository) UpdateOpenfort(ctx context.Context, prov *provider.OpenfortConfig) error {
-	args := m.Mock.Called(ctx, prov)
+func (m *MockProviderRepository) UpdateOpenfort(ctx context.Context, projectID string, prov *provider.OpenfortConfig, check project.CheckAPISecretFunc) error {
+	args := m.Mock.Called(ctx, projectID, prov, check)
 	return args.Error(0)
 }
