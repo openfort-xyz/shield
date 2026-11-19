@@ -85,7 +85,6 @@ func TestService_SetEncryptionKey(t *testing.T) {
 			wantErr: false,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetEncryptionKey", mock.Anything, testProjectID).Return(nil, domainErrors.ErrEncryptionPartNotFound)
 				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey).Return(nil)
 			},
 		},
@@ -94,24 +93,15 @@ func TestService_SetEncryptionKey(t *testing.T) {
 			wantErr: true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetEncryptionKey", mock.Anything, testProjectID).Return(&project.EncryptionKey{Part: project.StoredPart("test-encryption-part")}, nil)
+				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey).Return(domainErrors.ErrEncryptionPartAlreadyExists)
 			},
 			err: domainErrors.ErrEncryptionPartAlreadyExists,
-		},
-		{
-			name:    "repository error on get encryption part",
-			wantErr: true,
-			mock: func() {
-				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetEncryptionKey", mock.Anything, testProjectID).Return(nil, errors.New("repository error"))
-			},
 		},
 		{
 			name:    "repository error on set encryption part",
 			wantErr: true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("GetEncryptionKey", mock.Anything, testProjectID).Return(nil, domainErrors.ErrEncryptionPartNotFound)
 				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey).Return(errors.New("repository error"))
 			},
 		},
@@ -208,6 +198,28 @@ func TestService_GetByAPIKey_DoesNotRecacheAcrossEviction(t *testing.T) {
 	repo.On("GetByAPIKey", mock.Anything, "old-key").Return(nil, domainErrors.ErrProjectNotFound).Once()
 	if _, err := svc.GetByAPIKey(context.Background(), "old-key"); !errors.Is(err, domainErrors.ErrProjectNotFound) {
 		t.Errorf("old key after rotation: err = %v, want %v (served from a re-populated cache)", err, domainErrors.ErrProjectNotFound)
+	}
+}
+
+// An expired entry whose key no longer resolves (rotated on another replica,
+// or its project deleted) must not stay in the cache.
+func TestService_GetByAPIKey_RemovesExpiredEntry(t *testing.T) {
+	repo := new(projectmockrepo.MockProjectRepository)
+	svc := New(repo, time.Minute).(*service)
+	ctx := context.Background()
+
+	repo.On("GetByAPIKey", mock.Anything, "old-key").Return(&project.Project{ID: "project"}, nil).Once()
+	if _, err := svc.GetByAPIKey(ctx, "old-key"); err != nil {
+		t.Fatalf("GetByAPIKey: %v", err)
+	}
+	svc.cache["old-key"].expiresAt = time.Now().Add(-time.Second)
+
+	repo.On("GetByAPIKey", mock.Anything, "old-key").Return(nil, domainErrors.ErrProjectNotFound).Once()
+	if _, err := svc.GetByAPIKey(ctx, "old-key"); !errors.Is(err, domainErrors.ErrProjectNotFound) {
+		t.Fatalf("GetByAPIKey after expiry: err = %v, want %v", err, domainErrors.ErrProjectNotFound)
+	}
+	if _, cached := svc.cache["old-key"]; cached {
+		t.Error("expired entry for a key that no longer resolves is still cached")
 	}
 }
 

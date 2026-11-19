@@ -40,6 +40,17 @@ func WithExternalUserID(ctx context.Context, externalUserID string) context.Cont
 	return context.WithValue(ctx, ContextExternalUserID, externalUserID)
 }
 
+// WithAltExternalUserID records a second ID the auth provider issues for the
+// authenticated user.
+func WithAltExternalUserID(ctx context.Context, altExternalUserID string) context.Context {
+	return context.WithValue(ctx, ContextAltExternalUserID, altExternalUserID)
+}
+
+func GetAltExternalUserID(ctx context.Context) string {
+	userID, _ := ctx.Value(ContextAltExternalUserID).(string)
+	return userID
+}
+
 func GetUserID(ctx context.Context) string {
 	userID, ok := ctx.Value(ContextKeyUserID).(string)
 	if !ok {

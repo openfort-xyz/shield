@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"fmt"
 	"time"
 
 	env "github.com/caarlos0/env/v10"
@@ -32,6 +33,11 @@ type Config struct {
 // GetConfigFromEnv gets the configuration from the environment variables.
 func GetConfigFromEnv() (*Config, error) {
 	config := &Config{}
-	err := env.Parse(config)
-	return config, err
+	if err := env.Parse(config); err != nil {
+		return nil, err
+	}
+	if config.RPS < 0 {
+		return nil, fmt.Errorf("REQUESTS_PER_SECOND must be 0 (no limit) or positive, got %d", config.RPS)
+	}
+	return config, nil
 }

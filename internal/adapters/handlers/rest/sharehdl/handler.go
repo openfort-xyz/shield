@@ -3,7 +3,6 @@ package sharehdl
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 
@@ -195,14 +194,13 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "registering share")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var req RegisterShareRequest
-	err = json.Unmarshal(body, &req)
+	err := json.Unmarshal(body, &req)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
@@ -260,14 +258,13 @@ func (h *Handler) UpdateShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "updating share")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var req UpdateShareRequest
-	err = json.Unmarshal(body, &req)
+	err := json.Unmarshal(body, &req)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
@@ -455,14 +452,13 @@ func (h *Handler) GetSharesEncryptionForReferences(w http.ResponseWriter, r *htt
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting share storage methods")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var requestedReferences GetSharesEncryptionForReferencesRequest
-	err = json.Unmarshal(body, &requestedReferences)
+	err := json.Unmarshal(body, &requestedReferences)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
@@ -533,14 +529,13 @@ func (h *Handler) GetSharesEncryptionForUsers(w http.ResponseWriter, r *http.Req
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "getting share storage methods")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var requestedUsers GetSharesEncryptionForUsersRequest
-	err = json.Unmarshal(body, &requestedUsers)
+	err := json.Unmarshal(body, &requestedUsers)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return
@@ -651,14 +646,13 @@ func (h *Handler) ImportShare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "importing share")
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to read request body"))
+	body, ok := api.ReadBody(w, r)
+	if !ok {
 		return
 	}
 
 	var req ImportShareRequest
-	err = json.Unmarshal(body, &req)
+	err := json.Unmarshal(body, &req)
 	if err != nil {
 		api.RespondWithError(w, api.ErrBadRequestWithMessage("failed to parse request body"))
 		return

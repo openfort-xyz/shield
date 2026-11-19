@@ -24,7 +24,6 @@ import (
 	"github.com/openfort-xyz/shield/internal/applications/healthzapp"
 	"github.com/openfort-xyz/shield/internal/applications/notificationsapp"
 	"github.com/openfort-xyz/shield/internal/applications/projectapp"
-	"github.com/openfort-xyz/shield/internal/applications/shamirjob"
 	"github.com/openfort-xyz/shield/internal/applications/shareapp"
 	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
@@ -154,16 +153,6 @@ func ProvideShareService() (s services.ShareService, err error) {
 	return
 }
 
-func ProvideShamirJob() (j *shamirjob.Job, err error) {
-	wire.Build(
-		shamirjob.New,
-		ProvideSQLProjectRepository,
-		ProvideSQLShareRepository,
-	)
-
-	return
-}
-
 func ProvideShareApplication() (a *shareapp.ShareApplication, err error) {
 	wire.Build(
 		shareapp.New,
@@ -173,7 +162,6 @@ func ProvideShareApplication() (a *shareapp.ShareApplication, err error) {
 		ProvideSQLUserRepository,
 		ProvideSQLKeychainRepository,
 		ProvideEncryptionFactory,
-		ProvideShamirJob,
 	)
 
 	return

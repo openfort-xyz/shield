@@ -35,21 +35,21 @@ func NewUserAuthenticator(userService services.UserService, proj *project.Projec
 func (a *UserAuthenticator) Authenticate(ctx context.Context) (*authentication.Authentication, error) {
 	a.logger.InfoContext(ctx, "authenticating api key")
 
-	externalUserID, err := a.identityFactory.Identify(ctx, a.token)
+	identity, err := a.identityFactory.Identify(ctx, a.token)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to identify user", logger.Error(err))
 		return nil, err
 	}
 
-	usr, err := a.userService.GetOrCreate(ctx, a.project.ID, externalUserID, a.identityFactory.GetProviderID())
+	usr, err := a.userService.GetOrCreate(ctx, a.project.ID, identity.ExternalUserID, a.identityFactory.GetProviderID())
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to get or create user", logger.Error(err))
 		return nil, err
 	}
 
 	return &authentication.Authentication{
-		UserID:         usr.ID,
-		ProjectID:      a.project.ID,
-		ExternalUserID: externalUserID,
+		UserID:    usr.ID,
+		ProjectID: a.project.ID,
+		Identity:  identity,
 	}, nil
 }

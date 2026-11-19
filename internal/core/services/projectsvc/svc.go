@@ -91,12 +91,21 @@ func (s *service) GetByAPIKey(ctx context.Context, apiKey string) (*project.Proj
 	s.logger.InfoContext(ctx, "getting project by api key")
 
 	s.cacheMu.RLock()
-	if entry, ok := s.cache[apiKey]; ok && time.Now().Before(entry.expiresAt) {
+	entry, ok := s.cache[apiKey]
+	if ok && time.Now().Before(entry.expiresAt) {
 		s.cacheMu.RUnlock()
 		return entry.project, nil
 	}
 	evictions := s.evictions
 	s.cacheMu.RUnlock()
+
+	if ok {
+		s.cacheMu.Lock()
+		if s.cache[apiKey] == entry {
+			delete(s.cache, apiKey)
+		}
+		s.cacheMu.Unlock()
+	}
 
 	proj, err := s.repo.GetByAPIKey(ctx, apiKey)
 	if err != nil {
@@ -149,18 +158,11 @@ func (s *service) SaveProjectRateLimits(ctx context.Context, projectID string, s
 
 func (s *service) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error {
 	s.logger.InfoContext(ctx, "setting encryption key", slog.String("project_id", projectID))
-	ep, err := s.repo.GetEncryptionKey(ctx, projectID)
-	if err != nil && !errors.Is(err, domainErrors.ErrEncryptionPartNotFound) {
-		s.logger.ErrorContext(ctx, "failed to get encryption part", logger.Error(err))
+	err := s.repo.SetEncryptionKey(ctx, projectID, key)
+	if errors.Is(err, domainErrors.ErrEncryptionPartAlreadyExists) {
+		s.logger.WarnContext(ctx, "encryption part already exists", slog.String("project_id", projectID))
 		return err
 	}
-
-	if ep != nil {
-		s.logger.Warn("encryption part already exists", slog.String("project_id", projectID))
-		return domainErrors.ErrEncryptionPartAlreadyExists
-	}
-
-	err = s.repo.SetEncryptionKey(ctx, projectID, key)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to set encryption part", logger.Error(err))
 		return err

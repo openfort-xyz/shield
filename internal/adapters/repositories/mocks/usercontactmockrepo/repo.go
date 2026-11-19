@@ -26,3 +26,8 @@ func (m *MockUserContactRepository) GetByUserID(ctx context.Context, userID stri
 	}
 	return args.Get(0).(*usercontact.UserContact), args.Error(1)
 }
+
+func (m *MockUserContactRepository) DeleteByUserID(ctx context.Context, userID string) error {
+	args := m.Mock.Called(ctx, userID)
+	return args.Error(0)
+}

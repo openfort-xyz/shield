@@ -22,6 +22,17 @@ type Share struct {
 type EncryptionGuard struct {
 	ProjectID  string
 	StoredPart project.StoredPart
+	// Migrated is whether the key came from the current reconstruction. A
+	// migration changes the key without changing the stored part, so a write
+	// under a pre-migration key also aborts if the project has a successful
+	// migration row when the write takes its part-row lock. The
+	// zero value is the pre-migration case, so a guard built without it for a
+	// migrated project aborts rather than persists.
+	Migrated bool
+	// Key is the key the write encrypted under. A project can gain a key
+	// check after the key was rebuilt without one (rotation prepare); the
+	// write then persists only if Key matches it.
+	Key string
 }
 
 func (s *Share) RequiresEncryption() bool {
