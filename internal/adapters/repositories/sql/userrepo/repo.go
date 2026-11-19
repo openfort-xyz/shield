@@ -2,6 +2,7 @@ package userrepo
 
 import (
 	"context"
+	stdsql "database/sql"
 	"errors"
 	"log/slog"
 
@@ -31,23 +32,6 @@ func New(db *sql.Client) repositories.UserRepository {
 	}
 }
 
-func (r *repository) Create(ctx context.Context, usr *user.User) error {
-	r.logger.InfoContext(ctx, "creating user")
-
-	if usr.ID == "" {
-		usr.ID = uuid.NewString()
-	}
-
-	dbUsr := r.parser.toDatabase(usr)
-	err := r.db.Create(dbUsr).Error
-	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating user", logger.Error(err))
-		return err
-	}
-
-	return nil
-}
-
 func (r *repository) Get(ctx context.Context, userID string) (*user.User, error) {
 	r.logger.InfoContext(ctx, "getting user", slog.String("user_id", userID))
 
@@ -62,23 +46,6 @@ func (r *repository) Get(ctx context.Context, userID string) (*user.User, error)
 	}
 
 	return r.parser.toDomain(dbUsr), nil
-}
-
-func (r *repository) CreateExternal(ctx context.Context, extUsr *user.ExternalUser) error {
-	r.logger.InfoContext(ctx, "creating external user")
-
-	if extUsr.ID == "" {
-		extUsr.ID = uuid.NewString()
-	}
-
-	dbExtUsr := r.parser.toDatabaseExternalUser(extUsr)
-	err := r.db.Create(dbExtUsr).Error
-	if err != nil {
-		r.logger.ErrorContext(ctx, "error creating external user", logger.Error(err))
-		return err
-	}
-
-	return nil
 }
 
 func (r *repository) FindExternalBy(ctx context.Context, opts ...repositories.Option) ([]*user.ExternalUser, error) {
@@ -109,19 +76,54 @@ func (r *repository) FindExternalBy(ctx context.Context, opts ...repositories.Op
 	return extUsrs, nil
 }
 
-func (r *repository) FindUserByExternalID(ctx context.Context, externalUserID, providerID string) (*user.User, error) {
-	r.logger.InfoContext(ctx, "finding user by external user ID and provider ID")
+func (r *repository) GetOrCreate(ctx context.Context, projectID, externalUserID, providerID string) (*user.User, error) {
+	r.logger.InfoContext(ctx, "getting or creating user by external user ID and provider ID")
 
 	dbUsr := &User{}
-	err := r.db.
-		Joins("JOIN shld_external_users ON shld_users.id = shld_external_users.user_id").
-		Where("shld_external_users.external_user_id = ? AND shld_external_users.provider_id = ?", externalUserID, providerID).
-		First(dbUsr).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domainErrors.ErrExternalUserNotFound
+	// Read committed so the lookup after the lock sees a row committed while waiting.
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var owned int64
+		err := tx.Table("shld_providers").
+			Where("id = ? AND project_id = ? AND deleted_at IS NULL", providerID, projectID).
+			Count(&owned).Error
+		if err != nil {
+			return err
 		}
-		r.logger.ErrorContext(ctx, "error finding user by external ID", logger.Error(err))
+		if owned == 0 {
+			return domainErrors.ErrProviderNotFound
+		}
+
+		// Serializes first resolution of one identity without a unique index, which
+		// existing duplicate rows would prevent from being created.
+		err = tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?), hashtext(?))", providerID, externalUserID).Error
+		if err != nil {
+			return err
+		}
+
+		err = tx.
+			Joins("JOIN shld_external_users ON shld_users.id = shld_external_users.user_id").
+			Where("shld_users.project_id = ? AND shld_external_users.external_user_id = ? AND shld_external_users.provider_id = ?",
+				projectID, externalUserID, providerID).
+			First(dbUsr).Error
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		dbUsr = &User{ID: uuid.NewString(), ProjectID: projectID}
+		if err := tx.Create(dbUsr).Error; err != nil {
+			return err
+		}
+		return tx.Create(&ExternalUser{
+			ID:             uuid.NewString(),
+			UserID:         dbUsr.ID,
+			ExternalUserID: externalUserID,
+			ProviderID:     providerID,
+		}).Error
+	}, &stdsql.TxOptions{Isolation: stdsql.LevelReadCommitted})
+	if err != nil {
+		if !errors.Is(err, domainErrors.ErrProviderNotFound) {
+			r.logger.ErrorContext(ctx, "error getting or creating user", logger.Error(err))
+		}
 		return nil, err
 	}
 

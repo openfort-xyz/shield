@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Security
+- Resolve users only through providers of the authenticated project, in one locked transaction. `POST /user` with another project's provider returns `404 PV_NOT_FOUND`
+
 ### Fixed
 - `DELETE /project` no longer drops its response when the hard delete outlives `WRITE_TIMEOUT`: the route gets its own 4 min budget, and the delete completes even if the client disconnects
 - Index the remaining foreign-key columns of the project delete cascade (`shld_shares.keychain_id`, `shld_external_users.user_id`/`provider_id`, and the `project_id` of `shld_notifications`, `shld_encryption_parts` and `shld_rate_limit`), built `CONCURRENTLY`, so a project hard delete stops scanning whole tables per deleted row

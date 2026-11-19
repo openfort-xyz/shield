@@ -28,11 +28,6 @@ func (m *MockUserRepository) WithProviderID(_ string) repositories.Option {
 
 var _ repositories.UserRepository = (*MockUserRepository)(nil)
 
-func (m *MockUserRepository) Create(ctx context.Context, usr *user.User) error {
-	args := m.Mock.Called(ctx, usr)
-	return args.Error(0)
-}
-
 func (m *MockUserRepository) Get(ctx context.Context, userID string) (*user.User, error) {
 	args := m.Mock.Called(ctx, userID)
 	if args.Get(0) == nil {
@@ -49,13 +44,8 @@ func (m *MockUserRepository) FindExternalBy(ctx context.Context, opts ...reposit
 	return args.Get(0).([]*user.ExternalUser), args.Error(1)
 }
 
-func (m *MockUserRepository) CreateExternal(ctx context.Context, extUsr *user.ExternalUser) error {
-	args := m.Mock.Called(ctx, extUsr)
-	return args.Error(0)
-}
-
-func (m *MockUserRepository) FindUserByExternalID(ctx context.Context, externalUserID, providerID string) (*user.User, error) {
-	args := m.Mock.Called(ctx, externalUserID, providerID)
+func (m *MockUserRepository) GetOrCreate(ctx context.Context, projectID, externalUserID, providerID string) (*user.User, error) {
+	args := m.Mock.Called(ctx, projectID, externalUserID, providerID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

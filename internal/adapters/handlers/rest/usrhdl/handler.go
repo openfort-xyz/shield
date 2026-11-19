@@ -2,10 +2,12 @@ package usrhdl
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/openfort-xyz/shield/internal/adapters/handlers/rest/api"
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
 	"github.com/openfort-xyz/shield/pkg/contexter"
 	"github.com/openfort-xyz/shield/pkg/logger"
@@ -60,6 +62,10 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	projectID := contexter.GetProjectID(ctx)
 
 	usr, err := h.userService.GetOrCreate(ctx, projectID, req.ExternalUserID, req.ProviderID)
+	if errors.Is(err, domainErrors.ErrProviderNotFound) {
+		api.RespondWithError(w, api.ErrProviderNotFound)
+		return
+	}
 	if err != nil {
 		h.logger.ErrorContext(ctx, "failed to create user", slog.String("error", err.Error()))
 		api.RespondWithError(w, api.ErrInternal)
