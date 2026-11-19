@@ -5,11 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.5.2]
 ### Security
-- Bind share reads, keychain reads and share writes by reference to the authenticated user, not only the project
-- Accept only asymmetric algorithms (RS*, PS*, ES*, EdDSA) for JWK-verified tokens. **Breaking:** an HMAC-signed token from a JWKS provider returns `401`
-- Re-check the API key and secret under the project row lock before key, secret and encryption key rotations, project deletion, provider writes, encryption key registration and 2FA enablement, and after the request body is read, so a revoked credential or a disabled project cannot complete a write
-- Apply provider writes in one transaction
+- Bind share reads, keychain reads and share writes by reference to the authenticated user, not only the project by @jamalavedra in https://github.com/openfort-xyz/shield/pull/162
+- Accept only asymmetric algorithms (RS*, PS*, ES*, EdDSA) for JWK-verified tokens. **Breaking:** an HMAC-signed token from a JWKS provider returns `401` by @jamalavedra in https://github.com/openfort-xyz/shield/pull/162
+- Re-check the API key and secret under the project row lock before key, secret and encryption key rotations, project deletion, provider writes, encryption key registration and 2FA enablement, and after the request body is read, so a revoked credential or a disabled project cannot complete a write by @jamalavedra in https://github.com/openfort-xyz/shield/pull/162
+- Apply provider writes in one transaction by @jamalavedra in https://github.com/openfort-xyz/shield/pull/162
 
 ## [v0.5.1]
 ### Security
