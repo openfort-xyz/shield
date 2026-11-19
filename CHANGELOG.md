@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Fixed
+- `DELETE /project` no longer drops its response when the hard delete outlives `WRITE_TIMEOUT`: the route gets its own 4 min budget, and the delete completes even if the client disconnects
 - Index the foreign-key columns of the project delete cascade (`shld_users.project_id`, `shld_shares.user_id`/`keychain_id`, `shld_external_users.user_id`/`provider_id`, and the `project_id` of `shld_notifications`, `shld_encryption_parts` and `shld_rate_limit`), built `CONCURRENTLY`, so a project hard delete stops scanning whole tables per deleted row
 
 ## [v0.4.2]
