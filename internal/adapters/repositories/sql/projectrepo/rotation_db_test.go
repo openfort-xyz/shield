@@ -22,7 +22,7 @@ func TestCommitEncryptionKeyRotation_UnguardedWriterNotOverwritten(t *testing.T)
 	listed, release := make(chan struct{}), make(chan struct{})
 	done := make(chan error, 1)
 	go func() {
-		done <- repo.CommitEncryptionKeyRotation(context.Background(), p.ID,
+		done <- repo.CommitEncryptionKeyRotation(context.Background(), p.ID, acceptAny,
 			func(_ project.EncryptionKeyRotation, shares []project.EncryptedShare) (*project.CommittedRotation, error) {
 				close(listed)
 				<-release

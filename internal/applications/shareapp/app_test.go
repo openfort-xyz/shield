@@ -490,7 +490,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(plainShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(plainShare, nil)
 			},
 		},
 		{
@@ -502,7 +502,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
@@ -519,7 +519,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
@@ -537,7 +537,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				encryptionPartsRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithoutOTP), nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
@@ -558,7 +558,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				encryptionPartsRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithOTP), nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
@@ -579,7 +579,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
 				encryptionPartsRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithoutOTP), nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
@@ -598,7 +598,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 			},
 		},
 		{
@@ -609,7 +609,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(nil, domainErrors.ErrEncryptionPartNotFound)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 
@@ -626,7 +626,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
@@ -642,7 +642,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
@@ -657,7 +657,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(decryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(decryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
@@ -671,7 +671,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(nil, domainErrors.ErrShareNotFound)
 				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 			},
 		},
@@ -681,7 +681,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(nil, errors.New("repository error"))
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(nil, errors.New("repository error"))
 			},
 		},
 		{
@@ -692,7 +692,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(nil, errors.New("repository error"))
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},
@@ -708,7 +708,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				tmpEncryptedShare := *encryptedShare
 				shareRepo.ExpectedCalls = nil
 				projectRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceForProjectAndExternalUserID", mock.Anything, reference, "project_id", "userID").Return(&tmpEncryptedShare, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(nil, domainErrors.ErrEncryptionPartNotFound)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 			},

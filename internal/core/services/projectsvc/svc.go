@@ -156,9 +156,9 @@ func (s *service) SaveProjectRateLimits(ctx context.Context, projectID string, s
 	return err
 }
 
-func (s *service) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error {
+func (s *service) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey, check project.CheckAPISecretFunc) error {
 	s.logger.InfoContext(ctx, "setting encryption key", slog.String("project_id", projectID))
-	err := s.repo.SetEncryptionKey(ctx, projectID, key)
+	err := s.repo.SetEncryptionKey(ctx, projectID, key, check)
 	if errors.Is(err, domainErrors.ErrEncryptionPartAlreadyExists) {
 		s.logger.WarnContext(ctx, "encryption part already exists", slog.String("project_id", projectID))
 		return err
@@ -171,22 +171,27 @@ func (s *service) SetEncryptionKey(ctx context.Context, projectID string, key *p
 	return nil
 }
 
-func (s *service) PrepareAPIKeyRotation(ctx context.Context, projectID, presentedKey string, expiresAt time.Time) (string, error) {
+func (s *service) PrepareAPIKeyRotation(ctx context.Context, projectID, presentedKey, presentedSecret string, expiresAt time.Time) (string, error) {
 	s.logger.InfoContext(ctx, "preparing API key rotation", slog.String("project_id", projectID))
 	apiKey := uuid.NewString()
-	if err := s.repo.SetPendingAPIKey(ctx, projectID, presentedKey, apiKey, expiresAt); err != nil {
+	if err := s.repo.SetPendingAPIKey(ctx, projectID, apiKey, expiresAt, project.StillCurrent(presentedKey, presentedSecret)); err != nil {
 		s.logger.ErrorContext(ctx, "failed to set pending API key", logger.Error(err))
 		return "", err
 	}
 	return apiKey, nil
 }
 
-func (s *service) CommitAPIKeyRotation(ctx context.Context, projectID, presentedKey string) (string, bool, error) {
+// CommitAPIKeyRotation decides under the project row lock, so a secret
+// commit that landed after authentication revokes presentedSecret here too.
+func (s *service) CommitAPIKeyRotation(ctx context.Context, projectID, presentedKey, presentedSecret string) (string, bool, error) {
 	s.logger.InfoContext(ctx, "committing API key rotation", slog.String("project_id", projectID))
 
 	var oldKey string
 	committed := false
 	err := s.repo.CommitAPIKeyRotation(ctx, projectID, func(state project.APIKeyRotation) (bool, error) {
+		if bcrypt.CompareHashAndPassword([]byte(state.APISecretHash), project.APISecretBytes(presentedSecret)) != nil {
+			return false, domainErrors.ErrAPISecretRevoked
+		}
 		pending := state.PendingAPIKey != nil && state.PendingExpiresAt != nil
 		expired := pending && time.Now().After(*state.PendingExpiresAt)
 		switch {
@@ -230,16 +235,7 @@ func (s *service) PrepareAPISecretRotation(ctx context.Context, projectID, prese
 		s.logger.ErrorContext(ctx, "failed to generate API secret", logger.Error(err))
 		return "", err
 	}
-	stillCurrent := func(state project.APISecretRotation) error {
-		if presentedKey != state.APIKey {
-			return domainErrors.ErrAPIKeyRevoked
-		}
-		if bcrypt.CompareHashAndPassword([]byte(state.APISecretHash), project.APISecretBytes(presentedSecret)) != nil {
-			return domainErrors.ErrAPISecretRevoked
-		}
-		return nil
-	}
-	if err := s.repo.SetPendingAPISecret(ctx, projectID, hash, expiresAt, stillCurrent); err != nil {
+	if err := s.repo.SetPendingAPISecret(ctx, projectID, hash, expiresAt, project.StillCurrent(presentedKey, presentedSecret)); err != nil {
 		s.logger.ErrorContext(ctx, "failed to set pending API secret", logger.Error(err))
 		return "", err
 	}

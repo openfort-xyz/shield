@@ -2,11 +2,11 @@ package providersvc
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
 
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/domain/provider"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
@@ -27,75 +27,28 @@ func New(repo repositories.ProviderRepository) services.ProviderService {
 	}
 }
 
-func (s *service) Configure(ctx context.Context, prov *provider.Provider) error {
-	switch prov.Type {
-	case provider.TypeCustom:
-		return s.configureCustomProvider(ctx, prov)
-	case provider.TypeOpenfort:
-		return s.configureOpenfortProvider(ctx, prov)
-	default:
-		return domainErrors.ErrUnknownProviderType
-	}
-}
+func (s *service) Configure(ctx context.Context, projectID string, provs []*provider.Provider, check project.CheckAPISecretFunc) error {
+	s.logger.InfoContext(ctx, "configuring providers", slog.String("project_id", projectID))
 
-func (s *service) configureCustomProvider(ctx context.Context, prov *provider.Provider) error {
-	s.logger.InfoContext(ctx, "configuring custom provider", slog.String("project_id", prov.ProjectID))
-
-	err := s.repo.Create(ctx, prov)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create provider", logger.Error(err))
-		return err
-	}
-
-	customAuth, ok := prov.Config.(*provider.CustomConfig)
-	if !ok {
-		s.logger.ErrorContext(ctx, "invalid custom provider config")
-		return domainErrors.ErrInvalidProviderConfig
-	}
-
-	customAuth.ProviderID = prov.ID
-
-	err = s.repo.CreateCustom(ctx, customAuth)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create custom provider", logger.Error(err))
-		errD := s.repo.Delete(ctx, prov.ID)
-		if errD != nil {
-			s.logger.ErrorContext(ctx, "failed to delete provider", slog.String("provider", prov.ID), logger.Error(errD))
-			err = errors.Join(err, errD)
+	for _, prov := range provs {
+		var ok bool
+		switch prov.Type {
+		case provider.TypeCustom:
+			_, ok = prov.Config.(*provider.CustomConfig)
+		case provider.TypeOpenfort:
+			_, ok = prov.Config.(*provider.OpenfortConfig)
+		default:
+			return domainErrors.ErrUnknownProviderType
 		}
-		return err
-	}
-
-	return nil
-}
-
-func (s *service) configureOpenfortProvider(ctx context.Context, prov *provider.Provider) error {
-	s.logger.InfoContext(ctx, "configuring openfort provider", slog.String("project_id", prov.ProjectID))
-
-	err := s.repo.Create(ctx, prov)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create provider", logger.Error(err))
-		return err
-	}
-
-	openfortAuth, ok := prov.Config.(*provider.OpenfortConfig)
-	if !ok {
-		s.logger.ErrorContext(ctx, "invalid openfort provider config")
-		return domainErrors.ErrInvalidProviderConfig
-	}
-
-	openfortAuth.ProviderID = prov.ID
-
-	err = s.repo.CreateOpenfort(ctx, openfortAuth)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create openfort provider", logger.Error(err))
-		errD := s.repo.Delete(ctx, prov.ID)
-		if errD != nil {
-			s.logger.ErrorContext(ctx, "failed to delete provider", slog.String("provider", prov.ID), logger.Error(errD))
-			err = errors.Join(err, errD)
+		if !ok {
+			s.logger.ErrorContext(ctx, "invalid provider config")
+			return domainErrors.ErrInvalidProviderConfig
 		}
-		return err
 	}
 
+	if err := s.repo.Create(ctx, projectID, provs, check); err != nil {
+		s.logger.ErrorContext(ctx, "failed to create providers", logger.Error(err))
+		return err
+	}
 	return nil
 }

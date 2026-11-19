@@ -27,7 +27,7 @@ func (a *ProjectApplication) PrepareEncryptionKeyRotation(ctx context.Context, c
 	a.logger.InfoContext(ctx, "preparing encryption key rotation", slog.String("project_id", projectID))
 
 	var newPart project.ProjectPart
-	err := a.projectRepo.PrepareEncryptionKeyRotation(ctx, projectID,
+	err := a.projectRepo.PrepareEncryptionKeyRotation(ctx, projectID, stillCurrent(ctx),
 		func(state project.EncryptionKeyRotation, loadShares func() ([]project.EncryptedShare, error)) (*project.PreparedRotation, error) {
 			if !state.Migrated {
 				return nil, ErrProjectNotMigrated
@@ -81,7 +81,7 @@ func (a *ProjectApplication) CommitEncryptionKeyRotation(ctx context.Context, cu
 
 	var count int
 	committed = false
-	err = a.projectRepo.CommitEncryptionKeyRotation(ctx, projectID,
+	err = a.projectRepo.CommitEncryptionKeyRotation(ctx, projectID, stillCurrent(ctx),
 		func(state project.EncryptionKeyRotation, shares []project.EncryptedShare) (*project.CommittedRotation, error) {
 			if !state.Migrated {
 				return nil, ErrProjectNotMigrated
@@ -200,6 +200,10 @@ func (a *ProjectApplication) rotationError(ctx context.Context, phase string, er
 		return err
 	case errors.Is(err, domainErrors.ErrEncryptionPartNotFound):
 		return ErrEncryptionNotConfigured
+	case errors.Is(err, domainErrors.ErrAPIKeyRevoked), errors.Is(err, domainErrors.ErrAPISecretRevoked),
+		errors.Is(err, domainErrors.ErrProjectNotFound), errors.Is(err, domainErrors.ErrProjectDisabled):
+		a.logger.WarnContext(ctx, "encryption key rotation rejected", slog.String("phase", phase), logger.Error(err))
+		return fromDomainError(err)
 	default:
 		a.logger.ErrorContext(ctx, "encryption key rotation failed", slog.String("phase", phase), logger.Error(err))
 		return ErrInternal
@@ -209,7 +213,7 @@ func (a *ProjectApplication) rotationError(ctx context.Context, phase string, er
 // PrepareAPIKeyRotation returns a new pending API key. The current key keeps
 // working until CommitAPIKeyRotation is called with the new one.
 func (a *ProjectApplication) PrepareAPIKeyRotation(ctx context.Context) (string, error) {
-	apiKey, err := a.projectSvc.PrepareAPIKeyRotation(ctx, contexter.GetProjectID(ctx), contexter.GetAPIKey(ctx), time.Now().Add(rotationPendingTTL))
+	apiKey, err := a.projectSvc.PrepareAPIKeyRotation(ctx, contexter.GetProjectID(ctx), contexter.GetAPIKey(ctx), contexter.GetAPISecret(ctx), time.Now().Add(rotationPendingTTL))
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to prepare API key rotation", logger.Error(err))
 		return "", fromDomainError(err)
@@ -221,7 +225,7 @@ func (a *ProjectApplication) PrepareAPIKeyRotation(ctx context.Context) (string,
 // authenticated with that pending key; it reports false when the presented
 // key is already current with nothing pending (a retry after a lost response).
 func (a *ProjectApplication) CommitAPIKeyRotation(ctx context.Context) (string, bool, error) {
-	apiKey, committed, err := a.projectSvc.CommitAPIKeyRotation(ctx, contexter.GetProjectID(ctx), contexter.GetAPIKey(ctx))
+	apiKey, committed, err := a.projectSvc.CommitAPIKeyRotation(ctx, contexter.GetProjectID(ctx), contexter.GetAPIKey(ctx), contexter.GetAPISecret(ctx))
 	if err != nil {
 		a.logger.WarnContext(ctx, "API key rotation commit rejected", logger.Error(err))
 		return "", false, fromDomainError(err)
@@ -252,4 +256,10 @@ func (a *ProjectApplication) CommitAPISecretRotation(ctx context.Context) (bool,
 	}
 	a.logger.InfoContext(ctx, "API secret rotation finished", slog.Bool("committed", committed))
 	return committed, nil
+}
+
+// stillCurrent checks, under the project row lock, the credentials the
+// request authenticated with: a commit may have rotated them since.
+func stillCurrent(ctx context.Context) project.CheckAPISecretFunc {
+	return project.StillCurrent(contexter.GetAPIKey(ctx), contexter.GetAPISecret(ctx))
 }

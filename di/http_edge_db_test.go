@@ -27,7 +27,12 @@ type userProject struct {
 
 func newUserProject(t *testing.T) userProject {
 	t.Helper()
-	c, apiKey, part := newProject(t)
+	return newUserProjectOn(t, newClient(t))
+}
+
+func newUserProjectOn(t *testing.T, server httpClient) userProject {
+	t.Helper()
+	c, apiKey, part := registerProject(t, server)
 	signer, pubPEM := newSigner(t)
 
 	res := c.do(http.MethodPost, "/project/providers", apiKey,

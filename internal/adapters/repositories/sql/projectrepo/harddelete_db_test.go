@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/openfort-xyz/shield/internal/adapters/repositories/sql"
+	"github.com/openfort-xyz/shield/internal/core/domain/project"
 )
 
 // requireDB returns a SQL client or skips the test when no database is
@@ -110,7 +111,7 @@ func TestHardDelete(t *testing.T) {
 
 	repo := New(client).(*repository)
 
-	if err := repo.HardDelete(ctx, projectA); err != nil {
+	if err := repo.HardDelete(ctx, projectA, acceptAny); err != nil {
 		t.Fatalf("HardDelete failed: %v", err)
 	}
 
@@ -126,7 +127,7 @@ func TestHardDelete(t *testing.T) {
 	}
 
 	// Idempotency: hard-deleting an absent project succeeds.
-	if err := repo.HardDelete(ctx, projectA); err != nil {
+	if err := repo.HardDelete(ctx, projectA, acceptAny); err != nil {
 		t.Fatalf("second HardDelete failed: %v", err)
 	}
 }
@@ -147,7 +148,7 @@ func TestHardDelete_SoftDeletedRows(t *testing.T) {
 	}
 
 	repo := New(client).(*repository)
-	if err := repo.HardDelete(ctx, projectID); err != nil {
+	if err := repo.HardDelete(ctx, projectID, acceptAny); err != nil {
 		t.Fatalf("HardDelete of soft-deleted project failed: %v", err)
 	}
 
@@ -159,3 +160,5 @@ func TestHardDelete_SoftDeletedRows(t *testing.T) {
 		t.Errorf("soft-deleted project row survived HardDelete (%d rows)", n)
 	}
 }
+
+func acceptAny(project.APISecretRotation) error { return nil }

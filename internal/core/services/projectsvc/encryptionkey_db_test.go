@@ -41,7 +41,7 @@ func TestService_SetEncryptionKey_RacingRegistrationStoresNoSecondKey(t *testing
 
 	errc := make(chan error, 1)
 	go func() {
-		errc <- svc.SetEncryptionKey(ctx, p.ID, &project.EncryptionKey{Part: "part-b"})
+		errc <- svc.SetEncryptionKey(ctx, p.ID, &project.EncryptionKey{Part: "part-b"}, func(project.APISecretRotation) error { return nil })
 	}()
 	err = commitWhenBlockedOrDone(t, client, inflight.Commit, inflightPID, errc)
 

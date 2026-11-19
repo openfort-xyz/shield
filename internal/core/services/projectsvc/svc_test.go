@@ -85,7 +85,7 @@ func TestService_SetEncryptionKey(t *testing.T) {
 			wantErr: false,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey).Return(nil)
+				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey, mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -93,7 +93,7 @@ func TestService_SetEncryptionKey(t *testing.T) {
 			wantErr: true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey).Return(domainErrors.ErrEncryptionPartAlreadyExists)
+				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey, mock.Anything).Return(domainErrors.ErrEncryptionPartAlreadyExists)
 			},
 			err: domainErrors.ErrEncryptionPartAlreadyExists,
 		},
@@ -102,7 +102,7 @@ func TestService_SetEncryptionKey(t *testing.T) {
 			wantErr: true,
 			mock: func() {
 				mockRepo.ExpectedCalls = nil
-				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey).Return(errors.New("repository error"))
+				mockRepo.On("SetEncryptionKey", mock.Anything, testProjectID, testKey, mock.Anything).Return(errors.New("repository error"))
 			},
 		},
 	}
@@ -110,7 +110,7 @@ func TestService_SetEncryptionKey(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
-			err := svc.SetEncryptionKey(ctx, testProjectID, testKey)
+			err := svc.SetEncryptionKey(ctx, testProjectID, testKey, project.StillCurrent("key", "secret"))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SetEncryptionKey() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -126,21 +126,26 @@ func TestService_CommitAPIKeyRotation(t *testing.T) {
 	future := time.Now().Add(time.Minute)
 	past := time.Now().Add(-time.Minute)
 	pending := "pending-key"
+	secret, hash := secretAndHash(t, 1)
+	stale, _ := secretAndHash(t, 2)
 
 	tests := []struct {
 		name          string
 		state         project.APIKeyRotation
 		presented     string
+		secret        string
 		wantSwap      bool
 		wantCommitted bool
 		wantErr       error
 	}{
-		{"pending key commits", project.APIKeyRotation{APIKey: "old", PendingAPIKey: &pending, PendingExpiresAt: &future}, pending, true, true, nil},
-		{"current key with nothing pending", project.APIKeyRotation{APIKey: "old"}, "old", false, false, nil},
-		{"current key while pending", project.APIKeyRotation{APIKey: "old", PendingAPIKey: &pending, PendingExpiresAt: &future}, "old", false, false, domainErrors.ErrPendingAPIKeyNotProven},
-		{"current key after expiry", project.APIKeyRotation{APIKey: "old", PendingAPIKey: &pending, PendingExpiresAt: &past}, "old", false, false, domainErrors.ErrAPIKeyRotationExpired},
-		{"expired pending key", project.APIKeyRotation{APIKey: "old", PendingAPIKey: &pending, PendingExpiresAt: &past}, pending, false, false, domainErrors.ErrAPIKeyRotationExpired},
-		{"replaced pending key", project.APIKeyRotation{APIKey: "old", PendingAPIKey: &pending, PendingExpiresAt: &future}, "earlier-pending", false, false, domainErrors.ErrNoPendingAPIKeyRotation},
+		{"pending key commits", project.APIKeyRotation{APIKey: "old", APISecretHash: hash, PendingAPIKey: &pending, PendingExpiresAt: &future}, pending, secret, true, true, nil},
+		{"current key with nothing pending", project.APIKeyRotation{APIKey: "old", APISecretHash: hash}, "old", secret, false, false, nil},
+		{"current key while pending", project.APIKeyRotation{APIKey: "old", APISecretHash: hash, PendingAPIKey: &pending, PendingExpiresAt: &future}, "old", secret, false, false, domainErrors.ErrPendingAPIKeyNotProven},
+		{"current key after expiry", project.APIKeyRotation{APIKey: "old", APISecretHash: hash, PendingAPIKey: &pending, PendingExpiresAt: &past}, "old", secret, false, false, domainErrors.ErrAPIKeyRotationExpired},
+		{"expired pending key", project.APIKeyRotation{APIKey: "old", APISecretHash: hash, PendingAPIKey: &pending, PendingExpiresAt: &past}, pending, secret, false, false, domainErrors.ErrAPIKeyRotationExpired},
+		{"revoked secret with the pending key", project.APIKeyRotation{APIKey: "old", APISecretHash: hash, PendingAPIKey: &pending, PendingExpiresAt: &future}, pending, stale, false, false, domainErrors.ErrAPISecretRevoked},
+		{"revoked secret with nothing pending", project.APIKeyRotation{APIKey: "old", APISecretHash: hash}, "old", stale, false, false, domainErrors.ErrAPISecretRevoked},
+		{"replaced pending key", project.APIKeyRotation{APIKey: "old", APISecretHash: hash, PendingAPIKey: &pending, PendingExpiresAt: &future}, "earlier-pending", secret, false, false, domainErrors.ErrNoPendingAPIKeyRotation},
 	}
 
 	for _, tt := range tests {
@@ -156,7 +161,7 @@ func TestService_CommitAPIKeyRotation(t *testing.T) {
 				}
 			}).Return(tt.wantErr)
 
-			_, committed, err := New(repo, time.Minute).CommitAPIKeyRotation(context.Background(), "project", tt.presented)
+			_, committed, err := New(repo, time.Minute).CommitAPIKeyRotation(context.Background(), "project", tt.presented, tt.secret)
 
 			if swapped != tt.wantSwap || committed != tt.wantCommitted || !errors.Is(err, tt.wantErr) {
 				t.Errorf("swap=%v committed=%v err=%v, want %v %v %v", swapped, committed, err, tt.wantSwap, tt.wantCommitted, tt.wantErr)
@@ -179,8 +184,9 @@ func TestService_GetByAPIKey_DoesNotRecacheAcrossEviction(t *testing.T) {
 		close(reading)
 		<-release
 	}).Return(proj, nil).Once()
+	secret, hash := secretAndHash(t, 1)
 	repo.On("CommitAPIKeyRotation", mock.Anything, "project", mock.Anything).Run(func(args mock.Arguments) {
-		_, _ = args.Get(2).(project.CommitAPIKeyRotationFunc)(project.APIKeyRotation{APIKey: "old-key", PendingAPIKey: &pending, PendingExpiresAt: &future})
+		_, _ = args.Get(2).(project.CommitAPIKeyRotationFunc)(project.APIKeyRotation{APIKey: "old-key", APISecretHash: hash, PendingAPIKey: &pending, PendingExpiresAt: &future})
 	}).Return(nil)
 
 	done := make(chan struct{})
@@ -189,7 +195,7 @@ func TestService_GetByAPIKey_DoesNotRecacheAcrossEviction(t *testing.T) {
 		_, _ = svc.GetByAPIKey(context.Background(), "old-key")
 	}()
 	<-reading
-	if _, committed, err := svc.CommitAPIKeyRotation(context.Background(), "project", pending); err != nil || !committed {
+	if _, committed, err := svc.CommitAPIKeyRotation(context.Background(), "project", pending, secret); err != nil || !committed {
 		t.Fatalf("commit: committed=%v err=%v", committed, err)
 	}
 	close(release)

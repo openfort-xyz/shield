@@ -109,7 +109,7 @@ func (a *ProjectApplication) CreateProject(ctx context.Context, name string, ena
 	}
 
 	if o.generateEncryptionKey {
-		part, err := a.registerEncryptionKey(ctx, proj.ID)
+		part, err := a.registerEncryptionKey(ctx, proj.ID, project.StillCurrent(proj.APIKey, proj.APISecret))
 		if err != nil {
 			a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
 			errD := a.projectRepo.Delete(ctx, proj.ID)
@@ -148,7 +148,7 @@ func (a *ProjectApplication) DeleteProject(ctx context.Context) error {
 	projectID := contexter.GetProjectID(ctx)
 	a.logger.InfoContext(ctx, "deleting project and all its data", slog.String("project_id", projectID))
 
-	err := a.projectRepo.HardDelete(ctx, projectID)
+	err := a.projectRepo.HardDelete(ctx, projectID, stillCurrent(ctx))
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to delete project", logger.Error(err))
 		return fromDomainError(err)
@@ -185,7 +185,7 @@ func (a *ProjectApplication) Enable2FA(ctx context.Context) error {
 		return ErrProject2FAAlreadyEnabled
 	}
 
-	err = a.projectRepo.Update2FA(ctx, projectID, true)
+	err = a.projectRepo.Update2FA(ctx, projectID, true, stillCurrent(ctx))
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to update 2FA", logger.Error(err))
 		return fromDomainError(err)
@@ -206,14 +206,6 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 
 	var providers []*provider.Provider
 	if cfg.openfortPublishableKey != nil {
-		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeOpenfort)
-		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
-			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
-			return nil, fromDomainError(err)
-		}
-		if err == nil && prov != nil {
-			return nil, ErrProviderAlreadyExists
-		}
 		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeOpenfort, Config: &provider.OpenfortConfig{PublishableKey: *cfg.openfortPublishableKey}})
 	}
 
@@ -225,14 +217,6 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 		if err := jwk.CheckTenantURL(*cfg.jwkURL); err != nil {
 			a.logger.WarnContext(ctx, "rejected custom JWK URL", logger.Error(err))
 			return nil, ErrJWKURLNotAllowed
-		}
-		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
-		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
-			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
-			return nil, fromDomainError(err)
-		}
-		if err == nil && prov != nil {
-			return nil, ErrProviderAlreadyExists
 		}
 		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: &provider.CustomConfig{JWK: *cfg.jwkURL, CookieFieldName: cfg.cookieFieldName}})
 	}
@@ -246,14 +230,6 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 			a.logger.ErrorContext(ctx, "failed to validate PEM", logger.Error(err))
 			return nil, ErrInvalidPemCertificate
 		}
-		prov, err := a.providerRepo.GetByProjectAndType(ctx, projectID, provider.TypeCustom)
-		if err != nil && !errors.Is(err, domainErrors.ErrProviderNotFound) {
-			a.logger.ErrorContext(ctx, "failed to get provider", logger.Error(err))
-			return nil, fromDomainError(err)
-		}
-		if err == nil && prov != nil {
-			return nil, ErrProviderAlreadyExists
-		}
 		providers = append(providers, &provider.Provider{ProjectID: projectID, Type: provider.TypeCustom, Config: &provider.CustomConfig{PEM: *cfg.pem, KeyType: cfg.keyType, CookieFieldName: cfg.cookieFieldName}})
 	}
 
@@ -261,12 +237,9 @@ func (a *ProjectApplication) AddProviders(ctx context.Context, opts ...ProviderO
 		return nil, ErrNoProviderSpecified
 	}
 
-	for _, prov := range providers {
-		err := a.providerSvc.Configure(ctx, prov)
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to create provider", logger.Error(err))
-			return nil, fromDomainError(err)
-		}
+	if err := a.providerSvc.Configure(ctx, projectID, providers, stillCurrent(ctx)); err != nil {
+		a.logger.ErrorContext(ctx, "failed to create providers", logger.Error(err))
+		return nil, fromDomainError(err)
 	}
 
 	return providers, nil
@@ -466,6 +439,9 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 		return ErrProviderMismatch
 	}
 
+	// Validated in full before one write, so a refused request changes
+	// nothing. A PEM replaces a JWK sent alongside it.
+	var custom *provider.CustomConfig
 	if cfg.jwkURL != nil {
 		if prov.Type != provider.TypeCustom {
 			return ErrProviderMismatch
@@ -474,24 +450,11 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 			a.logger.WarnContext(ctx, "rejected custom JWK URL", logger.Error(err))
 			return ErrJWKURLNotAllowed
 		}
-
-		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, JWK: *cfg.jwkURL, CookieFieldName: cfg.cookieFieldName})
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to update custom provider", logger.Error(err))
-			return fromDomainError(err)
-		}
+		custom = &provider.CustomConfig{ProviderID: providerID, JWK: *cfg.jwkURL, CookieFieldName: cfg.cookieFieldName}
 	}
 
-	if cfg.openfortPublishableKey != nil {
-		if prov.Type != provider.TypeOpenfort {
-			return ErrProviderMismatch
-		}
-
-		err = a.providerRepo.UpdateOpenfort(ctx, &provider.OpenfortConfig{ProviderID: providerID, PublishableKey: *cfg.openfortPublishableKey})
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to update openfort provider", logger.Error(err))
-			return fromDomainError(err)
-		}
+	if cfg.openfortPublishableKey != nil && prov.Type != provider.TypeOpenfort {
+		return ErrProviderMismatch
 	}
 
 	if cfg.pem != nil {
@@ -508,21 +471,22 @@ func (a *ProjectApplication) UpdateProvider(ctx context.Context, providerID stri
 			a.logger.ErrorContext(ctx, "failed to validate PEM", logger.Error(err))
 			return ErrInvalidPemCertificate
 		}
-
-		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, PEM: *cfg.pem, KeyType: cfg.keyType, CookieFieldName: cfg.cookieFieldName})
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to update custom provider", logger.Error(err))
-			return fromDomainError(err)
-		}
+		custom = &provider.CustomConfig{ProviderID: providerID, PEM: *cfg.pem, KeyType: cfg.keyType, CookieFieldName: cfg.cookieFieldName}
 	}
 
-	// The JWK and PEM updates above already carry the cookie field name.
-	if cfg.cookieFieldName != nil && cfg.jwkURL == nil && cfg.pem == nil {
-		err = a.providerRepo.UpdateCustom(ctx, &provider.CustomConfig{ProviderID: providerID, CookieFieldName: cfg.cookieFieldName})
-		if err != nil {
-			a.logger.ErrorContext(ctx, "failed to update custom provider", logger.Error(err))
-			return fromDomainError(err)
-		}
+	if cfg.cookieFieldName != nil && custom == nil {
+		custom = &provider.CustomConfig{ProviderID: providerID, CookieFieldName: cfg.cookieFieldName}
+	}
+
+	switch {
+	case custom != nil:
+		err = a.providerRepo.UpdateCustom(ctx, projectID, custom, stillCurrent(ctx))
+	case cfg.openfortPublishableKey != nil:
+		err = a.providerRepo.UpdateOpenfort(ctx, projectID, &provider.OpenfortConfig{ProviderID: providerID, PublishableKey: *cfg.openfortPublishableKey}, stillCurrent(ctx))
+	}
+	if err != nil {
+		a.logger.ErrorContext(ctx, "failed to update provider", logger.Error(err))
+		return fromDomainError(err)
 	}
 	return nil
 }
@@ -542,7 +506,7 @@ func (a *ProjectApplication) RemoveProvider(ctx context.Context, providerID stri
 		return ErrProviderNotFound
 	}
 
-	err = a.providerRepo.Delete(ctx, providerID)
+	err = a.providerRepo.Delete(ctx, projectID, providerID, stillCurrent(ctx))
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to remove provider", logger.Error(err))
 		return fromDomainError(err)
@@ -675,7 +639,7 @@ func (a *ProjectApplication) RegisterEncryptionKey(ctx context.Context) (string,
 	a.logger.InfoContext(ctx, "registering encryption key")
 	projectID := contexter.GetProjectID(ctx)
 
-	externalPart, err := a.registerEncryptionKey(ctx, projectID)
+	externalPart, err := a.registerEncryptionKey(ctx, projectID, stillCurrent(ctx))
 	if err != nil {
 		if !errors.Is(err, domainErrors.ErrEncryptionPartAlreadyExists) {
 			a.logger.ErrorContext(ctx, "failed to register encryption key", logger.Error(err))
@@ -686,7 +650,10 @@ func (a *ProjectApplication) RegisterEncryptionKey(ctx context.Context) (string,
 	return externalPart, nil
 }
 
-func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectID string) (externalPart string, err error) {
+// registerEncryptionKey creates the project's key once check passes under the
+// project row lock. Registration at project creation checks the credentials
+// it just issued; a request checks the ones it authenticated with.
+func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectID string, check project.CheckAPISecretFunc) (externalPart string, err error) {
 	key, err := random.GenerateRandomString(32)
 	if err != nil {
 		a.logger.Error("failed to generate random key", logger.Error(err))
@@ -700,14 +667,14 @@ func (a *ProjectApplication) registerEncryptionKey(ctx context.Context, projectI
 		return "", ErrInternal
 	}
 
-	keyCheck, err := cypher.KeyCheck(key)
+	computed, err := cypher.KeyCheck(key)
 	if err != nil {
 		a.logger.Error("failed to compute key check", logger.Error(err))
 		return "", ErrInternal
 	}
-	check := project.KeyCheck(keyCheck)
+	keyCheck := project.KeyCheck(computed)
 
-	err = a.projectSvc.SetEncryptionKey(ctx, projectID, &project.EncryptionKey{Part: storedPart, KeyCheck: &check})
+	err = a.projectSvc.SetEncryptionKey(ctx, projectID, &project.EncryptionKey{Part: storedPart, KeyCheck: &keyCheck}, check)
 	if err != nil {
 		return "", err
 	}

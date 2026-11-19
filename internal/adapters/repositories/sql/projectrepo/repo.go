@@ -15,6 +15,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/pkg/logger"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type repository struct {
@@ -81,10 +82,16 @@ func (r *repository) Get(ctx context.Context, projectID string) (*project.Projec
 	return r.parser.toDomain(dbProj), nil
 }
 
-func (r *repository) Update2FA(ctx context.Context, projectID string, enable2FA bool) error {
+func (r *repository) Update2FA(ctx context.Context, projectID string, enable2FA bool, check project.CheckAPISecretFunc) error {
 	r.logger.InfoContext(ctx, "updating 2FA", slog.String("project_id", projectID), slog.Bool("enable_2fa", enable2FA))
 
-	err := r.db.Model(&Project{}).Where("id = ?", projectID).Update("enable_2fa", enable2FA).Error
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Serialized because the same transaction then updates the row it locked.
+		if err := CheckCredentialsSerialized(tx, projectID, check); err != nil {
+			return err
+		}
+		return tx.Model(&Project{}).Where("id = ?", projectID).Update("enable_2fa", enable2FA).Error
+	})
 
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error updating 2FA", logger.Error(err))
@@ -170,12 +177,24 @@ func (r *repository) Delete(ctx context.Context, projectID string) error {
 //     in migration 20250908164256 and would block the cascade;
 //   - shld_shamir_migrations: has no FK at all.
 //
-// All statements run in one transaction. Idempotent: deleting an already
-// absent project succeeds.
-func (r *repository) HardDelete(ctx context.Context, projectID string) error {
+// All statements run in one transaction, after check passes under the
+// project row lock. Idempotent: deleting an already absent project succeeds.
+func (r *repository) HardDelete(ctx context.Context, projectID string, check project.CheckAPISecretFunc) error {
 	r.logger.InfoContext(ctx, "hard deleting project")
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
+		var locked []Project
+		err := tx.WithContext(ctx).Unscoped().Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
+			Where("id = ?", projectID).Find(&locked).Error
+		if err != nil {
+			return err
+		}
+		for _, dbProj := range locked {
+			if err := check(project.APISecretRotation{APIKey: dbProj.APIKey, APISecretHash: dbProj.APISecret}); err != nil {
+				return err
+			}
+		}
+
 		result := tx.WithContext(ctx).Exec(
 			`DELETE FROM shld_passkey_references WHERE share_reference IN (
 				SELECT s.id FROM shld_shares s
@@ -242,12 +261,12 @@ func toEncryptionKey(part *EncryptionPart) *project.EncryptionKey {
 	return key
 }
 
-// SetEncryptionKey checks for an existing part and inserts under the project
-// row lock: shld_encryption_parts has no unique project_id, so the lock is
-// what keeps concurrent registrations from both inserting. The migration
-// record commits with the part: a stored part without it would be
+// SetEncryptionKey runs check, checks for an existing part and inserts under
+// the project row lock: shld_encryption_parts has no unique project_id, so
+// the lock is what keeps concurrent registrations from both inserting. The
+// migration record commits with the part: a stored part without it would be
 // reconstructed with the deprecated scheme.
-func (r *repository) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error {
+func (r *repository) SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey, check project.CheckAPISecretFunc) error {
 	r.logger.InfoContext(ctx, "setting encryption key")
 
 	encryptionPart := &EncryptionPart{
@@ -261,7 +280,11 @@ func (r *repository) SetEncryptionKey(ctx context.Context, projectID string, key
 	}
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		if _, err := lockProject(tx, projectID); err != nil {
+		dbProj, err := lockProject(tx, projectID)
+		if err != nil {
+			return err
+		}
+		if err := check(project.APISecretRotation{APIKey: dbProj.APIKey, APISecretHash: dbProj.APISecret}); err != nil {
 			return err
 		}
 		var existing int64

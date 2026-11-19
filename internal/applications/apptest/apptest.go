@@ -93,7 +93,9 @@ func NewWithShareRepo(t *testing.T, wrap func(repositories.ShareRepository) repo
 
 // ProjectContext returns a context authenticated as the project.
 func ProjectContext(p dbtest.Project) context.Context {
-	return contexter.WithProjectID(context.Background(), p.ID)
+	ctx := contexter.WithProjectID(context.Background(), p.ID)
+	ctx = contexter.WithAPIKey(ctx, p.APIKey)
+	return contexter.WithAPISecret(ctx, p.APISecret)
 }
 
 // UserContext returns a context authenticated as the project's user.

@@ -22,13 +22,22 @@ func ValidateTenant(token string, jwkURL string) (string, error) {
 	return validate(tenantSets, token, []string{jwkURL})
 }
 
+// asymmetricMethods excludes HMAC: an oct key in a published JWK set is a
+// shared secret, so a token signed with it proves nothing about the issuer.
+var asymmetricMethods = []string{
+	"RS256", "RS384", "RS512",
+	"PS256", "PS384", "PS512",
+	"ES256", "ES384", "ES512",
+	"EdDSA",
+}
+
 func validate(sets *keySets, token string, jwkURLs []string) (string, error) {
 	k, err := sets.get(jwkURLs)
 	if err != nil {
 		return "", err
 	}
 
-	parsed, err := jwt.Parse(token, k.Keyfunc, jwt.WithExpirationRequired())
+	parsed, err := jwt.Parse(token, k.Keyfunc, jwt.WithValidMethods(asymmetricMethods), jwt.WithExpirationRequired())
 	if err != nil {
 		return "", ErrInvalidToken
 	}

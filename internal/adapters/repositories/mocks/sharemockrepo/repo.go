@@ -51,8 +51,8 @@ func (m *MockShareRepository) GetByReferenceAndProjectID(ctx context.Context, re
 	return args.Get(0).(*share.Share), args.Error(1)
 }
 
-func (m *MockShareRepository) GetByReferenceForProjectAndExternalUserID(ctx context.Context, reference, projectID, externalUserID string) (*share.Share, error) {
-	args := m.Mock.Called(ctx, reference, projectID, externalUserID)
+func (m *MockShareRepository) GetByReferenceForProjectAndUserID(ctx context.Context, reference, projectID, userID string) (*share.Share, error) {
+	args := m.Mock.Called(ctx, reference, projectID, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

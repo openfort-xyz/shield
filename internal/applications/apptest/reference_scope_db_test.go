@@ -13,9 +13,8 @@ import (
 )
 
 // An external user ID is unique only within a provider, and a custom-auth
-// project picks its own, so users in different projects can share one. One
-// person signing in through two of a project's providers is two internal users
-// with the same external user ID, and both must see the share.
+// project picks its own, so other users can carry the same one. Only the
+// internal user that stored the share may read it.
 func TestGetShareByReference_ScopedToCallersProjectAndIdentity(t *testing.T) {
 	const subject = "shared-subject"
 	apps := New(t)
@@ -42,7 +41,7 @@ func TestGetShareByReference_ScopedToCallersProjectAndIdentity(t *testing.T) {
 		wantFound bool
 	}{
 		{"owner", identityContext(owner.ID, owner.UserID, subject), true},
-		{"same subject through another provider of the project", identityContext(owner.ID, linkedUserID, subject), true},
+		{"same subject through another provider of the project", identityContext(owner.ID, linkedUserID, subject), false},
 		{"another subject in the same project", identityContext(owner.ID, strangerUserID, "another-subject"), false},
 		{"same subject in another project", identityContext(other.ID, other.UserID, subject), false},
 	}

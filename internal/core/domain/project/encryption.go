@@ -1,6 +1,11 @@
 package project
 
-import "time"
+import (
+	"time"
+
+	domainErrors "github.com/openfort-xyz/shield/internal/core/domain/errors"
+	"golang.org/x/crypto/bcrypt"
+)
 
 // StoredPart is the half of a project's encryption key that Shield stores.
 type StoredPart string
@@ -64,9 +69,10 @@ type PrepareRotationFunc func(state EncryptionKeyRotation, loadShares func() ([]
 type CommitRotationFunc func(state EncryptionKeyRotation, shares []EncryptedShare) (*CommittedRotation, error)
 
 // APIKeyRotation is a project's API-key state as seen by a rotation commit,
-// read under a lock on the project row.
+// read under a lock on the project row. The secret is a bcrypt hash.
 type APIKeyRotation struct {
 	APIKey           string
+	APISecretHash    string
 	PendingAPIKey    *string
 	PendingExpiresAt *time.Time
 }
@@ -84,9 +90,23 @@ type APISecretRotation struct {
 	PendingExpiresAt *time.Time
 }
 
-// CheckAPISecretFunc vets a secret prepare against the locked state: the
-// credentials it authenticated with may have been rotated since.
+// CheckAPISecretFunc vets a request's credentials against the project row
+// read under lock: they may have been rotated since the request authenticated.
 type CheckAPISecretFunc func(state APISecretRotation) error
+
+// StillCurrent fails with ErrAPIKeyRevoked or ErrAPISecretRevoked when the
+// key or secret a request authenticated with is no longer the project's.
+func StillCurrent(apiKey, apiSecret string) CheckAPISecretFunc {
+	return func(state APISecretRotation) error {
+		if apiKey != state.APIKey {
+			return domainErrors.ErrAPIKeyRevoked
+		}
+		if bcrypt.CompareHashAndPassword([]byte(state.APISecretHash), APISecretBytes(apiSecret)) != nil {
+			return domainErrors.ErrAPISecretRevoked
+		}
+		return nil
+	}
+}
 
 // CommitAPISecretRotationFunc decides whether the pending secret replaces
 // the current one.

@@ -43,7 +43,7 @@ func TestProjectApplication_DeleteProject(t *testing.T) {
 			name: "success",
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
-				projectRepo.On("HardDelete", mock.Anything, "project_id").Return(nil)
+				projectRepo.On("HardDelete", mock.Anything, "project_id", mock.Anything).Return(nil)
 			},
 		},
 		{
@@ -51,7 +51,7 @@ func TestProjectApplication_DeleteProject(t *testing.T) {
 			wantErr: true,
 			mock: func() {
 				projectRepo.ExpectedCalls = nil
-				projectRepo.On("HardDelete", mock.Anything, "project_id").Return(errors.New("boom"))
+				projectRepo.On("HardDelete", mock.Anything, "project_id", mock.Anything).Return(errors.New("boom"))
 			},
 		},
 	}
@@ -65,7 +65,7 @@ func TestProjectApplication_DeleteProject(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			projectRepo.AssertCalled(t, "HardDelete", mock.Anything, "project_id")
+			projectRepo.AssertCalled(t, "HardDelete", mock.Anything, "project_id", mock.Anything)
 		})
 	}
 }

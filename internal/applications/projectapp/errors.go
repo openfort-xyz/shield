@@ -8,6 +8,7 @@ import (
 
 var (
 	ErrProjectNotFound                  = errors.New("project not found")
+	ErrProjectDisabled                  = errors.New("project is disabled")
 	ErrNoProviderSpecified              = errors.New("no provider specified")
 	ErrProviderMismatch                 = errors.New("provider mismatch")
 	ErrKeyTypeNotSpecified              = errors.New("key type not specified")
@@ -61,6 +62,9 @@ func fromDomainError(err error) error {
 	}
 	if errors.Is(err, domainErrors.ErrProjectNotFound) {
 		return ErrProjectNotFound
+	}
+	if errors.Is(err, domainErrors.ErrProjectDisabled) {
+		return ErrProjectDisabled
 	}
 
 	if errors.Is(err, domainErrors.ErrInvalidProviderConfig) {

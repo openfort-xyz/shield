@@ -13,10 +13,13 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (r *repository) PrepareEncryptionKeyRotation(ctx context.Context, projectID string, prepare project.PrepareRotationFunc) error {
+func (r *repository) PrepareEncryptionKeyRotation(ctx context.Context, projectID string, check project.CheckAPISecretFunc, prepare project.PrepareRotationFunc) error {
 	r.logger.InfoContext(ctx, "preparing encryption key rotation", slog.String("project_id", projectID))
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := CheckCredentials(tx, projectID, check); err != nil {
+			return err
+		}
 		state, err := lockRotationState(tx, projectID)
 		if err != nil {
 			return err
@@ -38,10 +41,13 @@ func (r *repository) PrepareEncryptionKeyRotation(ctx context.Context, projectID
 	})
 }
 
-func (r *repository) CommitEncryptionKeyRotation(ctx context.Context, projectID string, commit project.CommitRotationFunc) error {
+func (r *repository) CommitEncryptionKeyRotation(ctx context.Context, projectID string, check project.CheckAPISecretFunc, commit project.CommitRotationFunc) error {
 	r.logger.InfoContext(ctx, "committing encryption key rotation", slog.String("project_id", projectID))
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := CheckCredentials(tx, projectID, check); err != nil {
+			return err
+		}
 		state, err := lockRotationState(tx, projectID)
 		if err != nil {
 			return err
@@ -136,20 +142,24 @@ func listProjectShares(tx *gorm.DB, projectID string, lock bool) ([]project.Encr
 	return shares, err
 }
 
-func (r *repository) SetPendingAPIKey(ctx context.Context, projectID, currentKey, apiKey string, expiresAt time.Time) error {
+func (r *repository) SetPendingAPIKey(ctx context.Context, projectID, apiKey string, expiresAt time.Time, check project.CheckAPISecretFunc) error {
 	r.logger.InfoContext(ctx, "setting pending API key", slog.String("project_id", projectID))
 
-	res := r.db.Model(&Project{}).Where("id = ? AND api_key = ?", projectID, currentKey).Updates(map[string]any{
-		"pending_api_key":            apiKey,
-		"pending_api_key_expires_at": expiresAt,
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		dbProj, err := lockProject(tx, projectID)
+		if err != nil {
+			return err
+		}
+
+		if err := check(project.APISecretRotation{APIKey: dbProj.APIKey, APISecretHash: dbProj.APISecret}); err != nil {
+			return err
+		}
+
+		return tx.Model(&Project{}).Where("id = ?", projectID).Updates(map[string]any{
+			"pending_api_key":            apiKey,
+			"pending_api_key_expires_at": expiresAt,
+		}).Error
 	})
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected != 1 {
-		return domainErrors.ErrAPIKeyRevoked
-	}
-	return nil
 }
 
 func (r *repository) GetByPendingAPIKey(ctx context.Context, apiKey string) (*project.Project, error) {
@@ -178,6 +188,7 @@ func (r *repository) CommitAPIKeyRotation(ctx context.Context, projectID string,
 
 		swap, err := commit(project.APIKeyRotation{
 			APIKey:           dbProj.APIKey,
+			APISecretHash:    dbProj.APISecret,
 			PendingAPIKey:    dbProj.PendingAPIKey,
 			PendingExpiresAt: dbProj.PendingAPIKeyExpiresAt,
 		})
@@ -240,13 +251,51 @@ func (r *repository) CommitAPISecretRotation(ctx context.Context, projectID stri
 	})
 }
 
-// lockProject reads the project row under FOR UPDATE. API key and API secret
-// commits both take it, so they serialize; each updates only its own columns.
+// lockProject reads the live project row under FOR UPDATE. API key and API
+// secret commits both take it, so they serialize; each updates only its own
+// columns.
 func lockProject(tx *gorm.DB, projectID string) (*Project, error) {
+	return readLive(tx, projectID, clause.LockingStrengthUpdate)
+}
+
+// CheckCredentials runs check against the live project row held FOR SHARE, so
+// a credential commit or a disable (both lock the row for update) either
+// waits for this transaction or lands first and is seen here. FOR SHARE, not
+// FOR UPDATE: it leaves inserts referencing the project (FOR KEY SHARE)
+// unblocked during a long commit.
+func CheckCredentials(tx *gorm.DB, projectID string, check project.CheckAPISecretFunc) error {
+	return checkLocked(tx, projectID, clause.LockingStrengthShare, check)
+}
+
+// CheckCredentialsSerialized is CheckCredentials holding FOR NO KEY UPDATE:
+// transactions taking it run one at a time per project, so each sees what the
+// previous one wrote. Inserts referencing the project (FOR KEY SHARE) are
+// still not blocked.
+func CheckCredentialsSerialized(tx *gorm.DB, projectID string, check project.CheckAPISecretFunc) error {
+	return checkLocked(tx, projectID, "NO KEY UPDATE", check)
+}
+
+func checkLocked(tx *gorm.DB, projectID, strength string, check project.CheckAPISecretFunc) error {
+	dbProj, err := readLive(tx, projectID, strength)
+	if err != nil {
+		return err
+	}
+	return check(project.APISecretRotation{APIKey: dbProj.APIKey, APISecretHash: dbProj.APISecret})
+}
+
+// readLive locks the project row and refuses a deleted or disabled project,
+// as authentication would have had the request arrived now.
+func readLive(tx *gorm.DB, projectID, strength string) (*Project, error) {
 	dbProj := &Project{}
-	err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).Where("id = ?", projectID).First(dbProj).Error
+	err := tx.Clauses(clause.Locking{Strength: strength}).Where("id = ?", projectID).First(dbProj).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, domainErrors.ErrProjectNotFound
 	}
-	return dbProj, err
+	if err != nil {
+		return nil, err
+	}
+	if dbProj.DisabledAt != nil {
+		return nil, domainErrors.ErrProjectDisabled
+	}
+	return dbProj, nil
 }

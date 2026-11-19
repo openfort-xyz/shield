@@ -30,6 +30,9 @@ type ProjectAuthenticator struct {
 	// allowDisabled lets a disabled project through; only project deletion
 	// uses it, so the Openfort API can purge a disabled project.
 	allowDisabled bool
+	// verifiedHash is the stored hash the secret last matched, so
+	// authenticating again costs no bcrypt unless the secret changed.
+	verifiedHash string
 }
 
 var errNoPendingAPISecret = errors.New("no unexpired pending API secret")
@@ -112,10 +115,13 @@ func (a *ProjectAuthenticator) Authenticate(ctx context.Context) (*authenticatio
 		return nil, errNoPendingAPISecret
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(hash), project.APISecretBytes(a.apiSecret))
-	if err != nil {
-		a.logger.Log(ctx, a.secretMissLevel, "failed to authenticate api secret", logger.Error(err))
-		return nil, err
+	if a.verifiedHash == "" || hash != a.verifiedHash {
+		err = bcrypt.CompareHashAndPassword([]byte(hash), project.APISecretBytes(a.apiSecret))
+		if err != nil {
+			a.logger.Log(ctx, a.secretMissLevel, "failed to authenticate api secret", logger.Error(err))
+			return nil, err
+		}
+		a.verifiedHash = hash
 	}
 
 	if proj.DisabledAt != nil && !a.allowDisabled {

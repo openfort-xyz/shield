@@ -23,8 +23,9 @@ type ProjectRepository interface {
 	// users, shares, keychains, encryption parts, notifications and rate
 	// limits. It first removes the two rows the cascade cannot reach:
 	// shld_passkey_references (plain FK to shld_shares) and
-	// shld_shamir_migrations (no FK). Idempotent.
-	HardDelete(ctx context.Context, projectID string) error
+	// shld_shamir_migrations (no FK). It runs check under FOR UPDATE on the
+	// project row first and returns its error. Idempotent.
+	HardDelete(ctx context.Context, projectID string, check project.CheckAPISecretFunc) error
 
 	// GetEncryptionKey returns ErrEncryptionPartNotFound when the project has
 	// no encryption key.
@@ -33,24 +34,25 @@ type ProjectRepository interface {
 	// current reconstruction, and records the project as migrated in the same
 	// transaction. It returns ErrEncryptionPartAlreadyExists when the project
 	// already has one, and of concurrent calls for one project at most one
-	// stores a key.
-	SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey) error
+	// stores a key. It runs check under FOR UPDATE on the project row first
+	// and returns its error.
+	SetEncryptionKey(ctx context.Context, projectID string, key *project.EncryptionKey, check project.CheckAPISecretFunc) error
 
-	// PrepareEncryptionKeyRotation runs prepare in a transaction holding
-	// FOR UPDATE on the project's encryption part rows and stores its result.
-	// It returns ErrEncryptionPartNotFound when the project has no key, and
-	// prepare's error unchanged.
-	PrepareEncryptionKeyRotation(ctx context.Context, projectID string, prepare project.PrepareRotationFunc) error
-	// CommitEncryptionKeyRotation runs commit in a transaction holding
-	// FOR UPDATE on the project's encryption part rows, then re-encrypts the
-	// shares, replaces the part in place and clears the pending key. It
-	// returns ErrEncryptionPartNotFound when the project has no key, and
-	// commit's error unchanged.
-	CommitEncryptionKeyRotation(ctx context.Context, projectID string, commit project.CommitRotationFunc) error
+	// PrepareEncryptionKeyRotation runs check under FOR SHARE on the project
+	// row, then prepare holding FOR UPDATE on the project's encryption part
+	// rows, and stores its result. It returns ErrEncryptionPartNotFound when
+	// the project has no key, and check's or prepare's error unchanged.
+	PrepareEncryptionKeyRotation(ctx context.Context, projectID string, check project.CheckAPISecretFunc, prepare project.PrepareRotationFunc) error
+	// CommitEncryptionKeyRotation runs check under FOR SHARE on the project
+	// row, then commit holding FOR UPDATE on the project's encryption part
+	// rows, then re-encrypts the shares, replaces the part in place and clears
+	// the pending key. It returns ErrEncryptionPartNotFound when the project
+	// has no key, and check's or commit's error unchanged.
+	CommitEncryptionKeyRotation(ctx context.Context, projectID string, check project.CheckAPISecretFunc, commit project.CommitRotationFunc) error
 
-	// SetPendingAPIKey stores a pending key only while currentKey is still the
-	// project's API key, else returns ErrAPIKeyRevoked.
-	SetPendingAPIKey(ctx context.Context, projectID, currentKey, apiKey string, expiresAt time.Time) error
+	// SetPendingAPIKey runs check under FOR UPDATE on the project row and,
+	// when it passes, stores a pending key.
+	SetPendingAPIKey(ctx context.Context, projectID, apiKey string, expiresAt time.Time, check project.CheckAPISecretFunc) error
 	// GetByPendingAPIKey returns the project whose unexpired pending API key
 	// is apiKey, or ErrProjectNotFound.
 	GetByPendingAPIKey(ctx context.Context, apiKey string) (*project.Project, error)
@@ -64,7 +66,9 @@ type ProjectRepository interface {
 	// and, when it returns true, makes the pending secret current.
 	CommitAPISecretRotation(ctx context.Context, projectID string, commit project.CommitAPISecretRotationFunc) error
 
-	Update2FA(ctx context.Context, projectID string, enable2FA bool) error
+	// Update2FA runs check under FOR SHARE on the project row first and
+	// returns its error.
+	Update2FA(ctx context.Context, projectID string, enable2FA bool, check project.CheckAPISecretFunc) error
 
 	HasSuccessfulMigration(ctx context.Context, projectID string) (bool, error)
 }
