@@ -13,6 +13,34 @@ func shareHasUserEntropyParams(share *Share) bool {
 	return share.Salt != "" || share.Iterations != 0 || share.Length != 0 || share.Digest != ""
 }
 
+func validateUserEntropyParams(salt string, iterations, length int, digest string) *api.Error {
+	if salt == "" {
+		return api.ErrBadRequestWithMessage("salt is required when entropy is user")
+	}
+	if iterations <= 0 {
+		return api.ErrBadRequestWithMessage("iterations must be positive when entropy is user")
+	}
+
+	switch digest {
+	case "argon2":
+		if length != 32 {
+			return api.ErrBadRequestWithMessage("argon2 key length must be 32 bytes")
+		}
+	case "sha256", "sha512":
+		// The lowercase legacy SHA digests report their key length in bits.
+		if length < 128 || length > 512 || length%8 != 0 {
+			return api.ErrBadRequestWithMessage("SHA key length must be between 128 and 512 bits in multiples of 8")
+		}
+	case "SHA-256", "SHA-512":
+		if length < 16 || length > 64 {
+			return api.ErrBadRequestWithMessage("SHA key length must be between 16 and 64 bytes")
+		}
+	default:
+		return api.ErrBadRequestWithMessage("unsupported digest for user entropy")
+	}
+	return nil
+}
+
 func (v *validator) validateShare(share *Share) *api.Error {
 	if share.Secret == "" {
 		return api.ErrBadRequestWithMessage("secret is required")
@@ -26,18 +54,7 @@ func (v *validator) validateShare(share *Share) *api.Error {
 	case "", EntropyNone:
 		return api.ErrBadRequestWithMessage("require share entropy to be set")
 	case EntropyUser:
-		if share.Salt == "" {
-			return api.ErrBadRequestWithMessage("salt is required when entropy is user")
-		}
-		if share.Iterations == 0 {
-			return api.ErrBadRequestWithMessage("iterations is required when entropy is user")
-		}
-		if share.Length == 0 {
-			return api.ErrBadRequestWithMessage("length is required when entropy is user")
-		}
-		if share.Digest == "" {
-			return api.ErrBadRequestWithMessage("digest is required when entropy is user")
-		}
+		return validateUserEntropyParams(share.Salt, share.Iterations, share.Length, share.Digest)
 	case EntropyProject:
 		if share.ShareStorageMethodID != StorageMethodShield {
 			return api.ErrBadRequestWithMessage("storage_method must be Shield if entropy is project")
