@@ -3,6 +3,7 @@ package apptest
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -109,28 +110,97 @@ func TestGetShareByReference_SameReferenceAcrossUsers_ReturnsCallersShare(t *tes
 	}
 }
 
-// Pins current behavior: registering a reference already in use, in the same
-// project or another one, stores another share instead of failing.
-func TestRegisterShare_ReferenceInUse_StoresAnotherShare(t *testing.T) {
+func TestRegisterShare_ReferenceIsUniquePerUser(t *testing.T) {
 	apps := New(t)
 	owner := dbtest.SeedProject(t, apps.DB, "", false)
 	other := dbtest.SeedProject(t, apps.DB, "", false)
+	sameProject := owner
+	sameProject.UserID = addUser(t, apps, owner.ID)
 
 	reference := "ref-" + uuid.NewString()
-	for i, p := range []dbtest.Project{owner, owner, other} {
+	for i, p := range []dbtest.Project{owner, owner, sameProject, other} {
 		ref := reference
 		err := apps.Share.RegisterShare(UserContext(p),
 			&share.Share{Secret: "wallet-share", Entropy: share.EntropyNone, Reference: &ref})
-		if err != nil {
+		if i == 1 {
+			if !errors.Is(err, shareapp.ErrShareAlreadyExists) {
+				t.Fatalf("duplicate registration: got %v, want conflict", err)
+			}
+		} else if err != nil {
 			t.Fatalf("RegisterShare #%d: %v", i+1, err)
 		}
 	}
 
-	if n := apps.ShareCount(t, owner); n != 2 {
-		t.Errorf("shares in the registering project = %d, want 2", n)
+	for _, p := range []dbtest.Project{owner, sameProject, other} {
+		if n := apps.ShareCount(t, p); n != 1 {
+			t.Errorf("shares for user %q = %d, want 1", p.UserID, n)
+		}
 	}
-	if n := apps.ShareCount(t, other); n != 1 {
-		t.Errorf("shares in the other project = %d, want 1", n)
+}
+
+func TestRegisterShare_ConcurrentDefaultReferences(t *testing.T) {
+	apps := New(t)
+	p := dbtest.SeedProject(t, apps.DB, "", false)
+	const registrations = 12
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	results := make(chan error, registrations)
+	for i := range registrations {
+		wg.Go(func() {
+			<-start
+			shr := &share.Share{Secret: "wallet-share", Entropy: share.EntropyNone}
+			if i%2 == 0 {
+				shr.Reference = ptr(share.DefaultReference)
+			}
+			results <- apps.Share.RegisterShare(UserContext(p), shr)
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	var successes int
+	for err := range results {
+		if err == nil {
+			successes++
+		} else if !errors.Is(err, shareapp.ErrShareAlreadyExists) {
+			t.Fatalf("register: %v", err)
+		}
+	}
+	if successes != 1 || apps.ShareCount(t, p) != 1 {
+		t.Fatalf("successful registrations: %d, want 1", successes)
+	}
+}
+
+func TestLegacyDuplicateShares_ReadsAgreeOnTheOriginal(t *testing.T) {
+	apps := New(t)
+	p := dbtest.SeedProject(t, apps.DB, "", false)
+	ctx := UserContext(p)
+	ref := share.DefaultReference
+
+	// Simulate two rows written before duplicate protection. The second row
+	// sorts first by ID, so it cannot accidentally pass the oldest-row check.
+	dbtest.Exec(t, apps.DB, `INSERT INTO shld_shares
+		(id, data, user_id, keychain_id, reference, entropy, storage_method_id, created_at) VALUES
+		('ffffffff-ffff-4fff-8fff-000000000001', 'original', ?, ?, ?, 'none', 0, now() - INTERVAL '2 hours'),
+		('00000000-0000-4000-8000-000000000002', 'later', ?, ?, ?, 'none', 0, now() - INTERVAL '1 hour')`,
+		p.UserID, p.KeychainID, ref, p.UserID, p.KeychainID, ref)
+
+	got, err := apps.Share.GetShare(ctx)
+	if err != nil || got.Secret != "original" {
+		t.Fatalf("default read did not return the original share: %v", err)
+	}
+	got, err = apps.Share.GetShareByReference(ctx, ref)
+	if err != nil || got.Secret != "original" {
+		t.Fatalf("reference read did not return the original share: %v", err)
+	}
+	for _, reference := range []*string{nil, &ref} {
+		shares, err := apps.Share.GetKeychainShares(ctx, reference)
+		if err != nil || len(shares) != 1 || shares[0].Secret != "original" {
+			t.Fatalf("keychain read did not return a single original share: %v", err)
+		}
+	}
+	if apps.ShareCount(t, p) != 2 {
+		t.Fatal("reading must preserve the existing rows")
 	}
 }
 

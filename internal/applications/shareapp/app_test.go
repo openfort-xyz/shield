@@ -957,11 +957,10 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
-				shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+				shareRepo.On("Create", mock.Anything, mock.Anything).Return(domainErrors.ErrShareAlreadyExists)
 				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
 				keychainRepo.On("Get", mock.Anything, mock.Anything).Return(testKeychain, nil)
-				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(plainShare, nil)
+				shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
 			},
 		},
 		{
