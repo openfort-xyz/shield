@@ -65,6 +65,17 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 
 	var shrOpts []services.ShareOption
 	if shr.RequiresEncryption() {
+		project, err := a.getProject(ctx, projID)
+		if err != nil {
+			return fromDomainError(err)
+		}
+
+		// Writes need the same OTP-verified, user-bound session as reads,
+		// otherwise a raw part or another user's session can plant a share.
+		if project.Enable2FA && !opt.preregistration {
+			opt.requireOTPCheck = true
+		}
+
 		encryptionKey, guard, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return err
@@ -124,6 +135,16 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, re
 	}
 
 	if dbShare.RequiresEncryption() {
+		project, err := a.getProject(ctx, projID)
+		if err != nil {
+			return nil, fromDomainError(err)
+		}
+
+		// See RegisterShare: overwriting a share needs the same OTP check as reading it.
+		if project.Enable2FA {
+			opt.requireOTPCheck = true
+		}
+
 		encryptionKey, guard, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return nil, err
