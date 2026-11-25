@@ -80,11 +80,12 @@ func (u User) Context() context.Context {
 	return contexter.WithExternalUserID(contexter.WithUserID(ProjectContext(u.Project), u.ID), u.ExternalID)
 }
 
-// StoreShare registers a project-encrypted share holding secret for the user.
+// StoreShare registers a project-encrypted share holding secret for the user
+// as /admin/preregister does, so it works on 2FA projects without an OTP.
 func (a Apps) StoreShare(t *testing.T, u User, part, secret string) {
 	t.Helper()
 	err := a.Share.RegisterShare(u.Context(), &share.Share{Secret: secret, Entropy: share.EntropyProject},
-		shareapp.WithEncryptionPart(part))
+		shareapp.WithEncryptionPart(part), shareapp.AsPreregistration())
 	if err != nil {
 		t.Fatalf("RegisterShare: %v", err)
 	}

@@ -829,6 +829,7 @@ func TestShareApplication_GetShareEncryption(t *testing.T) {
 func TestShareApplication_RegisterShare(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
+	ctx = contexter.WithExternalUserID(ctx, "ext_user")
 	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
@@ -870,13 +871,95 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 		UserID: "user_id",
 	}
 
+	projectWithout2FA := &project.Project{ID: "project_id", Enable2FA: false}
+	projectWith2FA := &project.Project{ID: "project_id", Enable2FA: true}
+	sessionFor := func(userID string, otpVerified bool) string {
+		b, err := json.Marshal(share.EncryptionPart{
+			EncPart:     string(projectPart),
+			ProjectID:   "project_id",
+			UserID:      userID,
+			OTPVerified: otpVerified,
+		})
+		if err != nil {
+			t.Fatalf("failed to marshal project part: %v", err)
+		}
+		return string(b)
+	}
+	// Mocks for a register that gets as far as storing the share.
+	mockCreate := func(withSession string) {
+		shareRepo.ExpectedCalls = nil
+		projectRepo.ExpectedCalls = nil
+		keychainRepo.ExpectedCalls = nil
+		encryptionPartsRepo.ExpectedCalls = nil
+		shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+		keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
+		keychainRepo.On("Get", mock.Anything, mock.Anything).Return(testKeychain, nil)
+		shareRepo.On("GetByUserID", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
+		shareRepo.On("Create", mock.Anything, mock.Anything).Return(nil)
+		projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
+		projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
+		if withSession != "" {
+			encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(withSession, nil)
+			encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
+		}
+	}
+
 	tc := []struct {
 		name    string
 		opts    []Option
 		share   *share.Share
+		project *project.Project
 		wantErr error
 		mock    func()
 	}{
+		{
+			name:    "2FA: raw part rejected",
+			wantErr: ErrOTPVerificationRequired,
+			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
+			project: projectWith2FA,
+			mock:    func() { mockCreate("") },
+			opts:    []Option{WithEncryptionPart(string(projectPart))},
+		},
+		{
+			name:    "2FA: session without OTP rejected",
+			wantErr: ErrOTPVerificationRequired,
+			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
+			project: projectWith2FA,
+			mock:    func() { mockCreate(sessionFor("ext_user", false)) },
+			opts:    []Option{WithEncryptionSession("sessionID")},
+		},
+		{
+			name:    "2FA: another user's OTP session rejected",
+			wantErr: ErrInvalidEncryptionSession,
+			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
+			project: projectWith2FA,
+			mock:    func() { mockCreate(sessionFor("someone_else", true)) },
+			opts:    []Option{WithEncryptionSession("sessionID")},
+		},
+		{
+			name:    "2FA: own OTP session accepted",
+			wantErr: nil,
+			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
+			project: projectWith2FA,
+			mock:    func() { mockCreate(sessionFor("ext_user", true)) },
+			opts:    []Option{WithEncryptionSession("sessionID")},
+		},
+		{
+			name:    "2FA: preregistration with raw part accepted",
+			wantErr: nil,
+			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
+			project: projectWith2FA,
+			mock:    func() { mockCreate("") },
+			opts:    []Option{WithEncryptionPart(string(projectPart)), AsPreregistration()},
+		},
+		{
+			name:    "no 2FA: session without OTP accepted",
+			wantErr: nil,
+			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
+			project: projectWithout2FA,
+			mock:    func() { mockCreate(sessionFor("ext_user", false)) },
+			opts:    []Option{WithEncryptionSession("sessionID")},
+		},
 		{
 			name:    "success",
 			wantErr: nil,
@@ -978,6 +1061,11 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
+			p := tt.project
+			if p == nil {
+				p = projectWithout2FA
+			}
+			projectRepo.On("Get", mock.Anything, "project_id").Return(p, nil)
 			ass := assert.New(t)
 			err := app.RegisterShare(ctx, tt.share, tt.opts...)
 			ass.ErrorIs(tt.wantErr, err)
@@ -1184,4 +1272,77 @@ func TestShareApplication_BulkEncryptionLookupsUseAuthenticatedProject(t *testin
 	got, err = app.GetSharesEncryptionForUsers(ctx, externalUserIDs, &reference)
 	assert.NoError(t, err)
 	assert.Equal(t, byUser, got)
+}
+
+// On 2FA projects, UpdateShare takes the caller's OTP-verified session, as
+// the reads do.
+func TestShareApplication_UpdateShare_2FA(t *testing.T) {
+	ctx := contexter.WithProjectID(context.Background(), "project_id")
+	ctx = contexter.WithUserID(ctx, "user_id")
+	ctx = contexter.WithExternalUserID(ctx, "ext_user")
+	userRepo := new(usermockedrepo.MockUserRepository)
+	shareRepo := new(sharemockrepo.MockShareRepository)
+	projectRepo := new(projectmockrepo.MockProjectRepository)
+	encryptionPartsRepo := new(encryptionpartsmockrepo.MockEncryptionPartsRepository)
+	encryptionFactory := encryption.NewEncryptionFactory(encryptionPartsRepo, projectRepo)
+	keychainRepo := new(keychainmockrepo.MockKeychainRepository)
+	shareSvc := sharesvc.New(shareRepo, keychainRepo, encryptionFactory)
+	app := New(shareSvc, shareRepo, projectRepo, userRepo, keychainRepo, encryptionFactory)
+	key, err := random.GenerateRandomString(32)
+	if err != nil {
+		t.Fatalf("%s", key)
+	}
+	storedPart, projectPart, err := encryptionFactory.CreateReconstructionStrategy(true).Split(key)
+	if err != nil {
+		t.Fatalf("failed to generate encryption key: %v", err)
+	}
+	sessionFor := func(userID string, otpVerified bool) string {
+		b, err := json.Marshal(share.EncryptionPart{
+			EncPart:     string(projectPart),
+			ProjectID:   "project_id",
+			UserID:      userID,
+			OTPVerified: otpVerified,
+		})
+		if err != nil {
+			t.Fatalf("failed to marshal project part: %v", err)
+		}
+		return string(b)
+	}
+
+	tc := []struct {
+		name    string
+		enable  bool
+		session string
+		opts    []Option
+		wantErr error
+	}{
+		{name: "raw part rejected", enable: true, opts: []Option{WithEncryptionPart(string(projectPart))}, wantErr: ErrOTPVerificationRequired},
+		{name: "session without OTP rejected", enable: true, session: sessionFor("ext_user", false), opts: []Option{WithEncryptionSession("sessionID")}, wantErr: ErrOTPVerificationRequired},
+		{name: "another user's OTP session rejected", enable: true, session: sessionFor("someone_else", true), opts: []Option{WithEncryptionSession("sessionID")}, wantErr: ErrInvalidEncryptionSession},
+		{name: "own OTP session accepted", enable: true, session: sessionFor("ext_user", true), opts: []Option{WithEncryptionSession("sessionID")}},
+		{name: "no 2FA: raw part accepted", enable: false, opts: []Option{WithEncryptionPart(string(projectPart))}},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			shareRepo.ExpectedCalls = nil
+			projectRepo.ExpectedCalls = nil
+			encryptionPartsRepo.ExpectedCalls = nil
+			shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id", Secret: "old", Entropy: share.EntropyProject}, nil)
+			shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+			projectRepo.On("Get", mock.Anything, "project_id").Return(&project.Project{ID: "project_id", Enable2FA: tt.enable}, nil)
+			projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
+			projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
+			if tt.session != "" {
+				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(tt.session, nil)
+				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
+			}
+
+			_, err := app.UpdateShare(ctx, &share.Share{Secret: "updated", Entropy: share.EntropyProject}, "default", tt.opts...)
+			assert.ErrorIs(t, err, tt.wantErr)
+			if tt.wantErr != nil {
+				shareRepo.AssertNotCalled(t, "Update", mock.Anything, mock.Anything)
+			}
+		})
+	}
 }

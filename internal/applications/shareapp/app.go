@@ -65,6 +65,16 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 
 	var shrOpts []services.ShareOption
 	if shr.RequiresEncryption() {
+		project, err := a.getProject(ctx, projID)
+		if err != nil {
+			return fromDomainError(err)
+		}
+
+		// 2FA projects take the same encryption session on writes as on reads.
+		if project.Enable2FA && !opt.preregistration {
+			opt.requireOTPCheck = true
+		}
+
 		encryptionKey, guard, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return err
@@ -124,6 +134,16 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, re
 	}
 
 	if dbShare.RequiresEncryption() {
+		project, err := a.getProject(ctx, projID)
+		if err != nil {
+			return nil, fromDomainError(err)
+		}
+
+		// 2FA projects take the same encryption session on writes as on reads.
+		if project.Enable2FA {
+			opt.requireOTPCheck = true
+		}
+
 		encryptionKey, guard, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return nil, err

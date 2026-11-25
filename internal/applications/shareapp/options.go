@@ -4,6 +4,7 @@ type options struct {
 	encryptionPart    *string
 	encryptionSession *string
 	requireOTPCheck   bool
+	preregistration   bool
 }
 
 // partSource names where the caller's half of the encryption key came from,
@@ -30,5 +31,15 @@ func WithEncryptionPart(encryptionPart string) Option {
 func WithEncryptionSession(encryptionSession string) Option {
 	return func(o *options) {
 		o.encryptionSession = &encryptionSession
+	}
+}
+
+// AsPreregistration marks a RegisterShare call from /admin/preregister, where
+// the project backend, authenticated by its API secret, stores the first share
+// for a user it just created. No user is present to complete an OTP there, so
+// the project's 2FA requirement does not apply.
+func AsPreregistration() Option {
+	return func(o *options) {
+		o.preregistration = true
 	}
 }

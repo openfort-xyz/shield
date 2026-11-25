@@ -191,6 +191,17 @@ func (h *Handler) GetShareByReference(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} api.Error "Internal Server Error"
 // @Router /shares/register [post]
 func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
+	h.registerShare(w, r)
+}
+
+// PreRegisterShare serves /admin/preregister: the project backend stores a
+// share for a user it just created, so the project's 2FA requirement, which
+// needs the user to complete an OTP, does not apply.
+func (h *Handler) PreRegisterShare(w http.ResponseWriter, r *http.Request) {
+	h.registerShare(w, r, shareapp.AsPreregistration())
+}
+
+func (h *Handler) registerShare(w http.ResponseWriter, r *http.Request, extraOpts ...shareapp.Option) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "registering share")
 
@@ -221,7 +232,7 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 	}
 
 	share := h.parser.toDomain((*Share)(&req))
-	var opts []shareapp.Option
+	opts := extraOpts
 	if req.EncryptionPart != "" {
 		opts = append(opts, shareapp.WithEncryptionPart(req.EncryptionPart))
 	}

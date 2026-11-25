@@ -180,7 +180,7 @@ func (s *Server) Handler() http.Handler {
 	a := r.PathPrefix("/admin").Subrouter()
 	a.Use(authMdw.AuthenticateAPISecret)
 	a.Use(authMdw.PreRegisterUser)
-	a.HandleFunc("/preregister", shareHdl.RegisterShare).Methods(http.MethodPost)
+	a.HandleFunc("/preregister", shareHdl.PreRegisterShare).Methods(http.MethodPost)
 
 	extraHeaders := strings.Split(s.config.CORSExtraAllowedHeaders, ",")
 	return cors.New(cors.Options{
