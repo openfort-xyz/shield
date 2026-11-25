@@ -146,21 +146,23 @@ func (r *repository) GetByReferenceAndKeychain(ctx context.Context, reference, k
 func (r *repository) GetByReferenceAndProjectID(ctx context.Context, reference, projectID string) (*share.Share, error) {
 	r.logger.InfoContext(ctx, "getting share by reference and project", slog.String("reference", reference), slog.String("project_id", projectID))
 
-	dbShr := &Share{}
-	err := r.db.Preload("PasskeyReference").
+	// A project-wide reference is ambiguous when different users own it.
+	var owners []string
+	err := r.db.WithContext(ctx).Model(&Share{}).
 		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
-		Where("shld_shares.reference = ? AND shld_users.project_id = ?", reference, projectID).
-		Where("shld_shares.deleted_at IS NULL").
-		First(dbShr).Error
+		Where(normalizedReference+" = ? AND shld_users.project_id = ?", shareReference(&reference), projectID).
+		Distinct("shld_shares.user_id").Limit(2).Pluck("shld_shares.user_id", &owners).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domainErrors.ErrShareNotFound
-		}
 		r.logger.ErrorContext(ctx, "error getting share by reference and project", logger.Error(err))
 		return nil, err
 	}
-
-	return r.parser.toDomain(dbShr), nil
+	if len(owners) == 0 {
+		return nil, domainErrors.ErrShareNotFound
+	}
+	if len(owners) > 1 {
+		return nil, domainErrors.ErrAmbiguousShareReference
+	}
+	return r.GetByReferenceForProjectAndUserID(ctx, reference, projectID, owners[0])
 }
 
 func (r *repository) GetByReferenceForProjectAndUserID(ctx context.Context, reference, projectID, userID string) (*share.Share, error) {

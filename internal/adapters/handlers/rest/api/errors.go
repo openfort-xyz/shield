@@ -35,8 +35,9 @@ var (
 	ErrProviderAlreadyExists = &Error{"Custom authentication already registered for this project", "PV_EXISTS", http.StatusConflict}
 	ErrMissingUserID         = &Error{"Missing user ID", "US_ID_MISSING", http.StatusBadRequest}
 
-	ErrShareNotFound      = &Error{"Share not found", "SH_NOT_FOUND", http.StatusNotFound}
-	ErrShareAlreadyExists = &Error{"Share already exists", "SH_EXISTS", http.StatusConflict}
+	ErrAmbiguousShareReference = &Error{"Share reference belongs to multiple users", "SH_AMBIGUOUS", http.StatusConflict}
+	ErrShareNotFound           = &Error{"Share not found", "SH_NOT_FOUND", http.StatusNotFound}
+	ErrShareAlreadyExists      = &Error{"Share already exists", "SH_EXISTS", http.StatusConflict}
 
 	ErrPreRegisterUser = &Error{"Failed to pre-register user", "US_PREREG_FAILED", http.StatusInternalServerError}
 

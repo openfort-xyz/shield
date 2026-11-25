@@ -12,6 +12,8 @@ func fromApplicationError(err error) *api.Error {
 		return nil
 	}
 	switch {
+	case errors.Is(err, shareapp.ErrAmbiguousShareReference):
+		return api.ErrAmbiguousShareReference
 	case errors.Is(err, shareapp.ErrShareNotFound):
 		return api.ErrShareNotFound
 	case errors.Is(err, shareapp.ErrShareAlreadyExists):

@@ -199,6 +199,10 @@ func TestLegacyDuplicateShares_ReadsAgreeOnTheOriginal(t *testing.T) {
 			t.Fatalf("keychain read did not return a single original share: %v", err)
 		}
 	}
+	got, err = apps.Share.ExportShare(ctx, ref)
+	if err != nil || got.Secret != "original" {
+		t.Fatalf("export did not return the recovery share: %v", err)
+	}
 	if apps.ShareCount(t, p) != 2 {
 		t.Fatal("reading must preserve the existing rows")
 	}
@@ -224,4 +228,46 @@ func identityContext(projectID, userID, externalUserID string) context.Context {
 	ctx := contexter.WithProjectID(context.Background(), projectID)
 	ctx = contexter.WithUserID(ctx, userID)
 	return contexter.WithExternalUserID(ctx, externalUserID)
+}
+
+func TestExportShare_NormalizesLegacyReferencesAndRejectsAmbiguousOwners(t *testing.T) {
+	apps := New(t)
+	p := dbtest.SeedProject(t, apps.DB, "", false)
+	other := dbtest.SeedProject(t, apps.DB, "", false)
+	ctx := UserContext(p)
+	for _, owner := range []dbtest.Project{p, other} {
+		dbtest.Exec(t, apps.DB, `INSERT INTO shld_shares
+            (id, data, user_id, keychain_id, reference, entropy, storage_method_id, created_at) VALUES
+            (?, 'original', ?, ?, NULL, 'none', 0, now() - INTERVAL '2 hours'),
+            (?, 'later', ?, ?, '', 'none', 0, now() - INTERVAL '1 hour')`,
+			uuid.NewString(), owner.UserID, owner.KeychainID, uuid.NewString(), owner.UserID, owner.KeychainID)
+	}
+	for _, ref := range []string{"", share.DefaultReference} {
+		recovered, err := apps.Share.GetShareByReference(ctx, ref)
+		if err != nil {
+			t.Fatal(err)
+		}
+		exported, err := apps.Share.ExportShare(ctx, ref)
+		if err != nil || exported.ID != recovered.ID || exported.Secret != "original" {
+			t.Fatalf("export and recovery disagree for %q: %v", ref, err)
+		}
+	}
+	stranger := addUser(t, apps, p.ID)
+	dbtest.Exec(t, apps.DB, `INSERT INTO shld_shares
+        (id, data, user_id, reference, entropy, storage_method_id) VALUES (?, 'stranger', ?, 'default', 'none', 0)`,
+		uuid.NewString(), stranger)
+	exported, err := apps.Share.ExportShare(ctx, share.DefaultReference)
+	if exported != nil || !errors.Is(err, shareapp.ErrAmbiguousShareReference) {
+		t.Fatalf("ambiguous export returned a share: %v", err)
+	}
+	// Ambiguous project exports must not prevent user-scoped recovery.
+	recovered, err := apps.Share.GetShareByReference(ctx, share.DefaultReference)
+	if err != nil || recovered.Secret != "original" {
+		t.Fatalf("recovery changed: %v", err)
+	}
+	dbtest.Exec(t, apps.DB, `UPDATE shld_shares SET deleted_at = now() WHERE user_id = ?`, stranger)
+	exported, err = apps.Share.ExportShare(ctx, share.DefaultReference)
+	if err != nil || exported.ID != recovered.ID {
+		t.Fatalf("deleted share made export ambiguous: %v", err)
+	}
 }
