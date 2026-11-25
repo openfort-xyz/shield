@@ -32,8 +32,11 @@ func validateUserEntropyParams(salt string, iterations, length int, digest strin
 			return api.ErrBadRequestWithMessage("SHA key length must be between 128 and 512 bits in multiples of 8")
 		}
 	case "SHA-256", "SHA-512":
-		if length < 16 || length > 64 {
-			return api.ErrBadRequestWithMessage("SHA key length must be between 16 and 64 bytes")
+		// WebCrypto clients also use these digest names with lengths in bits.
+		bytes := length >= 16 && length <= 64
+		bits := length >= 128 && length <= 512 && length%8 == 0
+		if !bytes && !bits {
+			return api.ErrBadRequestWithMessage("SHA key length must be 16–64 bytes or 128–512 bits in multiples of 8")
 		}
 	default:
 		return api.ErrBadRequestWithMessage("unsupported digest for user entropy")
