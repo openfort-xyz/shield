@@ -663,6 +663,13 @@ func (h *Handler) ImportShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Entropy == EntropyUser {
+		if err := validateUserEntropyParams(req.Salt, req.Iterations, req.Length, req.Digest); err != nil {
+			api.RespondWithError(w, err)
+			return
+		}
+	}
+
 	shr := h.parser.toImportDomain(&req)
 	err = h.app.ImportShare(ctx, shr)
 	if err != nil {
