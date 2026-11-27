@@ -525,7 +525,7 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 		return ErrInternal
 	}
 
-	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(factories.Plain, isMigrated, false)
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(factories.Plain, isMigrated, factories.OTPOptional)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
 		return ErrInternal
@@ -592,7 +592,7 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 		return "", err
 	}
 
-	otpVerified := false
+	otpVerified, signupOnly := false, false
 
 	if proj.Enable2FA {
 		otpRequest, err := a.otpService.VerifyOTP(ctx, projectID, userID, otpCode)
@@ -603,9 +603,8 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 			return "", fromDomainError(err)
 		}
 
-		if !otpRequest.SkipVerification {
-			otpVerified = true
-		}
+		signupOnly = otpRequest.SkipVerification
+		otpVerified = !signupOnly
 	}
 
 	sessionID := uuid.NewString()
@@ -615,6 +614,7 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 		ProjectID:   projectID,
 		UserID:      userID,
 		OTPVerified: otpVerified,
+		SignupOnly:  signupOnly,
 	}
 	encPartDataBytes, err := json.Marshal(encPartData)
 	if err != nil {

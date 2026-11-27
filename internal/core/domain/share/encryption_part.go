@@ -8,6 +8,7 @@ type EncryptionPart struct {
 	ProjectID   string `json:"project_id"`
 	UserID      string `json:"user_id"`
 	OTPVerified bool   `json:"otp_verified"`
+	SignupOnly  bool   `json:"signup_only,omitempty"`
 }
 
 // EncryptionSessionKey is the store key of a session. Session IDs reach the

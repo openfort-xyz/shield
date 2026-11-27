@@ -873,12 +873,13 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 
 	projectWithout2FA := &project.Project{ID: "project_id", Enable2FA: false}
 	projectWith2FA := &project.Project{ID: "project_id", Enable2FA: true}
-	sessionFor := func(userID string, otpVerified bool) string {
+	sessionFor := func(userID string, otpVerified, signupOnly bool) string {
 		b, err := json.Marshal(share.EncryptionPart{
 			EncPart:     string(projectPart),
 			ProjectID:   "project_id",
 			UserID:      userID,
 			OTPVerified: otpVerified,
+			SignupOnly:  signupOnly,
 		})
 		if err != nil {
 			t.Fatalf("failed to marshal project part: %v", err)
@@ -925,7 +926,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			wantErr: ErrOTPVerificationRequired,
 			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
 			project: projectWith2FA,
-			mock:    func() { mockCreate(sessionFor("ext_user", false)) },
+			mock:    func() { mockCreate(sessionFor("ext_user", false, false)) },
 			opts:    []Option{WithEncryptionSession("sessionID")},
 		},
 		{
@@ -933,7 +934,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			wantErr: ErrInvalidEncryptionSession,
 			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
 			project: projectWith2FA,
-			mock:    func() { mockCreate(sessionFor("someone_else", true)) },
+			mock:    func() { mockCreate(sessionFor("someone_else", true, false)) },
 			opts:    []Option{WithEncryptionSession("sessionID")},
 		},
 		{
@@ -941,7 +942,22 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			wantErr: nil,
 			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
 			project: projectWith2FA,
-			mock:    func() { mockCreate(sessionFor("ext_user", true)) },
+			mock:    func() { mockCreate(sessionFor("ext_user", true, false)) },
+			opts:    []Option{WithEncryptionSession("sessionID")},
+		},
+		{
+			name:    "2FA: own signup session accepted",
+			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
+			project: projectWith2FA,
+			mock:    func() { mockCreate(sessionFor("ext_user", false, true)) },
+			opts:    []Option{WithEncryptionSession("sessionID")},
+		},
+		{
+			name:    "2FA: another user's signup session rejected",
+			wantErr: ErrInvalidEncryptionSession,
+			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
+			project: projectWith2FA,
+			mock:    func() { mockCreate(sessionFor("someone_else", false, true)) },
 			opts:    []Option{WithEncryptionSession("sessionID")},
 		},
 		{
@@ -957,7 +973,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 			wantErr: nil,
 			share:   &share.Share{Secret: "secret", Entropy: share.EntropyProject},
 			project: projectWithout2FA,
-			mock:    func() { mockCreate(sessionFor("ext_user", false)) },
+			mock:    func() { mockCreate(sessionFor("ext_user", false, false)) },
 			opts:    []Option{WithEncryptionSession("sessionID")},
 		},
 		{

@@ -6,10 +6,18 @@ import (
 )
 
 type EncryptionFactory interface {
-	CreateEncryptionKeyBuilder(builderType EncryptionKeyBuilderType, projectMigrated bool, otpRequired bool) (builders.EncryptionKeyBuilder, error)
+	CreateEncryptionKeyBuilder(builderType EncryptionKeyBuilderType, projectMigrated bool, sessionPolicy EncryptionSessionPolicy) (builders.EncryptionKeyBuilder, error)
 	CreateReconstructionStrategy(projectMigrated bool) strategies.ReconstructionStrategy
 	CreateEncryptionStrategy(key string) strategies.EncryptionStrategy
 }
+
+type EncryptionSessionPolicy uint8
+
+const (
+	OTPOptional EncryptionSessionPolicy = iota
+	OTPRequired
+	OTPOrSignup
+)
 
 type EncryptionKeyBuilderType int8
 

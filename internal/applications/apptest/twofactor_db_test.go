@@ -84,7 +84,7 @@ func storeReferencedShare(t *testing.T, apps Apps, u User, part, secret string) 
 	t.Helper()
 	ref := "ref-" + u.ExternalID
 	err := apps.Share.RegisterShare(u.Context(), &share.Share{Secret: secret, Entropy: share.EntropyProject, Reference: &ref},
-		shareapp.WithEncryptionPart(part))
+		shareapp.WithEncryptionPart(part), shareapp.AsPreregistration())
 	if err != nil {
 		t.Fatalf("RegisterShare: %v", err)
 	}

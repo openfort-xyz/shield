@@ -194,9 +194,7 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 	h.registerShare(w, r)
 }
 
-// PreRegisterShare serves /admin/preregister: the project backend stores a
-// share for a user it just created, so the project's 2FA requirement, which
-// needs the user to complete an OTP, does not apply.
+// PreRegisterShare serves the API-secret-authenticated /admin/preregister route.
 func (h *Handler) PreRegisterShare(w http.ResponseWriter, r *http.Request) {
 	h.registerShare(w, r, shareapp.AsPreregistration())
 }

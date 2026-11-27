@@ -70,9 +70,8 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 			return fromDomainError(err)
 		}
 
-		// 2FA projects take the same encryption session on writes as on reads.
 		if project.Enable2FA && !opt.preregistration {
-			opt.requireOTPCheck = true
+			opt.sessionPolicy = factories.OTPOrSignup
 		}
 
 		encryptionKey, guard, err := a.reconstructEncryptionKey(ctx, projID, opt)
@@ -139,9 +138,8 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, re
 			return nil, fromDomainError(err)
 		}
 
-		// 2FA projects take the same encryption session on writes as on reads.
 		if project.Enable2FA {
-			opt.requireOTPCheck = true
+			opt.sessionPolicy = factories.OTPRequired
 		}
 
 		encryptionKey, guard, err := a.reconstructEncryptionKey(ctx, projID, opt)
@@ -306,7 +304,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 			}
 
 			if project.Enable2FA {
-				opt.requireOTPCheck = true
+				opt.sessionPolicy = factories.OTPRequired
 			}
 
 			encryptionKey, _, err := a.reconstructEncryptionKey(ctx, projID, opt)
@@ -341,7 +339,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 	}
 
 	if project.Enable2FA {
-		opt.requireOTPCheck = true
+		opt.sessionPolicy = factories.OTPRequired
 	}
 
 	for _, shr := range shrs {
@@ -392,7 +390,7 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 		}
 
 		if project.Enable2FA {
-			opt.requireOTPCheck = true
+			opt.sessionPolicy = factories.OTPRequired
 		}
 
 		encryptionKey, _, err := a.reconstructEncryptionKey(ctx, projID, opt)
@@ -431,7 +429,7 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 		}
 
 		if project.Enable2FA {
-			opt.requireOTPCheck = true
+			opt.sessionPolicy = factories.OTPRequired
 		}
 
 		encryptionKey, _, err := a.reconstructEncryptionKey(ctx, projID, opt)
@@ -502,18 +500,14 @@ func (a *ShareApplication) decryptSecret(ctx context.Context, shr *share.Share, 
 func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, *share.EncryptionGuard, error) {
 	var builderType factories.EncryptionKeyBuilderType
 	var identifier string
-	otpCheckRequired := false
 	switch {
 	case opt.encryptionPart != nil && *opt.encryptionPart != "":
-		if opt.requireOTPCheck {
+		if opt.sessionPolicy != factories.OTPOptional {
 			return "", nil, ErrOTPVerificationRequired
 		}
 		builderType = factories.Plain
 		identifier = *opt.encryptionPart
 	case opt.encryptionSession != nil && *opt.encryptionSession != "":
-		if opt.requireOTPCheck {
-			otpCheckRequired = true
-		}
 		builderType = factories.Session
 		identifier = *opt.encryptionSession
 	default:
@@ -526,7 +520,7 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 		return "", nil, ErrInternal
 	}
 
-	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType, isMigrated, otpCheckRequired)
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType, isMigrated, opt.sessionPolicy)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
 		return "", nil, ErrInternal

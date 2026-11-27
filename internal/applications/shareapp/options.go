@@ -1,9 +1,11 @@
 package shareapp
 
+import "github.com/openfort-xyz/shield/internal/core/ports/factories"
+
 type options struct {
 	encryptionPart    *string
 	encryptionSession *string
-	requireOTPCheck   bool
+	sessionPolicy     factories.EncryptionSessionPolicy
 	preregistration   bool
 }
 
@@ -34,10 +36,7 @@ func WithEncryptionSession(encryptionSession string) Option {
 	}
 }
 
-// AsPreregistration marks a RegisterShare call from /admin/preregister, where
-// the project backend, authenticated by its API secret, stores the first share
-// for a user it just created. No user is present to complete an OTP there, so
-// the project's 2FA requirement does not apply.
+// AsPreregistration marks registration authenticated with the project's API secret.
 func AsPreregistration() Option {
 	return func(o *options) {
 		o.preregistration = true
