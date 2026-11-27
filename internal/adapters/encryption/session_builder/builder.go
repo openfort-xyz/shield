@@ -61,7 +61,8 @@ func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) 
 			(part.UserID != contexter.GetExternalUserID(ctx) && part.UserID != contexter.GetAltExternalUserID(ctx)) {
 			return domainErrors.ErrInvalidEncryptionSession
 		}
-		if !part.OTPVerified && !(b.sessionPolicy == factories.OTPOrSignup && part.SignupOnly) {
+		signupAllowed := b.sessionPolicy == factories.OTPOrSignup && part.SignupOnly
+		if !part.OTPVerified && !signupAllowed {
 			return domainErrors.ErrOTPVerificationRequired
 		}
 	}
