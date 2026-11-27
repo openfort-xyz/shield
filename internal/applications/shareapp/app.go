@@ -65,6 +65,15 @@ func (a *ShareApplication) RegisterShare(ctx context.Context, shr *share.Share, 
 
 	var shrOpts []services.ShareOption
 	if shr.RequiresEncryption() {
+		project, err := a.getProject(ctx, projID)
+		if err != nil {
+			return fromDomainError(err)
+		}
+
+		if project.Enable2FA && !opt.preregistration {
+			opt.sessionPolicy = factories.OTPOrSignup
+		}
+
 		encryptionKey, guard, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return err
@@ -94,6 +103,8 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, re
 		return nil, fromDomainError(err)
 	}
 
+	dbShare.ExpectedUpdate = &share.UpdateState{Entropy: dbShare.Entropy, Secret: dbShare.Secret}
+	wasProjectEncrypted := dbShare.RequiresEncryption()
 	if shr.Entropy != 0 {
 		dbShare.Entropy = shr.Entropy
 	}
@@ -123,7 +134,29 @@ func (a *ShareApplication) UpdateShare(ctx context.Context, shr *share.Share, re
 		o(&opt)
 	}
 
-	if dbShare.RequiresEncryption() {
+	willUseProjectEncryption := dbShare.RequiresEncryption()
+	if wasProjectEncrypted || willUseProjectEncryption {
+		project, err := a.getProject(ctx, projID)
+		if err != nil {
+			return nil, fromDomainError(err)
+		}
+		if project.Enable2FA {
+			opt.sessionPolicy = factories.OTPRequired
+		}
+	}
+	if opt.sessionPolicy == factories.OTPRequired && !willUseProjectEncryption {
+		sessionID := opt.recoveryChangeSession
+		if sessionID == "" && opt.encryptionSession != nil {
+			sessionID = *opt.encryptionSession
+		}
+		if sessionID == "" {
+			return nil, ErrOTPVerificationRequired
+		}
+		if err := a.encryptionFactory.ConsumeRecoveryChange(ctx, sessionID, dbShare.ID, dbShare.ExpectedUpdate.Secret); err != nil {
+			return nil, fromDomainError(err)
+		}
+	}
+	if willUseProjectEncryption {
 		encryptionKey, guard, err := a.reconstructEncryptionKey(ctx, projID, opt)
 		if err != nil {
 			return nil, err
@@ -286,7 +319,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 			}
 
 			if project.Enable2FA {
-				opt.requireOTPCheck = true
+				opt.sessionPolicy = factories.OTPRequired
 			}
 
 			encryptionKey, _, err := a.reconstructEncryptionKey(ctx, projID, opt)
@@ -321,7 +354,7 @@ func (a *ShareApplication) GetKeychainShares(ctx context.Context, reference *str
 	}
 
 	if project.Enable2FA {
-		opt.requireOTPCheck = true
+		opt.sessionPolicy = factories.OTPRequired
 	}
 
 	for _, shr := range shrs {
@@ -365,24 +398,8 @@ func (a *ShareApplication) GetShareByReference(ctx context.Context, reference st
 		return nil, fromDomainError(err)
 	}
 
-	if shr.RequiresEncryption() {
-		project, err := a.getProject(ctx, projID)
-		if err != nil {
-			return nil, fromDomainError(err)
-		}
-
-		if project.Enable2FA {
-			opt.requireOTPCheck = true
-		}
-
-		encryptionKey, _, err := a.reconstructEncryptionKey(ctx, projID, opt)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := a.decryptSecret(ctx, shr, encryptionKey, opt); err != nil {
-			return nil, err
-		}
+	if err := a.decryptRecoveryShare(ctx, projID, shr, opt); err != nil {
+		return nil, err
 	}
 
 	return shr, nil
@@ -404,27 +421,41 @@ func (a *ShareApplication) GetShare(ctx context.Context, opts ...Option) (*share
 		o(&opt)
 	}
 
-	if shr.RequiresEncryption() {
-		project, err := a.getProject(ctx, projID)
-		if err != nil {
-			return nil, fromDomainError(err)
-		}
-
-		if project.Enable2FA {
-			opt.requireOTPCheck = true
-		}
-
-		encryptionKey, _, err := a.reconstructEncryptionKey(ctx, projID, opt)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := a.decryptSecret(ctx, shr, encryptionKey, opt); err != nil {
-			return nil, err
-		}
+	if err := a.decryptRecoveryShare(ctx, projID, shr, opt); err != nil {
+		return nil, err
 	}
 
 	return shr, nil
+}
+
+func (a *ShareApplication) decryptRecoveryShare(ctx context.Context, projectID string, shr *share.Share, opt options) error {
+	if !shr.RequiresEncryption() {
+		return nil
+	}
+
+	project, err := a.getProject(ctx, projectID)
+	if err != nil {
+		return fromDomainError(err)
+	}
+	if project.Enable2FA {
+		opt.sessionPolicy = factories.OTPRequired
+	}
+
+	key, _, err := a.reconstructEncryptionKey(ctx, projectID, opt)
+	if err != nil {
+		return err
+	}
+
+	ciphertext := shr.Secret
+	if err := a.decryptSecret(ctx, shr, key, opt); err != nil {
+		return err
+	}
+	if project.Enable2FA && opt.encryptionSession != nil {
+		if err := a.encryptionFactory.GrantRecoveryChange(ctx, *opt.encryptionSession, shr.ID, ciphertext); err != nil {
+			return fromDomainError(err)
+		}
+	}
+	return nil
 }
 
 func (a *ShareApplication) DeleteShare(ctx context.Context, reference *string) error {
@@ -482,18 +513,14 @@ func (a *ShareApplication) decryptSecret(ctx context.Context, shr *share.Share, 
 func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID string, opt options) (string, *share.EncryptionGuard, error) {
 	var builderType factories.EncryptionKeyBuilderType
 	var identifier string
-	otpCheckRequired := false
 	switch {
 	case opt.encryptionPart != nil && *opt.encryptionPart != "":
-		if opt.requireOTPCheck {
+		if opt.sessionPolicy != factories.OTPOptional {
 			return "", nil, ErrOTPVerificationRequired
 		}
 		builderType = factories.Plain
 		identifier = *opt.encryptionPart
 	case opt.encryptionSession != nil && *opt.encryptionSession != "":
-		if opt.requireOTPCheck {
-			otpCheckRequired = true
-		}
 		builderType = factories.Session
 		identifier = *opt.encryptionSession
 	default:
@@ -506,7 +533,7 @@ func (a *ShareApplication) reconstructEncryptionKey(ctx context.Context, projID 
 		return "", nil, ErrInternal
 	}
 
-	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType, isMigrated, otpCheckRequired)
+	builder, err := a.encryptionFactory.CreateEncryptionKeyBuilder(builderType, isMigrated, opt.sessionPolicy)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "failed to create encryption key builder", logger.Error(err))
 		return "", nil, ErrInternal

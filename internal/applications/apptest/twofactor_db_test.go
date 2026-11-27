@@ -84,7 +84,7 @@ func storeReferencedShare(t *testing.T, apps Apps, u User, part, secret string) 
 	t.Helper()
 	ref := "ref-" + u.ExternalID
 	err := apps.Share.RegisterShare(u.Context(), &share.Share{Secret: secret, Entropy: share.EntropyProject, Reference: &ref},
-		shareapp.WithEncryptionPart(part))
+		shareapp.WithEncryptionPart(part), shareapp.AsPreregistration())
 	if err != nil {
 		t.Fatalf("RegisterShare: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestEncryptionSession_RejectedInAnotherProjectStaysUsableInItsOwn(t *testin
 	alice, bob := apps.NewUser(t, p), apps.NewUser(t, other)
 	apps.StoreShare(t, alice, part, "alice-share")
 	apps.StoreShare(t, bob, otherPart, "bob-share")
-	bobsSession, err := apps.Project.RegisterEncryptionSession(ProjectContext(other), otherPart, bob.ExternalID, nil)
+	bobsSession, err := apps.Project.RegisterEncryptionSession(ProjectContext(other), otherPart, bob.ExternalID, nil, "")
 	if err != nil {
 		t.Fatalf("RegisterEncryptionSession: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestEncryptionSession_FromAnotherProjectIsRejectedOnPreregister(t *testing.
 	apps := New(t)
 	p, part := apps.SeedEncryptedProject(t)
 	other, _ := apps.SeedEncryptedProject(t)
-	foreign, err := apps.Project.RegisterEncryptionSession(ProjectContext(other), part, "", nil)
+	foreign, err := apps.Project.RegisterEncryptionSession(ProjectContext(other), part, "", nil, "")
 	if err != nil {
 		t.Fatalf("RegisterEncryptionSession: %v", err)
 	}
@@ -206,10 +206,10 @@ func TestEncryptionSession_UnverifiedIsRejectedOn2FAProject(t *testing.T) {
 	p, part := apps.Seed2FAProject(t)
 	alice := apps.NewUser(t, p)
 	apps.StoreShare(t, alice, part, "alice-share")
-	if err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, true, nil, nil); err != nil {
+	if err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, true, nil, nil, ""); err != nil {
 		t.Fatalf("GenerateOTP skipping verification: %v", err)
 	}
-	session, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, alice.ExternalID, nil)
+	session, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, alice.ExternalID, nil, "")
 	if err != nil {
 		t.Fatalf("RegisterEncryptionSession: %v", err)
 	}
@@ -264,7 +264,7 @@ func TestEncryptionSession_WithoutUserWorksWithout2FA(t *testing.T) {
 	p, part := apps.SeedEncryptedProject(t)
 	alice := apps.NewUser(t, p)
 	apps.StoreShare(t, alice, part, "alice-share")
-	session, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, "", nil)
+	session, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, "", nil, "")
 	if err != nil {
 		t.Fatalf("RegisterEncryptionSession: %v", err)
 	}
@@ -287,10 +287,10 @@ func TestOTP_SameUserIDInTwoProjectsKeepsSeparateCodes(t *testing.T) {
 	code1 := apps.RequestEmailOTP(t, p1, u.ExternalID, "user@example.com")
 	code2 := apps.RequestEmailOTP(t, p2, u.ExternalID, "user@example.com")
 
-	if _, err := apps.Project.RegisterEncryptionSession(ProjectContext(p1), part1, u.ExternalID, &code1); err != nil {
+	if _, err := apps.Project.RegisterEncryptionSession(ProjectContext(p1), part1, u.ExternalID, &code1, ""); err != nil {
 		t.Errorf("first project's code after the second project issued one: %v", err)
 	}
-	if _, err := apps.Project.RegisterEncryptionSession(ProjectContext(p2), part2, u.ExternalID, &code2); err != nil {
+	if _, err := apps.Project.RegisterEncryptionSession(ProjectContext(p2), part2, u.ExternalID, &code2, ""); err != nil {
 		t.Errorf("second project's code: %v", err)
 	}
 }
@@ -304,14 +304,14 @@ func TestOTP_FailedAttemptsInOneProjectDoNotLockOutAnother(t *testing.T) {
 	for range otp.DefaultSecurityConfig.MaxUserOnboardAttempts {
 		apps.RequestEmailOTP(t, p2, u.ExternalID, email)
 		for range otp.DefaultSecurityConfig.MaxFailedAttempts {
-			_, _ = apps.Project.RegisterEncryptionSession(ProjectContext(p2), part2, u.ExternalID, &wrong)
+			_, _ = apps.Project.RegisterEncryptionSession(ProjectContext(p2), part2, u.ExternalID, &wrong, "")
 		}
 	}
-	if err := apps.Project.GenerateOTP(ProjectContext(p2), u.ExternalID, false, &email, nil); !errors.Is(err, projectapp.ErrOTPRateLimitExceeded) {
+	if err := apps.Project.GenerateOTP(ProjectContext(p2), u.ExternalID, false, &email, nil, ""); !errors.Is(err, projectapp.ErrOTPRateLimitExceeded) {
 		t.Fatalf("precondition: OTP in the project with the failures: err = %v, want %v", err, projectapp.ErrOTPRateLimitExceeded)
 	}
 
-	if err := apps.Project.GenerateOTP(ProjectContext(p1), u.ExternalID, false, &email, nil); err != nil {
+	if err := apps.Project.GenerateOTP(ProjectContext(p1), u.ExternalID, false, &email, nil, ""); err != nil {
 		t.Errorf("OTP in another project: %v", err)
 	}
 }
@@ -322,10 +322,10 @@ func TestOTP_UserIDEqualToSessionIDLeavesSessionUsable(t *testing.T) {
 	bogus := "000000000"
 	actions := map[string]func(apps Apps, p dbtest.Project, part, session string){
 		"request": func(apps Apps, p dbtest.Project, _, session string) {
-			_ = apps.Project.GenerateOTP(ProjectContext(p), session, true, nil, nil)
+			_ = apps.Project.GenerateOTP(ProjectContext(p), session, true, nil, nil, "")
 		},
 		"verify": func(apps Apps, p dbtest.Project, part, session string) {
-			_, _ = apps.Project.RegisterEncryptionSession(ProjectContext(p), part, session, &bogus)
+			_, _ = apps.Project.RegisterEncryptionSession(ProjectContext(p), part, session, &bogus, "")
 		},
 	}
 	for name, act := range actions {
@@ -361,7 +361,7 @@ func TestEncryptionSession_LookupByUserIDLeavesPendingOTPUsable(t *testing.T) {
 		t.Errorf("session ID equal to a user ID: err = %v, want %v", err, shareapp.ErrInvalidEncryptionSession)
 	}
 
-	if _, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, alice.ExternalID, &code); err != nil {
+	if _, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, alice.ExternalID, &code, ""); err != nil {
 		t.Errorf("pending OTP afterwards: %v", err)
 	}
 }
@@ -385,14 +385,14 @@ func TestOTP_MismatchedContactGetsNoOTP(t *testing.T) {
 			alice := apps.NewUser(t, p)
 			code := apps.RequestEmailOTP(t, p, alice.ExternalID, "alice@example.com")
 
-			err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, tc.email, tc.phone)
+			err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, tc.email, tc.phone, "")
 			if !errors.Is(err, projectapp.ErrUserContactInformationMismatch) {
 				t.Errorf("GenerateOTP to %s: err = %v, want %v", tc.to, err, projectapp.ErrUserContactInformationMismatch)
 			}
 			if sent := apps.Notifier.Sent(tc.to); len(sent) != 0 {
 				t.Errorf("%d messages delivered to %s, want 0", len(sent), tc.to)
 			}
-			if _, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, alice.ExternalID, &code); err != nil {
+			if _, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, alice.ExternalID, &code, ""); err != nil {
 				t.Errorf("alice's pending OTP after the rejected request: %v", err)
 			}
 		})
@@ -424,20 +424,20 @@ func TestOTP_FailedFirstDeliveryLeavesContactUnbound(t *testing.T) {
 
 			apps.Notifier.Fail = errProviderRejected
 			email, phone := tc.via(tc.typo)
-			if err := apps.Project.GenerateOTP(ctx, alice.ExternalID, false, email, phone); !errors.Is(err, errProviderRejected) {
+			if err := apps.Project.GenerateOTP(ctx, alice.ExternalID, false, email, phone, ""); !errors.Is(err, errProviderRejected) {
 				t.Fatalf("GenerateOTP to %s: err = %v, want %v", tc.typo, err, errProviderRejected)
 			}
 			apps.Notifier.Fail = nil
 
 			email, phone = tc.via(tc.fixed)
-			if err := apps.Project.GenerateOTP(ctx, alice.ExternalID, false, email, phone); err != nil {
+			if err := apps.Project.GenerateOTP(ctx, alice.ExternalID, false, email, phone, ""); err != nil {
 				t.Fatalf("GenerateOTP to the corrected contact %s: %v", tc.fixed, err)
 			}
 			sent := apps.Notifier.Sent(tc.fixed)
 			if len(sent) != 1 {
 				t.Fatalf("%d messages delivered to %s, want 1", len(sent), tc.fixed)
 			}
-			if _, err := apps.Project.RegisterEncryptionSession(ctx, part, alice.ExternalID, &sent[0]); err != nil {
+			if _, err := apps.Project.RegisterEncryptionSession(ctx, part, alice.ExternalID, &sent[0], ""); err != nil {
 				t.Errorf("OTP delivered to the corrected contact: %v", err)
 			}
 		})
@@ -453,7 +453,7 @@ func TestOTP_FailedDeliveryLeavesNoPendingOTP(t *testing.T) {
 	email := "alice@example.com"
 
 	apps.Notifier.Fail = errProviderRejected
-	if err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, &email, nil); !errors.Is(err, errProviderRejected) {
+	if err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, &email, nil, ""); !errors.Is(err, errProviderRejected) {
 		t.Fatalf("GenerateOTP: err = %v, want %v", err, errProviderRejected)
 	}
 	sent := apps.Notifier.Sent(email)
@@ -461,7 +461,7 @@ func TestOTP_FailedDeliveryLeavesNoPendingOTP(t *testing.T) {
 		t.Fatalf("%d messages handed to the provider for %s, want 1", len(sent), email)
 	}
 
-	_, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, alice.ExternalID, &sent[0])
+	_, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, alice.ExternalID, &sent[0], "")
 	if !errors.Is(err, projectapp.ErrOTPRequired) {
 		t.Errorf("code from the failed request: err = %v, want %v", err, projectapp.ErrOTPRequired)
 	}
@@ -476,12 +476,12 @@ func TestOTP_FailedDeliveryKeepsExistingContact(t *testing.T) {
 	apps.RequestEmailOTP(t, p, alice.ExternalID, email)
 
 	apps.Notifier.Fail = errProviderRejected
-	if err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, &email, nil); !errors.Is(err, errProviderRejected) {
+	if err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, &email, nil, ""); !errors.Is(err, errProviderRejected) {
 		t.Fatalf("GenerateOTP to the bound contact: err = %v, want %v", err, errProviderRejected)
 	}
 	apps.Notifier.Fail = nil
 
-	err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, &other, nil)
+	err := apps.Project.GenerateOTP(ProjectContext(p), alice.ExternalID, false, &other, nil, "")
 	if !errors.Is(err, projectapp.ErrUserContactInformationMismatch) {
 		t.Errorf("GenerateOTP to %s: err = %v, want %v", other, err, projectapp.ErrUserContactInformationMismatch)
 	}

@@ -15,6 +15,12 @@ type Share struct {
 	// EncryptionGuard, when set, makes persisting this share conditional on
 	// the project's stored part being unchanged. Not persisted.
 	EncryptionGuard *EncryptionGuard
+	ExpectedUpdate  *UpdateState
+}
+
+type UpdateState struct {
+	Entropy Entropy
+	Secret  string
 }
 
 // EncryptionGuard records the stored part a project-entropy write encrypted

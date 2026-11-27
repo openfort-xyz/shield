@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	ErrShareChanged              = domainErrors.ErrShareChanged
 	ErrAmbiguousShareReference   = errors.New("share reference belongs to multiple users")
 	ErrShareNotFound             = errors.New("share not found")
 	ErrShareAlreadyExists        = errors.New("share already exists")
@@ -24,6 +25,10 @@ var (
 )
 
 func fromDomainError(err error) error {
+	if errors.Is(err, domainErrors.ErrShareChanged) {
+		return ErrShareChanged
+	}
+
 	if errors.Is(err, domainErrors.ErrAmbiguousShareReference) {
 		return ErrAmbiguousShareReference
 	}

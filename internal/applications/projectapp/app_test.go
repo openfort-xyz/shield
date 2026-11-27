@@ -1114,7 +1114,7 @@ func TestProjectApplication_RegisterEncryptionSession(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock()
 			ass := assert.New(t)
-			_, err := app.RegisterEncryptionSession(ctx, "encryptionPart", "irrelevant", nil)
+			_, err := app.RegisterEncryptionSession(ctx, "encryptionPart", "irrelevant", nil, "")
 			ass.Equal(tt.wantErr, err)
 		})
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/domain/project"
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/internal/core/ports/builders"
+	"github.com/openfort-xyz/shield/internal/core/ports/factories"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/strategies"
 	"github.com/openfort-xyz/shield/pkg/contexter"
@@ -22,15 +23,15 @@ type sessionBuilder struct {
 	encryptionPartsRepo    repositories.EncryptionPartsRepository
 	projectRepo            repositories.ProjectRepository
 	reconstructionStrategy strategies.ReconstructionStrategy
-	requireOTPCheck        bool
+	sessionPolicy          factories.EncryptionSessionPolicy
 }
 
-func NewEncryptionKeyBuilder(encryptionPartsRepo repositories.EncryptionPartsRepository, projectRepository repositories.ProjectRepository, reconstructionStrategy strategies.ReconstructionStrategy, requireOTPCheck bool) builders.EncryptionKeyBuilder {
+func NewEncryptionKeyBuilder(encryptionPartsRepo repositories.EncryptionPartsRepository, projectRepository repositories.ProjectRepository, reconstructionStrategy strategies.ReconstructionStrategy, sessionPolicy factories.EncryptionSessionPolicy) builders.EncryptionKeyBuilder {
 	return &sessionBuilder{
 		encryptionPartsRepo:    encryptionPartsRepo,
 		projectRepo:            projectRepository,
 		reconstructionStrategy: reconstructionStrategy,
-		requireOTPCheck:        requireOTPCheck,
+		sessionPolicy:          sessionPolicy,
 	}
 }
 
@@ -54,14 +55,18 @@ func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) 
 	if part.ProjectID != contexter.GetProjectID(ctx) {
 		return domainErrors.ErrInvalidEncryptionSession
 	}
-	if b.requireOTPCheck {
+	if b.sessionPolicy != factories.OTPOptional {
 		// The project backend may name the user by either ID its auth provider issues.
 		if part.UserID == "" ||
 			(part.UserID != contexter.GetExternalUserID(ctx) && part.UserID != contexter.GetAltExternalUserID(ctx)) {
 			return domainErrors.ErrInvalidEncryptionSession
 		}
-		if !part.OTPVerified {
+		signupAllowed := b.sessionPolicy == factories.OTPOrSignup && part.SignupOnly
+		if !part.OTPVerified && !signupAllowed {
 			return domainErrors.ErrOTPVerificationRequired
+		}
+		if part.ProviderID == "" || part.ProviderID != contexter.GetProviderID(ctx) {
+			return domainErrors.ErrInvalidEncryptionSession
 		}
 	}
 

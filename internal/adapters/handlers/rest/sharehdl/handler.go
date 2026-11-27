@@ -191,6 +191,15 @@ func (h *Handler) GetShareByReference(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} api.Error "Internal Server Error"
 // @Router /shares/register [post]
 func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
+	h.registerShare(w, r)
+}
+
+// PreRegisterShare serves the API-secret-authenticated /admin/preregister route.
+func (h *Handler) PreRegisterShare(w http.ResponseWriter, r *http.Request) {
+	h.registerShare(w, r, shareapp.AsPreregistration())
+}
+
+func (h *Handler) registerShare(w http.ResponseWriter, r *http.Request, extraOpts ...shareapp.Option) {
 	ctx := r.Context()
 	h.logger.InfoContext(ctx, "registering share")
 
@@ -221,7 +230,7 @@ func (h *Handler) RegisterShare(w http.ResponseWriter, r *http.Request) {
 	}
 
 	share := h.parser.toDomain((*Share)(&req))
-	var opts []shareapp.Option
+	opts := extraOpts
 	if req.EncryptionPart != "" {
 		opts = append(opts, shareapp.WithEncryptionPart(req.EncryptionPart))
 	}
@@ -291,6 +300,9 @@ func (h *Handler) UpdateShare(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.EncryptionSession != "" {
 		opts = append(opts, shareapp.WithEncryptionSession(req.EncryptionSession))
+	}
+	if session := r.Header.Get(EncryptionSessionHeader); session != "" {
+		opts = append(opts, shareapp.WithRecoveryChangeSession(session))
 	}
 	shr, err := h.app.UpdateShare(ctx, share, req.Reference, opts...)
 	if err != nil {

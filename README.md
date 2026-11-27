@@ -55,7 +55,12 @@ A **project** serves as a container for a group of users and its shares and auth
   - **Register/Update Share:** Use the `encryption_session` field in the request body.
   - **Get Share:** Use the `X-Encryption-Session` header.
 
-**Projects with 2FA enabled:** reading a share requires an encryption session created with the user's OTP code. A read that sends `X-Encryption-Part` returns `428 Precondition Required` with code `OTP_MISSING`. Registering and updating shares still accept either form.
+**Projects with 2FA enabled:** reading or updating a project-encrypted share requires an encryption session created with the user's OTP code. Registering a project-encrypted share also accepts a one-time signup session for the authenticated user. Request it with `dangerously_skip_verification: true` and no contact details at `POST /project/otp`, then create the session without an OTP code. A raw encryption part on these user routes returns `428 Precondition Required` with code `OTP_MISSING`. Registration with the project API secret is available at `POST /admin/preregister`.
+
+When more than one authentication provider is configured, send `auth_provider` with the same value (`custom` or `openfort`) to both `POST /project/otp` and `POST /project/encryption-session`.
+
+To switch a project-encrypted share to password or passkey recovery on a 2FA project, first read that share with a verified session. Send the same session ID in `X-Encryption-Session` when updating. The read authorizes one update of that share version within one minute.
+
 
 #### **4. User Authentication and Providers**
 
@@ -94,7 +99,7 @@ Users are automatically associated with a project based on the provided API key.
   - **Type:** `RegisterShareRequest`
     - Mandatory header `Authorization` with access token and `X-API-Key` with project's api key
     - Mandatory header `X-Auth-Provider` and optional `X-Openfort-Provider` and `X-Openfort-Token-Type` for user authentication
-    - Optional headers `X-Encryption-Part` and `X-Encryption-Session` to specify encryption details.
+    - Project encryption details go in the JSON body as `encryption_part` or `encryption_session`.
   - **Example:**
     ```json
     {
@@ -112,13 +117,14 @@ Users are automatically associated with a project based on the provided API key.
   - **Success:** HTTP `201 Created` with no body content.
   - **Failure:**
     - `400 Bad Request` if the request body is invalid.
+    - `428 Precondition Required` (`OTP_MISSING`) if the project requires an eligible encryption session.
     - `500 Internal Server Error` for any server-side issues.
 
 - **How it Works:**
   - The client sends a `RegisterShareRequest` JSON payload.
   - The handler reads and validates the request data.
   - If valid, the handler registers the share using the `ShareApplication` service and returns `201 Created`.
-    This endpoint can also be called with API Key, API Secret, and an extra header `X-User-ID` to register a share in name of a user.
+  - To register on behalf of a user, send `POST /admin/preregister` with `X-API-Key`, `X-API-Secret`, `X-Auth-Provider`, and `X-User-ID`.
 
 #### **1.2 Update Share**
 
@@ -126,7 +132,7 @@ Users are automatically associated with a project based on the provided API key.
 - **Request:**
   - Mandatory header `Authorization` with access token and `X-API-Key` with project's api key
   - Mandatory header `X-Auth-Provider` and optional `X-Openfort-Provider` and `X-Openfort-Token-Type` for user authentication
-  - Optional headers `X-Encryption-Part` and `X-Encryption-Session` to specify encryption details.
+  - Project encryption details go in the JSON body as `encryption_part` or `encryption_session`.
   - **Type:** `UpdateShareRequest`
   - **Example:**
     ```json
@@ -159,6 +165,7 @@ Users are automatically associated with a project based on the provided API key.
   - **Success:** HTTP `200 OK` with the updated share details.
   - **Failure:**
     - `400 Bad Request` if the request body is invalid.
+    - `428 Precondition Required` (`OTP_MISSING`) if the project requires an eligible encryption session.
     - `500 Internal Server Error` for any server-side issues.
 
 - **How it Works:**

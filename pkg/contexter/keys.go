@@ -9,6 +9,7 @@ const (
 	ContextKeyAPIKey         ContextKey = "api-key"
 	ContextKeyAPISecret      ContextKey = "api-secret"
 	ContextKeyUserID         ContextKey = "user-id"
+	ContextKeyProviderID     ContextKey = "provider-id"
 	ContextExternalUserID    ContextKey = "external-user-id"
 	ContextAltExternalUserID ContextKey = "alt-external-user-id"
 )

@@ -38,7 +38,7 @@ func TestEnable2FA_CachedProjectDoesNotSkipOTP(t *testing.T) {
 			apps := New(t)
 			p, part := apps.SeedEncryptedProject(t)
 			apps.register(t, p, part, "wallet", "")
-			session, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, "external-user", nil)
+			session, err := apps.Project.RegisterEncryptionSession(ProjectContext(p), part, "external-user", nil, "")
 			if err != nil {
 				t.Fatalf("RegisterEncryptionSession: %v", err)
 			}

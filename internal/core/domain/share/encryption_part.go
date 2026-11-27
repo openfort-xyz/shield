@@ -6,8 +6,10 @@ package share
 type EncryptionPart struct {
 	EncPart     string `json:"encryption_part"`
 	ProjectID   string `json:"project_id"`
+	ProviderID  string `json:"provider_id,omitempty"`
 	UserID      string `json:"user_id"`
 	OTPVerified bool   `json:"otp_verified"`
+	SignupOnly  bool   `json:"signup_only,omitempty"`
 }
 
 // EncryptionSessionKey is the store key of a session. Session IDs reach the
