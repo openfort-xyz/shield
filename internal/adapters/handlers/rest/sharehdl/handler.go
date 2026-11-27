@@ -611,6 +611,7 @@ func (h *Handler) GetSharesEncryptionForUsers(w http.ResponseWriter, r *http.Req
 // @Param X-API-Secret header string true "API Secret"
 // @Param reference path string true "Share Reference"
 // @Success 200 {object} ExportShareResponse "Successful response"
+// @Failure 409 "Description: Reference belongs to multiple users"
 // @Failure 404 "Description: Not Found"
 // @Failure 500 "Description: Internal Server Error"
 // @Router /shares/migration/export/{reference} [get]

@@ -25,6 +25,16 @@ type repository struct {
 
 var _ repositories.ShareRepository = (*repository)(nil)
 
+const normalizedReference = "COALESCE(NULLIF(shld_shares.reference, ''), '" + share.DefaultReference + "')"
+const oldestShareFirst = "shld_shares.created_at ASC NULLS LAST, shld_shares.id ASC"
+
+func shareReference(reference *string) string {
+	if reference == nil || *reference == "" {
+		return share.DefaultReference
+	}
+	return *reference
+}
+
 func New(db *sql.Client) repositories.ShareRepository {
 	return &repository{
 		db:     db,
@@ -41,7 +51,26 @@ func (r *repository) Create(ctx context.Context, shr *share.Share) error {
 	}
 
 	dbShr := r.parser.toDatabase(shr)
-	err := r.underGuard(ctx, shr.EncryptionGuard, func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := checkGuard(tx, shr.EncryptionGuard); err != nil {
+			return err
+		}
+		if dbShr.UserID != nil {
+			ref := shareReference(dbShr.Reference)
+			// Serialize the existence check and insert for this owner and reference.
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?), hashtext(?))", "shield-share:"+*dbShr.UserID, ref).Error; err != nil {
+				return err
+			}
+			var exists bool
+			if err := tx.Raw(`SELECT EXISTS (
+				SELECT 1 FROM shld_shares WHERE user_id = ? AND deleted_at IS NULL AND `+normalizedReference+` = ?
+			)`, *dbShr.UserID, ref).Scan(&exists).Error; err != nil {
+				return err
+			}
+			if exists {
+				return domainErrors.ErrShareAlreadyExists
+			}
+		}
 		return tx.Create(dbShr).Error
 	})
 	if err != nil {
@@ -68,18 +97,31 @@ func (r *repository) Get(ctx context.Context, shareID string) (*share.Share, err
 	return r.parser.toDomain(dbShr), nil
 }
 
+func (r *repository) sharesForKeychain(ctx context.Context, keychainID string) *gorm.DB {
+	return r.db.WithContext(ctx).Preload("PasskeyReference").
+		Joins("JOIN shld_keychains ON shld_keychains.id = shld_shares.keychain_id AND shld_keychains.user_id = shld_shares.user_id").
+		Where("shld_shares.keychain_id = ? AND shld_keychains.deleted_at IS NULL", keychainID).
+		Order(oldestShareFirst)
+}
+
 func (r *repository) ListByKeychainID(ctx context.Context, keychainID string) ([]*share.Share, error) {
 	r.logger.InfoContext(ctx, "listing shares", slog.String("keychain_id", keychainID))
 
 	var dbShares []*Share
-	err := r.db.Preload("PasskeyReference").Where("keychain_id = ?", keychainID).Find(&dbShares).Error
+	err := r.sharesForKeychain(ctx, keychainID).Find(&dbShares).Error
 	if err != nil {
 		r.logger.ErrorContext(ctx, "error listing shares", logger.Error(err))
 		return nil, err
 	}
 
 	var shares []*share.Share
+	seen := make(map[string]bool, len(dbShares))
 	for _, dbShr := range dbShares {
+		ref := shareReference(dbShr.Reference)
+		if seen[ref] {
+			continue
+		}
+		seen[ref] = true
 		shares = append(shares, r.parser.toDomain(dbShr))
 	}
 
@@ -90,7 +132,7 @@ func (r *repository) GetByReferenceAndKeychain(ctx context.Context, reference, k
 	r.logger.InfoContext(ctx, "getting share", slog.String("reference", reference))
 
 	dbShr := &Share{}
-	err := r.db.Preload("PasskeyReference").Where("reference = ? AND keychain_id = ?", reference, keychainID).First(dbShr).Error
+	err := r.sharesForKeychain(ctx, keychainID).Where(normalizedReference+" = ?", shareReference(&reference)).First(dbShr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domainErrors.ErrShareNotFound
@@ -105,21 +147,23 @@ func (r *repository) GetByReferenceAndKeychain(ctx context.Context, reference, k
 func (r *repository) GetByReferenceAndProjectID(ctx context.Context, reference, projectID string) (*share.Share, error) {
 	r.logger.InfoContext(ctx, "getting share by reference and project", slog.String("reference", reference), slog.String("project_id", projectID))
 
-	dbShr := &Share{}
-	err := r.db.Preload("PasskeyReference").
+	// A project-wide reference is ambiguous when different users own it.
+	var owners []string
+	err := r.db.WithContext(ctx).Model(&Share{}).
 		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
-		Where("shld_shares.reference = ? AND shld_users.project_id = ?", reference, projectID).
-		Where("shld_shares.deleted_at IS NULL").
-		First(dbShr).Error
+		Where(normalizedReference+" = ? AND shld_users.project_id = ?", shareReference(&reference), projectID).
+		Distinct("shld_shares.user_id").Limit(2).Pluck("shld_shares.user_id", &owners).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domainErrors.ErrShareNotFound
-		}
 		r.logger.ErrorContext(ctx, "error getting share by reference and project", logger.Error(err))
 		return nil, err
 	}
-
-	return r.parser.toDomain(dbShr), nil
+	if len(owners) == 0 {
+		return nil, domainErrors.ErrShareNotFound
+	}
+	if len(owners) > 1 {
+		return nil, domainErrors.ErrAmbiguousShareReference
+	}
+	return r.GetByReferenceForProjectAndUserID(ctx, reference, projectID, owners[0])
 }
 
 func (r *repository) GetByReferenceForProjectAndUserID(ctx context.Context, reference, projectID, userID string) (*share.Share, error) {
@@ -128,8 +172,9 @@ func (r *repository) GetByReferenceForProjectAndUserID(ctx context.Context, refe
 	dbShr := &Share{}
 	err := r.db.Preload("PasskeyReference").
 		Joins("JOIN shld_users ON shld_shares.user_id = shld_users.id").
-		Where("shld_shares.reference = ? AND shld_users.project_id = ? AND shld_shares.user_id = ?", reference, projectID, userID).
+		Where(normalizedReference+" = ? AND shld_users.project_id = ? AND shld_shares.user_id = ?", shareReference(&reference), projectID, userID).
 		Where("shld_shares.deleted_at IS NULL").
+		Order(oldestShareFirst).
 		First(dbShr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -146,7 +191,7 @@ func (r *repository) GetByUserID(ctx context.Context, userID string) (*share.Sha
 	r.logger.InfoContext(ctx, "getting share", slog.String("user_id", userID))
 
 	dbShr := &Share{}
-	err := r.db.Preload("PasskeyReference").Where("user_id = ? AND keychain_id is NULL", userID).First(dbShr).Error
+	err := r.db.Preload("PasskeyReference").Where("user_id = ? AND keychain_id is NULL", userID).Order(oldestShareFirst).First(dbShr).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domainErrors.ErrShareNotFound

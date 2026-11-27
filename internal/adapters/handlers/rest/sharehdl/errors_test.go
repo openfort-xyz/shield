@@ -22,3 +22,10 @@ func TestFromApplicationError_ProjectEntropyImport(t *testing.T) {
 		t.Errorf("fromApplicationError(ErrProjectEntropyImport) = %d %s, want 400 SH_INVALID", got.Status, got.Code)
 	}
 }
+
+func TestFromApplicationError_AmbiguousShareReference(t *testing.T) {
+	got := fromApplicationError(shareapp.ErrAmbiguousShareReference)
+	if got.Status != http.StatusConflict || got.Code != "SH_AMBIGUOUS" {
+		t.Fatalf("ambiguous export must return 409 SH_AMBIGUOUS, got %v", got)
+	}
+}
