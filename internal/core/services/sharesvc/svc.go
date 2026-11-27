@@ -14,6 +14,7 @@ import (
 	"github.com/openfort-xyz/shield/internal/core/domain/share"
 	"github.com/openfort-xyz/shield/internal/core/ports/repositories"
 	"github.com/openfort-xyz/shield/internal/core/ports/services"
+	"github.com/openfort-xyz/shield/pkg/contexter"
 	"github.com/openfort-xyz/shield/pkg/logger"
 )
 
@@ -78,6 +79,10 @@ func (s *service) Create(ctx context.Context, shr *share.Share, opts ...services
 
 func (s *service) Find(ctx context.Context, userID string, keychainID, reference *string) (*share.Share, error) {
 	s.logger.InfoContext(ctx, "finding share", slog.String("user_id", userID))
+
+	if keychainID == nil && reference != nil {
+		return s.repo.GetByReferenceForProjectAndUserID(ctx, *reference, contexter.GetProjectID(ctx), userID)
+	}
 
 	if keychainID == nil {
 		shr, err := s.repo.GetByUserID(ctx, userID)

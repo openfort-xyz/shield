@@ -91,6 +91,8 @@ func TestTwoFactor_RecoveryChangeRequiresVerifiedReadOfTheSameShare(t *testing.T
 	p, part := apps.Seed2FAProject(t)
 	user := apps.NewUser(t, p)
 	reference := storeReferencedShare(t, apps, user, part, "original")
+	legacyID := uuid.NewString()
+	dbtest.Exec(t, apps.DB, `INSERT INTO shld_shares (id, user_id, entropy, data, storage_method_id) VALUES (?, ?, 'USER', 'legacy', 0)`, legacyID, user.ID)
 	previous, err := apps.ShareRepo.GetByReferenceForProjectAndUserID(user.Context(), reference, p.ID, user.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -132,6 +134,9 @@ func TestTwoFactor_RecoveryChangeRequiresVerifiedReadOfTheSameShare(t *testing.T
 	got, err := apps.Share.GetShareByReference(ctx, reference)
 	if err != nil || got.Entropy != share.EntropyUser || got.Secret != "client-encrypted" {
 		t.Fatalf("read updated user-entropy share: %v", err)
+	}
+	if got := dbtest.ShareData(t, apps.DB, legacyID); got != "legacy" {
+		t.Fatal("explicitly referenced update changed the legacy default share")
 	}
 }
 

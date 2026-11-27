@@ -1137,8 +1137,7 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 			wantErr: nil,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id", KeychainID: new(string)}, nil)
-				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, reference, mock.Anything).Return(&share.Share{ID: "share-id"}, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&share.Share{ID: "share-id"}, nil)
 				shareRepo.On("Delete", mock.Anything, mock.Anything).Return(nil)
 			},
 			reference: &reference,
@@ -1160,9 +1159,7 @@ func TestShareApplication_DeleteShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, reference, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
-				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(nil, domainErrors.ErrShareNotFound)
 			},
 			reference: &reference,
 		},
@@ -1212,11 +1209,6 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 		EncryptionParameters: nil,
 	}
 
-	testKeychain := &keychain.Keychain{
-		ID:     "test_keychain",
-		UserID: "user_id",
-	}
-
 	tc := []struct {
 		name    string
 		wantErr error
@@ -1229,7 +1221,7 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 			updates: updates,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id"}, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, share.DefaultReference, "project_id", "user_id").Return(&share.Share{ID: "share-id"}, nil)
 				shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 			},
 		},
@@ -1239,9 +1231,7 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
 				keychainRepo.ExpectedCalls = nil
-				shareRepo.On("GetByReferenceAndKeychain", mock.Anything, mock.Anything, mock.Anything).Return(nil, domainErrors.ErrShareNotFound)
-				keychainRepo.On("GetByUserID", mock.Anything, mock.Anything).Return(testKeychain, nil)
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, domainErrors.ErrShareNotFound)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, share.DefaultReference, "project_id", "user_id").Return(nil, domainErrors.ErrShareNotFound)
 			},
 		},
 		{
@@ -1249,7 +1239,7 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 			wantErr: ErrInternal,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(nil, errors.New("repository error"))
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, share.DefaultReference, "project_id", "user_id").Return(nil, errors.New("repository error"))
 			},
 		},
 		{
@@ -1258,7 +1248,7 @@ func TestShareApplication_UpdateShare(t *testing.T) {
 			wantErr: ErrInternal,
 			mock: func() {
 				shareRepo.ExpectedCalls = nil
-				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id"}, nil)
+				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, share.DefaultReference, "project_id", "user_id").Return(&share.Share{ID: "share-id"}, nil)
 				shareRepo.On("Update", mock.Anything, mock.Anything).Return(errors.New("repository error"))
 			},
 		},
@@ -1355,7 +1345,7 @@ func TestShareApplication_UpdateShare_2FA(t *testing.T) {
 			shareRepo.ExpectedCalls = nil
 			projectRepo.ExpectedCalls = nil
 			encryptionPartsRepo.ExpectedCalls = nil
-			shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&share.Share{ID: "share-id", Secret: "old", Entropy: share.EntropyProject}, nil)
+			shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, share.DefaultReference, "project_id", "user_id").Return(&share.Share{ID: "share-id", Secret: "old", Entropy: share.EntropyProject}, nil)
 			shareRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
 			projectRepo.On("Get", mock.Anything, "project_id").Return(&project.Project{ID: "project_id", Enable2FA: tt.enable}, nil)
 			projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
