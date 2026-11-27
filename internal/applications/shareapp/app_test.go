@@ -28,6 +28,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
 	ctx = contexter.WithExternalUserID(ctx, "userID")
+	ctx = contexter.WithProviderID(ctx, "provider_id")
 	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
@@ -57,6 +58,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 	}
 
 	storedProjectPart := share.EncryptionPart{
+		ProviderID:  "provider_id",
 		EncPart:     string(projectPart),
 		ProjectID:   "project_id",
 		UserID:      "userID",
@@ -68,6 +70,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 	}
 
 	storedProjectPart = share.EncryptionPart{
+		ProviderID:  "provider_id",
 		EncPart:     string(projectPart),
 		ProjectID:   "project_id",
 		UserID:      "userID",
@@ -207,6 +210,7 @@ func TestShareApplication_GetShare(t *testing.T) {
 				shareRepo.On("GetByUserID", mock.Anything, "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithOTP), nil)
+				encryptionPartsRepo.On("Set", mock.Anything, "recovery-change:sessionID", mock.Anything).Return(nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 
@@ -383,6 +387,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
 	ctx = contexter.WithExternalUserID(ctx, "userID")
+	ctx = contexter.WithProviderID(ctx, "provider_id")
 	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
@@ -412,6 +417,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 	}
 
 	storedProjectPart := share.EncryptionPart{
+		ProviderID:  "provider_id",
 		EncPart:     string(projectPart),
 		ProjectID:   "project_id",
 		UserID:      "userID",
@@ -423,6 +429,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 	}
 
 	storedProjectPart = share.EncryptionPart{
+		ProviderID:  "provider_id",
 		EncPart:     string(projectPart),
 		ProjectID:   "project_id",
 		UserID:      "userID",
@@ -561,6 +568,7 @@ func TestShareApplication_GetShareByReference(t *testing.T) {
 				shareRepo.On("GetByReferenceForProjectAndUserID", mock.Anything, reference, "project_id", "user_id").Return(&tmpEncryptedShare, nil)
 				projectRepo.On("GetEncryptionKey", mock.Anything, "project_id").Return(&project.EncryptionKey{Part: project.StoredPart(storedPart)}, nil)
 				encryptionPartsRepo.On("Get", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(string(storedProjectPartBytesWithOTP), nil)
+				encryptionPartsRepo.On("Set", mock.Anything, "recovery-change:sessionID", mock.Anything).Return(nil)
 				encryptionPartsRepo.On("Delete", mock.Anything, share.EncryptionSessionKey("sessionID")).Return(nil)
 				projectRepo.On("HasSuccessfulMigration", mock.Anything, "project_id").Return(true, nil)
 
@@ -830,6 +838,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
 	ctx = contexter.WithExternalUserID(ctx, "ext_user")
+	ctx = contexter.WithProviderID(ctx, "provider_id")
 	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
@@ -875,6 +884,7 @@ func TestShareApplication_RegisterShare(t *testing.T) {
 	projectWith2FA := &project.Project{ID: "project_id", Enable2FA: true}
 	sessionFor := func(userID string, otpVerified, signupOnly bool) string {
 		b, err := json.Marshal(share.EncryptionPart{
+			ProviderID:  "provider_id",
 			EncPart:     string(projectPart),
 			ProjectID:   "project_id",
 			UserID:      userID,
@@ -1296,6 +1306,7 @@ func TestShareApplication_UpdateShare_2FA(t *testing.T) {
 	ctx := contexter.WithProjectID(context.Background(), "project_id")
 	ctx = contexter.WithUserID(ctx, "user_id")
 	ctx = contexter.WithExternalUserID(ctx, "ext_user")
+	ctx = contexter.WithProviderID(ctx, "provider_id")
 	userRepo := new(usermockedrepo.MockUserRepository)
 	shareRepo := new(sharemockrepo.MockShareRepository)
 	projectRepo := new(projectmockrepo.MockProjectRepository)
@@ -1314,6 +1325,7 @@ func TestShareApplication_UpdateShare_2FA(t *testing.T) {
 	}
 	sessionFor := func(userID string, otpVerified bool) string {
 		b, err := json.Marshal(share.EncryptionPart{
+			ProviderID:  "provider_id",
 			EncPart:     string(projectPart),
 			ProjectID:   "project_id",
 			UserID:      userID,

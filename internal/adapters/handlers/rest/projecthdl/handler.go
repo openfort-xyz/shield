@@ -259,7 +259,7 @@ func (h *Handler) RequestOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.app.GenerateOTP(ctx, req.UserID, req.DangerouslySkipVerification, req.Email, req.Phone)
+	err = h.app.GenerateOTP(ctx, req.UserID, req.DangerouslySkipVerification, req.Email, req.Phone, req.AuthProvider)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return
@@ -495,7 +495,7 @@ func (h *Handler) RegisterEncryptionSession(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	sessionID, err := h.app.RegisterEncryptionSession(ctx, req.EncryptionPart, req.UserID, req.OTPCode)
+	sessionID, err := h.app.RegisterEncryptionSession(ctx, req.EncryptionPart, req.UserID, req.OTPCode, req.AuthProvider)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))
 		return

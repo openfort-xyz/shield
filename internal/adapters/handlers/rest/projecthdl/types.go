@@ -11,6 +11,7 @@ type CreateProjectRequest struct {
 }
 
 type GenerateOTPRequest struct {
+	AuthProvider                string  `json:"auth_provider,omitempty"`
 	UserID                      string  `json:"user_id"`
 	DangerouslySkipVerification bool    `json:"dangerously_skip_verification"`
 	Email                       *string `json:"email"`
@@ -118,6 +119,7 @@ type RegisterEncryptionKeyResponse struct {
 }
 
 type RegisterEncryptionSessionRequest struct {
+	AuthProvider   string  `json:"auth_provider,omitempty"`
 	EncryptionPart string  `json:"encryption_part"`
 	UserID         string  `json:"user_id"`
 	OTPCode        *string `json:"otp_code"`

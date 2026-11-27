@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	ErrShareChanged              = domainErrors.ErrShareChanged
 	ErrShareNotFound             = errors.New("share not found")
 	ErrShareAlreadyExists        = errors.New("share already exists")
 	ErrUserNotFound              = errors.New("user not found")
@@ -23,6 +24,10 @@ var (
 )
 
 func fromDomainError(err error) error {
+	if errors.Is(err, domainErrors.ErrShareChanged) {
+		return ErrShareChanged
+	}
+
 	if errors.Is(err, domainErrors.ErrShareNotFound) {
 		return ErrShareNotFound
 	}

@@ -301,6 +301,9 @@ func (h *Handler) UpdateShare(w http.ResponseWriter, r *http.Request) {
 	if req.EncryptionSession != "" {
 		opts = append(opts, shareapp.WithEncryptionSession(req.EncryptionSession))
 	}
+	if session := r.Header.Get(EncryptionSessionHeader); session != "" {
+		opts = append(opts, shareapp.WithRecoveryChangeSession(session))
+	}
 	shr, err := h.app.UpdateShare(ctx, share, req.Reference, opts...)
 	if err != nil {
 		api.RespondWithError(w, fromApplicationError(err))

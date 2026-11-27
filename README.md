@@ -57,6 +57,11 @@ A **project** serves as a container for a group of users and its shares and auth
 
 **Projects with 2FA enabled:** reading or updating a project-encrypted share requires an encryption session created with the user's OTP code. Registering a project-encrypted share also accepts a one-time signup session for the authenticated user. Request it with `dangerously_skip_verification: true` and no contact details at `POST /project/otp`, then create the session without an OTP code. A raw encryption part on these user routes returns `428 Precondition Required` with code `OTP_MISSING`. Registration with the project API secret is available at `POST /admin/preregister`.
 
+When more than one authentication provider is configured, send `auth_provider` with the same value (`custom` or `openfort`) to both `POST /project/otp` and `POST /project/encryption-session`.
+
+To switch a project-encrypted share to password or passkey recovery on a 2FA project, first read that share with a verified session. Send the same session ID in `X-Encryption-Session` when updating. The read authorizes one update of that share version within one minute.
+
+
 #### **4. User Authentication and Providers**
 
 Users are automatically associated with a project based on the provided API key. To authenticate users (using access tokens), the project must register a provider. There are two types of providers:

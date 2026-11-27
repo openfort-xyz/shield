@@ -3,10 +3,11 @@ package shareapp
 import "github.com/openfort-xyz/shield/internal/core/ports/factories"
 
 type options struct {
-	encryptionPart    *string
-	encryptionSession *string
-	sessionPolicy     factories.EncryptionSessionPolicy
-	preregistration   bool
+	encryptionPart        *string
+	encryptionSession     *string
+	sessionPolicy         factories.EncryptionSessionPolicy
+	preregistration       bool
+	recoveryChangeSession string
 }
 
 // partSource names where the caller's half of the encryption key came from,
@@ -27,6 +28,12 @@ type Option func(*options)
 func WithEncryptionPart(encryptionPart string) Option {
 	return func(o *options) {
 		o.encryptionPart = &encryptionPart
+	}
+}
+
+func WithRecoveryChangeSession(sessionID string) Option {
+	return func(o *options) {
+		o.recoveryChangeSession = sessionID
 	}
 }
 

@@ -286,7 +286,35 @@ func (a *ProjectApplication) verifyAndSaveUserContacts(ctx context.Context, user
 	return false, nil
 }
 
-func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, skipVerification bool, email *string, phone *string) error {
+func (a *ProjectApplication) otpProviderID(ctx context.Context, projectID, authProvider string) (string, error) {
+	if authProvider == "" {
+		providers, err := a.providerRepo.List(ctx, projectID)
+		if err != nil {
+			return "", fromDomainError(err)
+		}
+		if len(providers) != 1 {
+			return "", ErrNoProviderSpecified
+		}
+		return providers[0].ID, nil
+	}
+
+	var providerType provider.Type
+	switch authProvider {
+	case "custom":
+		providerType = provider.TypeCustom
+	case "openfort":
+		providerType = provider.TypeOpenfort
+	default:
+		return "", ErrUnknownProviderType
+	}
+	configured, err := a.providerRepo.GetByProjectAndType(ctx, projectID, providerType)
+	if err != nil {
+		return "", fromDomainError(err)
+	}
+	return configured.ID, nil
+}
+
+func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, skipVerification bool, email *string, phone *string, authProvider string) error {
 	if reflect.ValueOf(a.notificationService).IsNil() {
 		return ErrMissingNotificationService
 	}
@@ -302,13 +330,18 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, ski
 		return ErrProjectDoesntHave2FA
 	}
 
+	providerID, err := a.otpProviderID(ctx, projectID, authProvider)
+	if err != nil {
+		return err
+	}
+
 	// usually this flag will be used at sign up phase,
 	// if someone tries to use it during sign in verifications in other endpoints will fail.
 	// we do not rate limit requests where we skip verification
 	// because in this case we don't send OTP anyway,
 	// and after such requests users can only create new accounts but not recover existing ones
 	if skipVerification {
-		_, err := a.otpService.GenerateOTP(ctx, projectID, userID, true)
+		_, err := a.otpService.GenerateOTP(ctx, projectID, providerID+":"+userID, true)
 		return fromDomainError(err)
 	}
 
@@ -339,7 +372,7 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, ski
 		return err
 	}
 
-	notif, err := a.sendOTP(ctx, projectID, userID, email, phone)
+	notif, err := a.sendOTP(ctx, projectID, providerID, userID, email, phone)
 	if err != nil {
 		// The contact got no OTP, so it has not earned the binding, and
 		// keeping it would lock the user out of correcting a mistyped one.
@@ -356,8 +389,8 @@ func (a *ProjectApplication) GenerateOTP(ctx context.Context, userID string, ski
 
 // sendOTP issues an OTP and delivers it to the contact. An OTP whose delivery
 // failed is discarded, so a failed request leaves none pending.
-func (a *ProjectApplication) sendOTP(ctx context.Context, projectID, userID string, email, phone *string) (*notifications.Notification, error) {
-	otpCode, err := a.otpService.GenerateOTP(ctx, projectID, userID, false)
+func (a *ProjectApplication) sendOTP(ctx context.Context, projectID, providerID, userID string, email, phone *string) (*notifications.Notification, error) {
+	otpCode, err := a.otpService.GenerateOTP(ctx, projectID, providerID+":"+userID, false)
 	if err != nil {
 		return nil, fromDomainError(err)
 	}
@@ -374,7 +407,7 @@ func (a *ProjectApplication) sendOTP(ctx context.Context, projectID, userID stri
 		err = ErrOTPUserInfoMissing
 	}
 	if err != nil {
-		if delErr := a.otpService.DeleteOTP(ctx, projectID, userID); delErr != nil {
+		if delErr := a.otpService.DeleteOTP(ctx, projectID, providerID+":"+userID); delErr != nil {
 			err = errors.Join(err, delErr)
 		}
 		return nil, err
@@ -583,7 +616,7 @@ func (a *ProjectApplication) EncryptProjectShares(ctx context.Context, externalP
 	return nil
 }
 
-func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string, userID string, otpCode *string) (string, error) {
+func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encryptionPart string, userID string, otpCode *string, authProvider string) (string, error) {
 	a.logger.InfoContext(ctx, "registering encryption session")
 	projectID := contexter.GetProjectID(ctx)
 
@@ -593,9 +626,14 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 	}
 
 	otpVerified, signupOnly := false, false
+	var providerID string
 
 	if proj.Enable2FA {
-		otpRequest, err := a.otpService.VerifyOTP(ctx, projectID, userID, otpCode)
+		providerID, err = a.otpProviderID(ctx, projectID, authProvider)
+		if err != nil {
+			return "", err
+		}
+		otpRequest, err := a.otpService.VerifyOTP(ctx, projectID, providerID+":"+userID, otpCode)
 		if err != nil {
 			if errors.Is(err, domainErrors.ErrDataInDBNotFound) {
 				return "", ErrOTPRequired
@@ -612,6 +650,7 @@ func (a *ProjectApplication) RegisterEncryptionSession(ctx context.Context, encr
 	encPartData := share.EncryptionPart{
 		EncPart:     encryptionPart,
 		ProjectID:   projectID,
+		ProviderID:  providerID,
 		UserID:      userID,
 		OTPVerified: otpVerified,
 		SignupOnly:  signupOnly,

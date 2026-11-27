@@ -14,6 +14,7 @@ import (
 	"github.com/openfort-xyz/shield/pkg/cypher"
 	"github.com/openfort-xyz/shield/pkg/logger"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type repository struct {
@@ -240,7 +241,22 @@ func (r *repository) Update(ctx context.Context, shr *share.Share) error {
 	r.logger.InfoContext(ctx, "updating share", slog.String("id", shr.ID))
 
 	dbShr := r.parser.toDatabase(shr)
-	err := r.underGuard(ctx, shr.EncryptionGuard, func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := checkGuard(tx, shr.EncryptionGuard); err != nil {
+			return err
+		}
+		if state := shr.ExpectedUpdate; state != nil {
+			var current Share
+			err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").
+				Where("id = ? AND entropy = ? AND data = ?", dbShr.ID, r.parser.mapDomainEntropy[state.Entropy], state.Secret).
+				Take(&current).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return domainErrors.ErrShareChanged
+			}
+			if err != nil {
+				return err
+			}
+		}
 		return updateShare(tx, dbShr)
 	})
 	if err != nil {

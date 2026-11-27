@@ -36,6 +36,15 @@ func WithUserID(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, ContextKeyUserID, userID)
 }
 
+func WithProviderID(ctx context.Context, providerID string) context.Context {
+	return context.WithValue(ctx, ContextKeyProviderID, providerID)
+}
+
+func GetProviderID(ctx context.Context) string {
+	providerID, _ := ctx.Value(ContextKeyProviderID).(string)
+	return providerID
+}
+
 func WithExternalUserID(ctx context.Context, externalUserID string) context.Context {
 	return context.WithValue(ctx, ContextExternalUserID, externalUserID)
 }

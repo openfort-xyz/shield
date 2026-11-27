@@ -65,6 +65,9 @@ func (b *sessionBuilder) SetProjectPart(ctx context.Context, identifier string) 
 		if !part.OTPVerified && !signupAllowed {
 			return domainErrors.ErrOTPVerificationRequired
 		}
+		if part.ProviderID == "" || part.ProviderID != contexter.GetProviderID(ctx) {
+			return domainErrors.ErrInvalidEncryptionSession
+		}
 	}
 
 	err = b.encryptionPartsRepo.Delete(ctx, key)
